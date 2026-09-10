@@ -10,33 +10,63 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MarketsRouteImport } from './routes/markets'
+import { Route as BattleIndexRouteImport } from './routes/battle.index'
+import { Route as BattleIdRouteImport } from './routes/battle.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MarketsRoute = MarketsRouteImport.update({
+  id: '/markets',
+  path: '/markets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BattleIndexRoute = BattleIndexRouteImport.update({
+  id: '/battle/',
+  path: '/battle/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BattleIdRoute = BattleIdRouteImport.update({
+  id: '/battle/$id',
+  path: '/battle/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/markets': typeof MarketsRoute
+  '/battle/$id': typeof BattleIdRoute
+  '/battle/': typeof BattleIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/markets': typeof MarketsRoute
+  '/battle/$id': typeof BattleIdRoute
+  '/battle': typeof BattleIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/markets': typeof MarketsRoute
+  '/battle/$id': typeof BattleIdRoute
+  '/battle/': typeof BattleIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths: '/' | '/markets' | '/battle/$id' | '/battle/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to: '/' | '/markets' | '/battle/$id' | '/battle'
+  id: '__root__' | '/' | '/markets' | '/battle/$id' | '/battle/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  MarketsRoute: typeof MarketsRoute
+  BattleIdRoute: typeof BattleIdRoute
+  BattleIndexRoute: typeof BattleIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +78,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/markets': {
+      id: '/markets'
+      path: '/markets'
+      fullPath: '/markets'
+      preLoaderRoute: typeof MarketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/battle/': {
+      id: '/battle/'
+      path: '/battle'
+      fullPath: '/battle/'
+      preLoaderRoute: typeof BattleIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/battle/$id': {
+      id: '/battle/$id'
+      path: '/battle/$id'
+      fullPath: '/battle/$id'
+      preLoaderRoute: typeof BattleIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  MarketsRoute: MarketsRoute,
+  BattleIdRoute: BattleIdRoute,
+  BattleIndexRoute: BattleIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
