@@ -1,0 +1,146 @@
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { ArrowLeft, Eye, Timer, Trophy } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
+import { GlassCard } from "@/components/common/GlassCard";
+import { ChartCard } from "@/components/common/ChartCard";
+import { DataTable, type Column } from "@/components/common/DataTable";
+import { Delta } from "@/components/common/Delta";
+import { Button } from "@/components/ui/button";
+import { getBattle } from "@/data/mockBattles";
+import { mockTrades } from "@/data/mockTrades";
+import type { Trade } from "@/data/types";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/battle/$id")({
+  loader: ({ params }) => {
+    const battle = getBattle(params.id);
+    if (!battle) throw notFound();
+    return { battle };
+  },
+  head: ({ loaderData }) => ({
+    meta: loaderData
+      ? [
+          { title: `${loaderData.battle.title} — TRADEARENA` },
+          { name: "description", content: `Simulated duel: ${loaderData.battle.format} on ${loaderData.battle.market}.` },
+          { property: "og:title", content: `${loaderData.battle.title} — TRADEARENA` },
+          { property: "og:description", content: "Live AI-vs-AI simulated trading duel." },
+        ]
+      : [{ title: "Battle not found — TRADEARENA" }, { name: "robots", content: "noindex" }],
+  }),
+  component: BattleDetail,
+});
+
+function BattleDetail() {
+  const { battle } = Route.useLoaderData();
+  const chart = battle.left.equity.map((v, i) => ({
+    session: `S${i + 1}`,
+    [battle.left.name]: v,
+    [battle.right.name]: battle.right.equity[i] ?? v,
+  }));
+
+  const columns: Column<Trade>[] = [
+    { key: "time", header: "Time", cell: (t) => <span className="num text-muted-foreground">{t.time}</span> },
+    { key: "agent", header: "Agent", cell: (t) => <span className="text-foreground">{t.agent}</span> },
+    { key: "symbol", header: "Symbol", cell: (t) => <span className="num font-semibold text-foreground">{t.symbol}</span> },
+    {
+      key: "side",
+      header: "Side",
+      cell: (t) => (
+        <span className={cn("num text-xs font-bold", t.side === "BUY" ? "text-success" : "text-danger")}>
+          {t.side}
+        </span>
+      ),
+    },
+    { key: "qty", header: "Qty", align: "right", cell: (t) => <span className="num">{t.qty}</span> },
+    { key: "price", header: "Price", align: "right", cell: (t) => <span className="num">{t.price.toFixed(2)}</span> },
+    { key: "pnl", header: "P&L", align: "right", cell: (t) => <Delta value={t.pnl} suffix="" showIcon={false} /> },
+  ];
+
+  const sides = [battle.left, battle.right];
+
+  return (
+    <AppShell wide>
+      <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
+        <Link to="/battle">
+          <ArrowLeft className="size-4" /> Back to arena
+        </Link>
+      </Button>
+
+      <PageHeader
+        eyebrow={`${battle.status} · ${battle.market}`}
+        title={battle.title}
+        description={`${battle.format}. Both agents start with identical simulated capital.`}
+        actions={
+          <>
+            <span className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground">
+              <Eye className="size-3.5" /> <span className="num">{battle.spectators.toLocaleString()}</span>
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground">
+              <Timer className="size-3.5" /> {battle.startsIn ?? battle.duration}
+            </span>
+            <span className="flex items-center gap-1.5 rounded-full border border-accent/30 bg-accent/10 px-3 py-1.5 text-xs font-semibold text-accent">
+              <Trophy className="size-3.5" /> {battle.prizePool}
+            </span>
+          </>
+        }
+      />
+
+      <div className="mt-6 grid gap-4 md:grid-cols-2">
+        {sides.map((s, i) => (
+          <GlassCard
+            key={s.agentId}
+            className={cn(
+              "p-5",
+              s.pnlPct >= (sides[1 - i]?.pnlPct ?? 0) && "border-primary/40 bg-primary-soft",
+            )}
+          >
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">
+              {i === 0 ? "Side A" : "Side B"}
+            </p>
+            <Link to="/agents/$id" params={{ id: s.agentId }} className="text-lg font-bold text-foreground hover:underline">
+              {s.name}
+            </Link>
+            <Delta value={s.pnlPct} size="lg" className="mt-2" />
+            <p className="mt-1 text-xs text-muted-foreground">Simulated return since duel start</p>
+          </GlassCard>
+        ))}
+      </div>
+
+      <ChartCard
+        className="mt-4"
+        title="Equity curves"
+        subtitle="Simulated account value per session, indexed to 100"
+      >
+        <div className="h-72 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={chart} margin={{ left: -18, right: 8, top: 8, bottom: 0 }}>
+              <CartesianGrid stroke="var(--color-border)" vertical={false} />
+              <XAxis dataKey="session" tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} tickLine={false} axisLine={false} />
+              <YAxis tick={{ fontSize: 11, fill: "var(--color-muted-foreground)" }} tickLine={false} axisLine={false} domain={["auto", "auto"]} />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--color-popover)",
+                  border: "1px solid var(--color-border)",
+                  borderRadius: 12,
+                  fontSize: 12,
+                }}
+              />
+              <Line type="monotone" dataKey={battle.left.name} stroke="var(--color-primary)" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey={battle.right.name} stroke="var(--color-accent)" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </ChartCard>
+
+      <GlassCard className="mt-4 overflow-hidden">
+        <div className="border-b border-border px-5 py-4">
+          <h3 className="text-sm font-semibold text-foreground">Duel trade tape</h3>
+          <p className="mt-0.5 text-xs text-muted-foreground">Simulated fills — no orders reach a broker.</p>
+        </div>
+        <DataTable columns={columns} rows={mockTrades.slice(0, 8)} />
+      </GlassCard>
+    </AppShell>
+  );
+}

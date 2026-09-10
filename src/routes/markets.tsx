@@ -1,0 +1,131 @@
+import { useState } from "react";
+import { createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
+import { GlassCard } from "@/components/common/GlassCard";
+import { DataTable, type Column } from "@/components/common/DataTable";
+import { Sparkline } from "@/components/common/Sparkline";
+import { Delta } from "@/components/common/Delta";
+import { Button } from "@/components/ui/button";
+import { marketIndices, mockMarkets } from "@/data/mockMarkets";
+import type { Market } from "@/data/types";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/markets")({
+  head: () => ({
+    meta: [
+      { title: "Markets — TRADEARENA" },
+      {
+        name: "description",
+        content:
+          "Simulated market board with prices, movement and AI signal confidence across equities, ETFs, FX and commodities.",
+      },
+      { property: "og:title", content: "Markets — TRADEARENA" },
+      { property: "og:description", content: "Simulated market board with AI signals." },
+    ],
+  }),
+  component: MarketsPage,
+});
+
+const filters = ["All", "Equity", "ETF", "FX", "Commodity"] as const;
+
+function MarketsPage() {
+  const [filter, setFilter] = useState<(typeof filters)[number]>("All");
+  const rows = mockMarkets.filter((m) => filter === "All" || m.assetClass === filter);
+
+  const columns: Column<Market>[] = [
+    {
+      key: "symbol",
+      header: "Instrument",
+      cell: (m) => (
+        <div>
+          <p className="num text-sm font-bold text-foreground">{m.symbol}</p>
+          <p className="text-xs text-muted-foreground">{m.name}</p>
+        </div>
+      ),
+    },
+    {
+      key: "price",
+      header: "Last",
+      align: "right",
+      cell: (m) => (
+        <span className="num font-semibold text-foreground">
+          {m.price.toLocaleString("en-US", { minimumFractionDigits: m.assetClass === "FX" ? 4 : 2 })}
+        </span>
+      ),
+    },
+    { key: "chg", header: "Change", align: "right", cell: (m) => <Delta value={m.changePct} showIcon={false} /> },
+    {
+      key: "spark",
+      header: "30 sessions",
+      align: "right",
+      cell: (m) => (
+        <div className="ml-auto w-24">
+          <Sparkline data={m.spark} height={30} />
+        </div>
+      ),
+    },
+    { key: "vol", header: "Volume", align: "right", cell: (m) => <span className="num text-muted-foreground">{m.volume}</span> },
+    {
+      key: "signal",
+      header: "AI signal",
+      align: "right",
+      cell: (m) => (
+        <div className="inline-flex flex-col items-end">
+          <span
+            className={cn(
+              "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+              m.aiSignal === "Bullish"
+                ? "bg-success/12 text-success"
+                : m.aiSignal === "Bearish"
+                  ? "bg-danger/12 text-danger"
+                  : "bg-muted text-muted-foreground",
+            )}
+          >
+            {m.aiSignal}
+          </span>
+          <span className="num mt-1 text-[11px] text-muted-foreground">{m.aiConfidence}% conf.</span>
+        </div>
+      ),
+    },
+  ];
+
+  return (
+    <AppShell wide>
+      <PageHeader
+        eyebrow="Market board"
+        title="Markets"
+        description="Simulated pricing used by every agent in the arena. Signals are model output, not investment advice."
+      />
+
+      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {marketIndices.map((i) => (
+          <GlassCard key={i.label} className="px-4 py-3">
+            <p className="text-xs text-muted-foreground">{i.label}</p>
+            <div className="mt-1 flex items-baseline justify-between gap-2">
+              <p className="num text-lg font-bold text-foreground">{i.value}</p>
+              <Delta value={i.changePct} showIcon={false} className="text-xs" />
+            </div>
+          </GlassCard>
+        ))}
+      </div>
+
+      <div className="mt-6 flex flex-wrap gap-2">
+        {filters.map((f) => (
+          <Button
+            key={f}
+            size="sm"
+            variant={filter === f ? "default" : "outline"}
+            onClick={() => setFilter(f)}
+          >
+            {f}
+          </Button>
+        ))}
+      </div>
+
+      <GlassCard className="mt-4 overflow-hidden">
+        <DataTable columns={columns} rows={rows} />
+      </GlassCard>
+    </AppShell>
+  );
+}
