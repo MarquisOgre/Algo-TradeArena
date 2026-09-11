@@ -10,18 +10,49 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DiscoverRouteImport } from './routes/discover'
+import { Route as LeaderboardRouteImport } from './routes/leaderboard'
 import { Route as MarketsRouteImport } from './routes/markets'
+import { Route as PortfolioRouteImport } from './routes/portfolio'
+import { Route as AgentsIndexRouteImport } from './routes/agents.index'
+import { Route as AgentsIdRouteImport } from './routes/agents.$id'
 import { Route as BattleIndexRouteImport } from './routes/battle.index'
 import { Route as BattleIdRouteImport } from './routes/battle.$id'
+import { Route as TournamentsIndexRouteImport } from './routes/tournaments.index'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DiscoverRoute = DiscoverRouteImport.update({
+  id: '/discover',
+  path: '/discover',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LeaderboardRoute = LeaderboardRouteImport.update({
+  id: '/leaderboard',
+  path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketsRoute = MarketsRouteImport.update({
   id: '/markets',
   path: '/markets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PortfolioRoute = PortfolioRouteImport.update({
+  id: '/portfolio',
+  path: '/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentsIndexRoute = AgentsIndexRouteImport.update({
+  id: '/agents/',
+  path: '/agents/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AgentsIdRoute = AgentsIdRouteImport.update({
+  id: '/agents/$id',
+  path: '/agents/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
 const BattleIndexRoute = BattleIndexRouteImport.update({
@@ -34,39 +65,99 @@ const BattleIdRoute = BattleIdRouteImport.update({
   path: '/battle/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TournamentsIndexRoute = TournamentsIndexRouteImport.update({
+  id: '/tournaments/',
+  path: '/tournaments/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/discover': typeof DiscoverRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/markets': typeof MarketsRoute
+  '/portfolio': typeof PortfolioRoute
+  '/agents/$id': typeof AgentsIdRoute
   '/battle/$id': typeof BattleIdRoute
+  '/agents/': typeof AgentsIndexRoute
   '/battle/': typeof BattleIndexRoute
+  '/tournaments/': typeof TournamentsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/discover': typeof DiscoverRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/markets': typeof MarketsRoute
+  '/portfolio': typeof PortfolioRoute
+  '/agents/$id': typeof AgentsIdRoute
   '/battle/$id': typeof BattleIdRoute
+  '/agents': typeof AgentsIndexRoute
   '/battle': typeof BattleIndexRoute
+  '/tournaments': typeof TournamentsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/discover': typeof DiscoverRoute
+  '/leaderboard': typeof LeaderboardRoute
   '/markets': typeof MarketsRoute
+  '/portfolio': typeof PortfolioRoute
+  '/agents/$id': typeof AgentsIdRoute
   '/battle/$id': typeof BattleIdRoute
+  '/agents/': typeof AgentsIndexRoute
   '/battle/': typeof BattleIndexRoute
+  '/tournaments/': typeof TournamentsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/markets' | '/battle/$id' | '/battle/'
+  fullPaths:
+    | '/'
+    | '/discover'
+    | '/leaderboard'
+    | '/markets'
+    | '/portfolio'
+    | '/agents/$id'
+    | '/battle/$id'
+    | '/agents/'
+    | '/battle/'
+    | '/tournaments/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/markets' | '/battle/$id' | '/battle'
-  id: '__root__' | '/' | '/markets' | '/battle/$id' | '/battle/'
+  to:
+    | '/'
+    | '/discover'
+    | '/leaderboard'
+    | '/markets'
+    | '/portfolio'
+    | '/agents/$id'
+    | '/battle/$id'
+    | '/agents'
+    | '/battle'
+    | '/tournaments'
+  id:
+    | '__root__'
+    | '/'
+    | '/discover'
+    | '/leaderboard'
+    | '/markets'
+    | '/portfolio'
+    | '/agents/$id'
+    | '/battle/$id'
+    | '/agents/'
+    | '/battle/'
+    | '/tournaments/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DiscoverRoute: typeof DiscoverRoute
+  LeaderboardRoute: typeof LeaderboardRoute
   MarketsRoute: typeof MarketsRoute
+  PortfolioRoute: typeof PortfolioRoute
+  AgentsIdRoute: typeof AgentsIdRoute
   BattleIdRoute: typeof BattleIdRoute
+  AgentsIndexRoute: typeof AgentsIndexRoute
   BattleIndexRoute: typeof BattleIndexRoute
+  TournamentsIndexRoute: typeof TournamentsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -78,11 +169,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/discover': {
+      id: '/discover'
+      path: '/discover'
+      fullPath: '/discover'
+      preLoaderRoute: typeof DiscoverRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/leaderboard': {
+      id: '/leaderboard'
+      path: '/leaderboard'
+      fullPath: '/leaderboard'
+      preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/markets': {
       id: '/markets'
       path: '/markets'
       fullPath: '/markets'
       preLoaderRoute: typeof MarketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/portfolio': {
+      id: '/portfolio'
+      path: '/portfolio'
+      fullPath: '/portfolio'
+      preLoaderRoute: typeof PortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agents/': {
+      id: '/agents/'
+      path: '/agents'
+      fullPath: '/agents/'
+      preLoaderRoute: typeof AgentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/agents/$id': {
+      id: '/agents/$id'
+      path: '/agents/$id'
+      fullPath: '/agents/$id'
+      preLoaderRoute: typeof AgentsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/battle/': {
@@ -99,14 +225,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BattleIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/tournaments/': {
+      id: '/tournaments/'
+      path: '/tournaments'
+      fullPath: '/tournaments/'
+      preLoaderRoute: typeof TournamentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DiscoverRoute: DiscoverRoute,
+  LeaderboardRoute: LeaderboardRoute,
   MarketsRoute: MarketsRoute,
+  PortfolioRoute: PortfolioRoute,
+  AgentsIdRoute: AgentsIdRoute,
   BattleIdRoute: BattleIdRoute,
+  AgentsIndexRoute: AgentsIndexRoute,
   BattleIndexRoute: BattleIndexRoute,
+  TournamentsIndexRoute: TournamentsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
