@@ -64,7 +64,7 @@ export function SidebarContentInner({ onNavigate }: { onNavigate?: () => void })
             <AvatarFallback className="bg-surface-2 text-xs font-semibold">BK</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">Bhupesh Kumar</p>
+            <p className="truncate text-sm font-medium text-foreground">Marquis Ogre</p>
             <p className="truncate text-xs text-muted-foreground">Paper account · Tier II</p>
           </div>
         </div>
