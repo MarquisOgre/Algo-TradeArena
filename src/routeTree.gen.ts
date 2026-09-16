@@ -12,9 +12,13 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiRouteImport } from './routes/ai'
 import { Route as DiscoverRouteImport } from './routes/discover'
+import { Route as HelpRouteImport } from './routes/help'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as MarketsRouteImport } from './routes/markets'
 import { Route as PortfolioRouteImport } from './routes/portfolio'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as SettingsRouteImport } from './routes/settings'
 import { Route as TradeRouteImport } from './routes/trade'
 import { Route as AgentsIndexRouteImport } from './routes/agents.index'
 import { Route as AgentsIdRouteImport } from './routes/agents.$id'
@@ -39,9 +43,19 @@ const DiscoverRoute = DiscoverRouteImport.update({
   path: '/discover',
   getParentRoute: () => rootRouteImport,
 } as any)
+const HelpRoute = HelpRouteImport.update({
+  id: '/help',
+  path: '/help',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LeaderboardRoute = LeaderboardRouteImport.update({
   id: '/leaderboard',
   path: '/leaderboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MarketsRoute = MarketsRouteImport.update({
@@ -52,6 +66,16 @@ const MarketsRoute = MarketsRouteImport.update({
 const PortfolioRoute = PortfolioRouteImport.update({
   id: '/portfolio',
   path: '/portfolio',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SettingsRoute = SettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TradeRoute = TradeRouteImport.update({
@@ -99,9 +123,13 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/discover': typeof DiscoverRoute
+  '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/login': typeof LoginRoute
   '/markets': typeof MarketsRoute
   '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/trade': typeof TradeRoute
   '/agents/$id': typeof AgentsIdRoute
   '/agents/create': typeof AgentsCreateRoute
@@ -115,9 +143,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/discover': typeof DiscoverRoute
+  '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/login': typeof LoginRoute
   '/markets': typeof MarketsRoute
   '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/trade': typeof TradeRoute
   '/agents/$id': typeof AgentsIdRoute
   '/agents/create': typeof AgentsCreateRoute
@@ -132,9 +164,13 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/discover': typeof DiscoverRoute
+  '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
+  '/login': typeof LoginRoute
   '/markets': typeof MarketsRoute
   '/portfolio': typeof PortfolioRoute
+  '/profile': typeof ProfileRoute
+  '/settings': typeof SettingsRoute
   '/trade': typeof TradeRoute
   '/agents/$id': typeof AgentsIdRoute
   '/agents/create': typeof AgentsCreateRoute
@@ -150,9 +186,13 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/discover'
+    | '/help'
     | '/leaderboard'
+    | '/login'
     | '/markets'
     | '/portfolio'
+    | '/profile'
+    | '/settings'
     | '/trade'
     | '/agents/$id'
     | '/agents/create'
@@ -166,9 +206,13 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/discover'
+    | '/help'
     | '/leaderboard'
+    | '/login'
     | '/markets'
     | '/portfolio'
+    | '/profile'
+    | '/settings'
     | '/trade'
     | '/agents/$id'
     | '/agents/create'
@@ -182,9 +226,13 @@ export interface FileRouteTypes {
     | '/'
     | '/ai'
     | '/discover'
+    | '/help'
     | '/leaderboard'
+    | '/login'
     | '/markets'
     | '/portfolio'
+    | '/profile'
+    | '/settings'
     | '/trade'
     | '/agents/$id'
     | '/agents/create'
@@ -199,9 +247,13 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRoute: typeof AiRoute
   DiscoverRoute: typeof DiscoverRoute
+  HelpRoute: typeof HelpRoute
   LeaderboardRoute: typeof LeaderboardRoute
+  LoginRoute: typeof LoginRoute
   MarketsRoute: typeof MarketsRoute
   PortfolioRoute: typeof PortfolioRoute
+  ProfileRoute: typeof ProfileRoute
+  SettingsRoute: typeof SettingsRoute
   TradeRoute: typeof TradeRoute
   AgentsIdRoute: typeof AgentsIdRoute
   AgentsCreateRoute: typeof AgentsCreateRoute
@@ -235,11 +287,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DiscoverRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/help': {
+      id: '/help'
+      path: '/help'
+      fullPath: '/help'
+      preLoaderRoute: typeof HelpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/leaderboard': {
       id: '/leaderboard'
       path: '/leaderboard'
       fullPath: '/leaderboard'
       preLoaderRoute: typeof LeaderboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/markets': {
@@ -254,6 +320,20 @@ declare module '@tanstack/react-router' {
       path: '/portfolio'
       fullPath: '/portfolio'
       preLoaderRoute: typeof PortfolioRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/settings': {
+      id: '/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof SettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/trade': {
@@ -319,9 +399,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiRoute: AiRoute,
   DiscoverRoute: DiscoverRoute,
+  HelpRoute: HelpRoute,
   LeaderboardRoute: LeaderboardRoute,
+  LoginRoute: LoginRoute,
   MarketsRoute: MarketsRoute,
   PortfolioRoute: PortfolioRoute,
+  ProfileRoute: ProfileRoute,
+  SettingsRoute: SettingsRoute,
   TradeRoute: TradeRoute,
   AgentsIdRoute: AgentsIdRoute,
   AgentsCreateRoute: AgentsCreateRoute,
