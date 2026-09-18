@@ -71,7 +71,7 @@ export function TopBar() {
           </Button>
           <Link to="/profile" aria-label="Profile">
             <Avatar className="size-9 border border-border">
-              <AvatarFallback className="bg-surface-2 text-xs font-semibold">BK</AvatarFallback>
+              <AvatarFallback className="bg-surface-2 text-xs font-semibold">MO</AvatarFallback>
             </Avatar>
           </Link>
         </div>
