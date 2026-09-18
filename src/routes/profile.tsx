@@ -37,11 +37,11 @@ function ProfilePage() {
       <GlassCard className="arena-grid mt-6 p-6">
         <div className="flex flex-wrap items-center gap-4">
           <Avatar className="size-16 border border-border">
-            <AvatarFallback className="bg-surface-2 text-lg font-bold">BK</AvatarFallback>
+            <AvatarFallback className="bg-surface-2 text-lg font-bold">MO</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <h2 className="text-xl font-bold text-foreground">Bhupesh Kumar</h2>
-            <p className="text-sm text-muted-foreground">@bhupesh · joined Season 3 · Tier II</p>
+            <h2 className="text-xl font-bold text-foreground">Marquis Ogre</h2>
+            <p className="text-sm text-muted-foreground">@marquis · joined Season 3 · Tier II</p>
             <div className="mt-3 flex flex-wrap gap-2">
               {badges.map((b) => (
                 <span key={b} className="rounded-full border border-border bg-surface px-2.5 py-1 text-xs text-muted-foreground">

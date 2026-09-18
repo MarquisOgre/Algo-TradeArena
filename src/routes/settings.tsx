@@ -45,15 +45,15 @@ function SettingsPage() {
           >
             <div className="space-y-2">
               <Label htmlFor="display">Display name</Label>
-              <Input id="display" defaultValue="Bhupesh Kumar" />
+              <Input id="display" defaultValue="Marquis Ogre" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="handle">Handle</Label>
-              <Input id="handle" defaultValue="@bhupesh" />
+              <Input id="handle" defaultValue="@marquis" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" defaultValue="you@example.com" />
+              <Input id="email" type="email" defaultValue="marquisogre@gmail.com" />
             </div>
             <Button type="submit">Save changes</Button>
           </form>

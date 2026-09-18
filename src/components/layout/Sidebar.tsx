@@ -67,7 +67,7 @@ export function SidebarContentInner({ onNavigate }: { onNavigate?: () => void })
       <div className="border-t border-sidebar-border px-4 py-3">
         <div className="flex items-center gap-3">
           <Avatar className="size-9 border border-border">
-            <AvatarFallback className="bg-surface-2 text-xs font-semibold">BK</AvatarFallback>
+            <AvatarFallback className="bg-surface-2 text-xs font-semibold">MO</AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-medium text-foreground">Marquis Ogre</p>
