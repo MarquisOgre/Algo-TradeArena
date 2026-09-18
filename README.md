@@ -257,6 +257,8 @@ Start by implementing the design system, AppShell, routing, navigation and centr
 
 This project was built with [Lovable](https://lovable.dev).
 
+**Live app**: https://trade-arena-frontend.lovable.app
+
 ## Build with Lovable
 
 Continue developing this project in the [Lovable editor](https://lovable.dev/projects/f8669fa1-4555-4a3f-b148-3cd9226228b9).
