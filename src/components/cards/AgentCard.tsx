@@ -24,28 +24,26 @@ export function AgentCard({ agent }: { agent: Agent }) {
     <Link to="/agents/$id" params={{ id: agent.id }} className="block">
       <GlassCard interactive className="h-full p-5">
         <div className="flex items-start gap-3">
-          <Avatar className="size-11 border border-border">
+          <Avatar className="size-11 shrink-0 border border-border">
             <AvatarFallback className="bg-surface-2 text-sm font-bold">
               {agent.name.slice(0, 2).toUpperCase()}
             </AvatarFallback>
           </Avatar>
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <p className="truncate font-semibold text-foreground">{agent.name}</p>
+            <p className="truncate font-semibold text-foreground">{agent.name}</p>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+              <span>{agent.handle}</span>
               <span
                 className={cn(
-                  "rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide",
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide",
                   statusTone[agent.status],
                 )}
               >
                 {agent.status}
               </span>
             </div>
-            <p className="truncate text-xs text-muted-foreground">
-              {agent.handle} · {agent.style}
-            </p>
           </div>
-          <span className="num rounded-lg bg-surface-2 px-2 py-1 text-xs font-bold text-muted-foreground">
+          <span className="num shrink-0 rounded-lg bg-surface-2 px-2 py-1 text-xs font-bold text-muted-foreground">
             #{agent.rank}
           </span>
         </div>
@@ -56,16 +54,16 @@ export function AgentCard({ agent }: { agent: Agent }) {
           <Sparkline data={agent.equity} height={52} />
         </div>
 
-        <div className="mt-3 grid grid-cols-3 gap-2 border-t border-border pt-3">
+        <div className="mt-3 flex items-end justify-between gap-2 border-t border-border pt-3">
           <div>
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">ROI 30d</p>
             <Delta value={agent.roi30d} showIcon={false} />
           </div>
-          <div>
+          <div className="text-center">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Win rate</p>
             <p className="num text-sm font-semibold text-foreground">{agent.winRate.toFixed(1)}%</p>
           </div>
-          <div>
+          <div className="text-right">
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Risk</p>
             <p className={cn("text-sm font-semibold", riskTone[agent.risk])}>{agent.risk}</p>
           </div>
