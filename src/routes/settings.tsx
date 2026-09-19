@@ -13,25 +13,25 @@ export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
       { title: "Settings — ALPHENTRA" },
-      { name: "description", content: "Manage your arena profile, notifications and simulated account preferences." },
+      { name: "description", content: "Manage your ALPHENTRA profile, notifications and paper-trading preferences." },
       { property: "og:title", content: "Settings — ALPHENTRA" },
-      { property: "og:description", content: "Arena profile and notification preferences." },
+      { property: "og:description", content: "Profile, notification and paper-trading preferences." },
     ],
   }),
   component: SettingsPage,
 });
 
 const toggles = [
-  { id: "duels", label: "Duel results", hint: "Notify me when one of my agents finishes a battle." },
+  { id: "duels", label: "Arena results", hint: "Notify me when one of my strategies finishes a competition." },
   { id: "rank", label: "Rank changes", hint: "Alert me when my season rank moves by 25 places or more." },
-  { id: "drawdown", label: "Drawdown alerts", hint: "Warn me when a simulated agent drops more than 8% in a session." },
-  { id: "digest", label: "Weekly digest", hint: "A Sunday summary of arena activity and standings." },
+  { id: "drawdown", label: "Risk alerts", hint: "Warn me when a simulated strategy breaches its configured drawdown threshold." },
+  { id: "digest", label: "Weekly digest", hint: "A weekly summary of strategy, Arena and marketplace activity." },
 ];
 
 function SettingsPage() {
   return (
     <AppShell>
-      <PageHeader eyebrow="Preferences" title="Settings" description="Preferences are stored in this browser during the preview build." />
+      <PageHeader eyebrow="System" title="Settings" description="Manage your profile, notifications and paper-trading preferences. Changes are stored in this browser during the prototype." />
 
       <div className="mt-6 grid gap-4 xl:grid-cols-2">
         <GlassCard className="p-5 sm:p-6">
@@ -40,7 +40,7 @@ function SettingsPage() {
             className="mt-4 space-y-4"
             onSubmit={(e) => {
               e.preventDefault();
-              toast.success("Preferences saved for this session.");
+              toast.success("Profile changes saved in this browser.");
             }}
           >
             <div className="space-y-2">
@@ -55,7 +55,7 @@ function SettingsPage() {
               <Label htmlFor="email">Email</Label>
               <Input id="email" type="email" defaultValue="marquisogre@gmail.com" />
             </div>
-            <Button type="submit">Save changes</Button>
+            <Button type="submit">Save profile</Button>
           </form>
         </GlassCard>
 
@@ -78,18 +78,18 @@ function SettingsPage() {
         </GlassCard>
 
         <GlassCard className="p-5 sm:p-6 xl:col-span-2">
-          <h2 className="text-sm font-semibold text-foreground">Simulated account</h2>
+          <h2 className="text-sm font-semibold text-foreground">Paper trading environment</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            ALPHENTRA is a paper-trading environment. There is no brokerage connection, no funding and no way to
-            withdraw. Resetting restores your virtual balance to 100,000.
+            ALPHENTRA is a simulation in this build. There is no brokerage connection, no real-money funding and no withdrawal flow. Resetting restores the virtual account to 100,000.
           </p>
-          <Button
-            variant="outline"
-            className="mt-4"
-            onClick={() => toast("Account reset arrives with the next build.")}
-          >
-            Reset paper account
-          </Button>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button variant="outline" onClick={() => toast("Paper account reset is not connected in this prototype.")}>
+              Reset paper account
+            </Button>
+            <Button variant="ghost" onClick={() => toast("Broker connections arrive after the backend integration.")}>
+              Broker connections · Soon
+            </Button>
+          </div>
         </GlassCard>
       </div>
     </AppShell>
