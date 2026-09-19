@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Users, Trophy, Copy, ShieldCheck } from "lucide-react";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/common/PageHeader";
+import { GlassCard } from "@/components/common/GlassCard";
 
 export const Route = createFileRoute("/traders")({ component: TradersPage });
 const traders=[["NovaQuant","AI Strategist","Top 2%"],["Mira FX","Systematic Trader","Top 5%"],["AlphaForge","Strategy Creator","Top 8%"]];
