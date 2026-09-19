@@ -59,9 +59,12 @@ function TradePage() {
           subtitle="Simulated last 30 sessions"
           actions={<Delta value={market.changePct} showIcon={false} size="md" />}
         >
-          <div className="flex flex-wrap items-center gap-2">\n            <p className="num text-3xl font-bold text-foreground">
-            {market.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
-          </p>
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="num text-3xl font-bold text-foreground">
+              {market.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+            </p>
+            <span className="rounded-full bg-primary-soft px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">{market.assetClass}</span>
+          </div>
           <div className="mt-2">
             <Sparkline data={market.spark} height={180} />
           </div>
@@ -125,8 +128,13 @@ function TradePage() {
             </div>
           </dl>
 
+          {marketClosed && (
+            <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">Forex is closed on weekends in the prototype market calendar.</div>
+          )}
+
           <Button
             className="mt-4 w-full"
+            disabled={marketClosed}
             onClick={() =>
               toast.success(`Simulated ${side.toLowerCase()} recorded`, {
                 description: `${qty} ${market.symbol} at ${market.price.toFixed(2)} — paper account only.`,
