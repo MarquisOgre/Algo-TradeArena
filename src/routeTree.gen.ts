@@ -29,6 +29,7 @@ import { Route as TournamentsIndexRouteImport } from './routes/tournaments.index
 import { Route as TournamentsIdRouteImport } from './routes/tournaments.$id'
 import { Route as LabRouteImport } from './routes/lab'
 import { Route as StrategiesRouteImport } from './routes/strategies'
+import { Route as StrategiesIdRouteImport } from './routes/strategies.$id'
 import { Route as TradersRouteImport } from './routes/traders'
 import { Route as WalletRouteImport } from './routes/wallet'
 
@@ -132,6 +133,11 @@ const StrategiesRoute = StrategiesRouteImport.update({
   path: '/strategies',
   getParentRoute: () => rootRouteImport,
 } as any)
+const StrategiesIdRoute = StrategiesIdRouteImport.update({
+  id: '/strategies/$id',
+  path: '/strategies/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TradersRoute = TradersRouteImport.update({
   id: '/traders',
   path: '/traders',
@@ -161,6 +167,9 @@ export interface FileRoutesByFullPath {
   '/tournaments/$id': typeof TournamentsIdRoute
   '/lab': typeof LabRoute
   '/strategies': typeof StrategiesRoute
+  '/strategies/$id': typeof StrategiesIdRoute
+  '/strategies/$id': typeof StrategiesIdRoute
+  '/strategies/$id': typeof StrategiesIdRoute
   '/traders': typeof TradersRoute
   '/wallet': typeof WalletRoute
   '/agents/': typeof AgentsIndexRoute
@@ -438,6 +447,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StrategiesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/strategies/$id': {
+      id: '/strategies/$id'
+      path: '/strategies/$id'
+      fullPath: '/strategies/$id'
+      preLoaderRoute: typeof StrategiesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/traders': {
       id: '/traders'
       path: '/traders'
@@ -473,6 +489,7 @@ const rootRouteChildren: RootRouteChildren = {
   TournamentsIdRoute: TournamentsIdRoute,
   LabRoute: LabRoute,
   StrategiesRoute: StrategiesRoute,
+  StrategiesIdRoute: StrategiesIdRoute,
   TradersRoute: TradersRoute,
   WalletRoute: WalletRoute,
   AgentsIndexRoute: AgentsIndexRoute,
