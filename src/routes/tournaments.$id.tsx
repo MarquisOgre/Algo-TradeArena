@@ -14,7 +14,7 @@ import type { Agent } from "@/data/types";
 
 export const Route = createFileRoute("/tournaments/$id")({
   loader: ({ params }) => {
-    const tournament = getCompetition(params.id);
+    const tournament = getTournament(params.id);
     if (!tournament) throw notFound();
     return { tournament };
   },
@@ -55,7 +55,7 @@ function TournamentDetail() {
   return (
     <AppShell wide>
       <Button asChild variant="ghost" size="sm" className="-ml-2 mb-3">
-        <Link to="/competitions">
+        <Link to="/tournaments">
           <ArrowLeft className="size-4" /> All competitions
         </Link>
       </Button>
