@@ -1,5 +1,47 @@
 export type Trend = "up" | "down" | "flat";
 
+export type StrategyStatus = "Draft" | "Backtesting" | "Stress Testing" | "Forward Testing" | "Published";
+
+export type StrategyStyle =
+  | "Momentum"
+  | "Mean Reversion"
+  | "Macro"
+  | "Arbitrage"
+  | "Sentiment"
+  | "Volatility";
+
+export interface StrategyVersion {
+  id: string;
+  version: number;
+  createdAt: string;
+  specification: string;
+  markets: string[];
+  riskLimit: number;
+  notes?: string;
+}
+
+export interface Strategy {
+  id: string;
+  name: string;
+  description: string;
+  style: StrategyStyle;
+  status: StrategyStatus;
+  creator: string;
+  createdAt: string;
+  updatedAt: string;
+  followers: number;
+  versions: StrategyVersion[];
+  activeVersionId: string;
+  backtest?: {
+    returnPct: number;
+    maxDrawdownPct: number;
+    winRatePct: number;
+    sharpe: number;
+    trades: number;
+  };
+  tags: string[];
+}
+
 export interface Agent {
   id: string;
   name: string;
