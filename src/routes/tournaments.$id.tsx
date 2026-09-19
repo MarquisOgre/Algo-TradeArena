@@ -79,7 +79,17 @@ function TournamentDetail() {
         <StatCard label="Format" value={tournament.format.split(" · ")[0] ?? tournament.format} hint={tournament.format} />
       </div>
 
-      <GlassCard className="mt-4 border-primary/20 bg-primary/5 p-5">\n        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">\n          <div>\n            <p className="text-sm font-semibold">Competition rewards</p>\n            <p className="mt-1 text-xs text-muted-foreground">Entry and rewards use ALPHENTRA prototype units only. No real token transfer occurs.</p>\n          </div>\n          <Badge variant="outline" className="w-fit border-primary/30 text-primary">ALPH prototype</Badge>\n        </div>\n      </GlassCard>\n\n      <GlassCard className="mt-4 p-5">
+      <GlassCard className="mt-4 border-primary/20 bg-primary/5 p-5">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-semibold">Competition rewards</p>
+            <p className="mt-1 text-xs text-muted-foreground">Entry and rewards use ALPHENTRA prototype units only. No real token transfer occurs.</p>
+          </div>
+          <Badge variant="outline" className="w-fit border-primary/30 text-primary">ALPH prototype</Badge>
+        </div>
+      </GlassCard>
+
+      <GlassCard className="mt-4 p-5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Field filled</span>
           <span className="num font-semibold text-foreground">
