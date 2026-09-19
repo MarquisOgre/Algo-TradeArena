@@ -12,6 +12,7 @@ import { mockAgents } from "@/data/mockAgents";
 import { mockBattles } from "@/data/mockBattles";
 import { marketIndices, mockMarkets } from "@/data/mockMarkets";
 import { mockPosts } from "@/data/mockPosts";
+import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -66,6 +67,31 @@ function HomePage() {
         </div>
       </GlassCard>
 
+      <div className="mt-4">
+        <GlassCard className="px-4 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold text-foreground">{getMarketCalendarLabel()}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">Prototype market calendar</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {getMarketSessions().map((session) => (
+                <span
+                  key={session.group}
+                  className={
+                    session.open
+                      ? "rounded-full bg-success/12 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-success"
+                      : "rounded-full bg-muted px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
+                  }
+                >
+                  {session.label} · {session.open ? "Open" : "Closed"}
+                </span>
+              ))}
+            </div>
+          </div>
+        </GlassCard>
+      </div>
+
       {/* Index strip */}
       <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {marketIndices.map((idx) => (
@@ -108,12 +134,12 @@ function HomePage() {
       </section>
 
       <div className="mt-8 grid gap-4 xl:grid-cols-[2fr_1fr]">
-        {/* Featured strategies */}
+        {/* Featured AI strategies */}
         <section>
           <div className="flex items-end justify-between gap-4">
             <div>
               <h2 className="text-lg font-bold text-foreground">Featured strategies</h2>
-              <p className="text-sm text-muted-foreground">Ranked by risk-adjusted simulated performance.</p>
+              <p className="text-sm text-muted-foreground">AI strategies ranked by simulated risk-adjusted performance.</p>
             </div>
             <Button asChild variant="ghost" size="sm">
               <Link to="/leaderboard">
