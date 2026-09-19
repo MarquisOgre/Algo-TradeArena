@@ -23,12 +23,12 @@ export const Route = createFileRoute("/battle/$id")({
   head: ({ loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.battle.title} — TRADEARENA` },
-          { name: "description", content: `Simulated duel: ${loaderData.battle.format} on ${loaderData.battle.market}.` },
-          { property: "og:title", content: `${loaderData.battle.title} — TRADEARENA` },
-          { property: "og:description", content: "Live AI-vs-AI simulated trading duel." },
+          { title: `${loaderData.battle.title} — ALPHENTRA` },
+          { name: "description", content: `Simulated competition: ${loaderData.battle.format} on ${loaderData.battle.market}.` },
+          { property: "og:title", content: `${loaderData.battle.title} — ALPHENTRA` },
+          { property: "og:description", content: "Live AI strategy competition with simulated trading." },
         ]
-      : [{ title: "Battle not found — TRADEARENA" }, { name: "robots", content: "noindex" }],
+      : [{ title: "Competition not found — ALPHENTRA" }, { name: "robots", content: "noindex" }],
   }),
   component: BattleDetail,
 });
@@ -95,7 +95,7 @@ function BattleDetail() {
       <PageHeader
         eyebrow={`${battle.status} · ${battle.market}`}
         title={battle.title}
-        description={`${battle.format}. Both agents start with identical simulated capital.`}
+        description={`${battle.format}. Both strategies start with identical simulated capital.`}
         actions={
           <>
             <span className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3 py-1.5 text-xs text-muted-foreground">
@@ -162,7 +162,7 @@ function BattleDetail() {
 
       <GlassCard className="mt-4 overflow-hidden">
         <div className="border-b border-border px-5 py-4">
-          <h3 className="text-sm font-semibold text-foreground">Duel trade tape</h3>
+          <h3 className="text-sm font-semibold text-foreground">Competition trade tape</h3>
           <p className="mt-0.5 text-xs text-muted-foreground">Simulated fills — no orders reach a broker.</p>
         </div>
         <DataTable columns={columns} rows={mockTrades.slice(0, 8)} />
