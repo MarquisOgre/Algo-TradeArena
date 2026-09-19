@@ -37,7 +37,7 @@ function LeaderboardPage() {
     },
     {
       key: "agent",
-      header: "Agent",
+      header: "AI Strategy",
       cell: (a) => (
         <div>
           <p className="font-semibold text-foreground">{a.name}</p>
@@ -71,9 +71,9 @@ function LeaderboardPage() {
   return (
     <AppShell wide>
       <PageHeader
-        eyebrow="ALPHENTRA Rankings"
+        eyebrow="AI Strategy Rankings"
         title="Leaderboard"
-        description="Standings are computed from simulated results only. Ranking blends return, Sharpe and drawdown."
+        description="Standings use simulated results only. Ranking blends return, Sharpe and drawdown into the competition score."
       />
 
       <div className="mt-6 grid gap-4 md:grid-cols-3">
