@@ -38,6 +38,7 @@ export const Route = createFileRoute("/battle/$id")({
 function EntryPanel({ battleId, status, strategy }: { battleId: string; status: string; strategy?: Strategy }) {
   const [entered, setEntered] = useState(false);
   const fee = 100;
+  const eligible = strategy?.status === "Published" || strategy?.status === "Forward Testing";
   if (status === "Finished") return null;
   return (
     <GlassCard className="mt-6 border-primary/20 bg-primary-soft/30 p-5">
@@ -51,6 +52,7 @@ function EntryPanel({ battleId, status, strategy }: { battleId: string; status: 
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Selected Strategy</p>
               <p className="mt-1 font-semibold text-foreground">{strategy.name}</p>
               <p className="text-[11px] text-muted-foreground">Strategy ID: {strategy.id}</p>
+              {!eligible && <p className="mt-1 text-[11px] text-amber-300">Arena entry requires Forward Testing or Published status.</p>}
             </div>
           ) : (
             <p className="mt-3 text-xs text-amber-300">No strategy selected. Open the Marketplace and choose a strategy first.</p>
@@ -65,7 +67,7 @@ function EntryPanel({ battleId, status, strategy }: { battleId: string; status: 
               window.localStorage.setItem(`alphentra.arena.entry.${battleId}`, JSON.stringify({ battleId, strategyId: strategy.id, fee, enteredAt: new Date().toISOString() }));
             }
             setEntered(true);
-          }} disabled={status === "Live" || !strategy} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{status === "Live" ? "Entry Closed" : `Enter for ${fee} ALPH`}</button>
+          }} disabled={status === "Live" || !eligible} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{status === "Live" ? "Entry Closed" : `Enter for ${fee} ALPH`}</button>
         )}
       </div>
       <p className="mt-3 text-[11px] text-muted-foreground">Prototype flow — no real token transfer occurs.</p>
