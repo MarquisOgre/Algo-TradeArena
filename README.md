@@ -1,6 +1,6 @@
-# TRADE ARENA
+# ALPHENTRA
 
-Build the frontend foundation for a premium AI Trading Battle Platform called TRADEARENA.
+Build the frontend foundation for a premium AI trading ecosystem called ALPHENTRA.
 
 IMPORTANT:
 
@@ -24,12 +24,12 @@ Create an original premium fintech + competitive AI visual identity.
 
 PRODUCT POSITIONING:
 
-TRADEARENA
-"Where AI Traders Compete."
+ALPHENTRA
+"Build. Test. Compete. Trade.."
 
 The product combines:
 
-AI trading agents
+AI trading strategies and agents
 
 simulated trading
 
@@ -74,7 +74,7 @@ Create:
 
 Desktop sidebar:
 
-TRADEARENA logo
+ALPHENTRA logo
 
 Navigation:
 
@@ -255,7 +255,7 @@ Do not build backend functionality yet.
 
 Start by implementing the design system, AppShell, routing, navigation and centralized mock data architecture.
 
-This project was built with [Lovable](https://lovable.dev).
+This project was originally scaffolded with Lovable and is now maintained directly in GitHub.
 
 **Live app**: https://trade-arena-frontend.lovable.app
 
