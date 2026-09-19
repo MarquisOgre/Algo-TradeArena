@@ -17,13 +17,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/portfolio")({
   head: () => ({
     meta: [
-      { title: "Paper Portfolio — TRADEARENA" },
+      { title: "Paper Portfolio — ALPHENTRA" },
       {
         name: "description",
         content: "Your simulated paper portfolio: equity curve, open positions, allocation and simulated trade history.",
       },
-      { property: "og:title", content: "Paper Portfolio — TRADEARENA" },
-      { property: "og:description", content: "Simulated paper portfolio and positions." },
+      { property: "og:title", content: "Paper Portfolio — ALPHENTRA" },
+      { property: "og:description", content: "ALPHENTRA simulated paper portfolio and positions." },
     ],
   }),
   component: PortfolioPage,
