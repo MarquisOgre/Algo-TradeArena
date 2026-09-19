@@ -17,12 +17,13 @@ export function AppShell({
   wide?: boolean;
 }) {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <Sidebar />
-      <div className="lg:pl-64">
+      <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
         <TopBar />
         <main
           className={cn(
+            "flex-1",
             "mx-auto w-full px-4 pb-28 pt-6 sm:px-6 lg:pb-12",
             wide ? "max-w-[1600px]" : "max-w-[1400px]",
             className,
