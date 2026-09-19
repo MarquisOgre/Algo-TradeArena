@@ -8,31 +8,31 @@ import { DataTable, type Column } from "@/components/common/DataTable";
 import { Delta } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { getCompetition } from "@/data/mockCompetitions";
+import { getTournament } from "@/data/mockTournaments";
 import { mockAgents } from "@/data/mockAgents";
 import type { Agent } from "@/data/types";
 
-export const Route = createFileRoute("/competitions/$id")({
+export const Route = createFileRoute("/tournaments/$id")({
   loader: ({ params }) => {
-    const competition = getCompetition(params.id);
-    if (!competition) throw notFound();
-    return { competition };
+    const tournament = getCompetition(params.id);
+    if (!tournament) throw notFound();
+    return { tournament };
   },
   head: ({ loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.competition.name} — ALPHENTRA` },
-          { name: "description", content: loaderData.competition.description },
-          { property: "og:title", content: `${loaderData.competition.name} — ALPHENTRA` },
-          { property: "og:description", content: loaderData.competition.description },
+          { title: `${loaderData.tournament.name} — ALPHENTRA` },
+          { name: "description", content: loaderData.tournament.description },
+          { property: "og:title", content: `${loaderData.tournament.name} — ALPHENTRA` },
+          { property: "og:description", content: loaderData.tournament.description },
         ]
       : [{ title: "Competition not found — ALPHENTRA" }, { name: "robots", content: "noindex" }],
   }),
-  component: CompetitionDetail,
+  component: TournamentDetail,
 });
 
-function CompetitionDetail() {
-  const { competition } = Route.useLoaderData();
+function TournamentDetail() {
+  const { tournament } = Route.useLoaderData();
   const standings = [...mockAgents].sort((a, b) => b.roi30d - a.roi30d);
 
   const columns: Column<Agent>[] = [
@@ -41,7 +41,7 @@ function CompetitionDetail() {
       key: "strategy",
       header: "Strategy",
       cell: (a) => (
-        <Link to="/strategies/$id" params={{ id: a.id }} className="font-semibold text-foreground hover:text-primary">
+        <Link to="/agents/$id" params={{ id: a.id }} className="font-semibold text-foreground hover:text-primary">
           {a.name}
         </Link>
       ),
@@ -61,31 +61,31 @@ function CompetitionDetail() {
       </Button>
 
       <PageHeader
-        eyebrow={`${competition.season} · ${competition.status}`}
-        title={competition.name}
-        description={competition.description}
+        eyebrow={`${tournament.season} · ${tournament.status}`}
+        title={tournament.name}
+        description={tournament.description}
         actions={
-          <Button disabled={competition.status === "Completed"}>
-            {competition.status === "Registering" ? "Register a strategy" : "Follow event"}
+          <Button disabled={tournament.status === "Completed"}>
+            {tournament.status === "Registering" ? "Register a strategy" : "Follow event"}
           </Button>
         }
       />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Prize pool" value={competition.prizePool} icon={Trophy} hint="Prototype rewards" />
-        <StatCard label="Entrants" value={`${competition.entrants.toLocaleString()}`} icon={Users} hint={`of ${competition.capacity.toLocaleString()}`} />
-        <StatCard label="Window" value={`${competition.startDate} — ${competition.endDate}`} icon={CalendarDays} />
-        <StatCard label="Format" value={competition.format.split(" · ")[0] ?? competition.format} hint={competition.format} />
+        <StatCard label="Prize pool" value={tournament.prizePool} icon={Trophy} hint="Prototype rewards" />
+        <StatCard label="Entrants" value={`${tournament.entrants.toLocaleString()}`} icon={Users} hint={`of ${tournament.capacity.toLocaleString()}`} />
+        <StatCard label="Window" value={`${tournament.startDate} — ${tournament.endDate}`} icon={CalendarDays} />
+        <StatCard label="Format" value={tournament.format.split(" · ")[0] ?? tournament.format} hint={tournament.format} />
       </div>
 
       <GlassCard className="mt-4 p-5">
         <div className="flex items-center justify-between text-sm">
           <span className="text-muted-foreground">Field filled</span>
           <span className="num font-semibold text-foreground">
-            {Math.round((competition.entrants / competition.capacity) * 100)}%
+            {Math.round((tournament.entrants / tournament.capacity) * 100)}%
           </span>
         </div>
-        <Progress value={(competition.entrants / competition.capacity) * 100} className="mt-3 h-2" />
+        <Progress value={(tournament.entrants / tournament.capacity) * 100} className="mt-3 h-2" />
       </GlassCard>
 
       <GlassCard className="mt-4 overflow-hidden">
