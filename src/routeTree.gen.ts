@@ -168,8 +168,6 @@ export interface FileRoutesByFullPath {
   '/lab': typeof LabRoute
   '/strategies': typeof StrategiesRoute
   '/strategies/$id': typeof StrategiesIdRoute
-  '/strategies/$id': typeof StrategiesIdRoute
-  '/strategies/$id': typeof StrategiesIdRoute
   '/traders': typeof TradersRoute
   '/wallet': typeof WalletRoute
   '/agents/': typeof AgentsIndexRoute
@@ -215,6 +213,7 @@ export interface FileRoutesById {
   '/tournaments/$id': typeof TournamentsIdRoute
   '/lab': typeof LabRoute
   '/strategies': typeof StrategiesRoute
+  '/strategies/$id': typeof StrategiesIdRoute
   '/traders': typeof TradersRoute
   '/wallet': typeof WalletRoute
   '/agents/': typeof AgentsIndexRoute
@@ -235,6 +234,8 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/trade'
+    | '/strategies'
+    | '/strategies/$id'
     | '/agents/$id'
     | '/agents/create'
     | '/battle/$id'
@@ -255,6 +256,8 @@ export interface FileRouteTypes {
     | '/profile'
     | '/settings'
     | '/trade'
+    | '/strategies'
+    | '/strategies/$id'
     | '/agents/$id'
     | '/agents/create'
     | '/battle/$id'
