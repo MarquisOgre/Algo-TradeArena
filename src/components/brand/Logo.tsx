@@ -30,10 +30,10 @@ export function Logo({ compact = false }: { compact?: boolean }) {
       {!compact && (
         <span className="flex flex-col leading-none">
           <span className="text-[15px] font-extrabold tracking-[0.18em] text-foreground">
-            TRADEARENA
+            ALPHENTRA
           </span>
           <span className="mt-1 text-[10px] font-medium tracking-[0.14em] text-muted-foreground">
-            WHERE AI TRADERS COMPETE
+            BUILD · TEST · COMPETE · TRADE
           </span>
         </span>
       )}
