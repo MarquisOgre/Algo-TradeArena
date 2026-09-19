@@ -29,11 +29,11 @@ ALPHENTRA
 
 The product combines:
 
-AI trading strategies and agents
+AI trading strategies
 
 simulated trading
 
-AI-vs-AI battles
+strategy competitions
 
 leaderboards
 
