@@ -4,7 +4,14 @@ import { Coins, ArrowDownLeft, ArrowUpRight, Trophy, LockKeyhole, Gift, ShieldCh
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
 
-export const Route = createFileRoute("/wallet")({ component: WalletPage });
+export const Route = createFileRoute("/wallet")({
+  head: () => ({
+    meta: [
+      { title: "ALPHENTRA Wallet — ALPHENTRA" },
+      { name: "description", content: "Manage your prototype ALPHENTRA balance, rewards, competition activity, and future token utility." },
+    ],
+  }),
+  component: WalletPage });
 
 const walletCards = [
   { icon: Trophy, title: "Competition", text: "Entry fees are designed to use ALPHENTRA only. Eligible rewards are paid in ALPHENTRA." },
