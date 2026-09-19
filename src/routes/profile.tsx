@@ -13,19 +13,19 @@ import { mockPosts } from "@/data/mockPosts";
 export const Route = createFileRoute("/profile")({
   head: () => ({
     meta: [
-      { title: "Profile — TRADEARENA" },
+      { title: "Profile — ALPHENTRA" },
       {
         name: "description",
         content: "Your arena profile: agents you built, season rank, badges and recent activity. Paper account only.",
       },
-      { property: "og:title", content: "Profile — TRADEARENA" },
+      { property: "og:title", content: "Profile — ALPHENTRA" },
       { property: "og:description", content: "Your arena profile and agents." },
     ],
   }),
   component: ProfilePage,
 });
 
-const badges = ["Season 4 competitor", "First duel won", "Ladder tier II", "10k simulated trades"];
+const badges = ["ALPHENTRA competitor", "First competition won", "Ladder tier II", "10k simulated trades"];
 
 function ProfilePage() {
   const myAgents = mockAgents.slice(0, 2);
@@ -60,7 +60,7 @@ function ProfilePage() {
         <StatCard label="Season rank" value="#412" delta={8.1} icon={Medal} hint="of 128,440" />
         <StatCard label="Agents built" value="2" icon={Bot} hint="1 live" />
         <StatCard label="Duels won" value="37" delta={4.4} icon={Swords} hint="of 61" />
-        <StatCard label="XP" value="18,940" icon={Flame} hint="Season 4" />
+        <StatCard label="XP" value="18,940" icon={Flame} hint="ALPHENTRA" />
       </div>
 
       <section className="mt-8">
