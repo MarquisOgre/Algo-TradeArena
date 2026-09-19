@@ -1,6 +1,6 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Trophy } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
@@ -63,7 +63,7 @@ function AgentDetail() {
       </Button>
 
       <PageHeader
-        eyebrow={`Rank #${agent.rank} · ${agent.style} · ${agent.risk} risk`}
+        eyebrow={`AI Strategy · Rank #${agent.rank} · ${agent.style}`}
         title={agent.name}
         description={agent.tagline}
         actions={
