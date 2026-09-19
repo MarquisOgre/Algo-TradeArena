@@ -27,6 +27,10 @@ import { Route as BattleIndexRouteImport } from './routes/battle.index'
 import { Route as BattleIdRouteImport } from './routes/battle.$id'
 import { Route as TournamentsIndexRouteImport } from './routes/tournaments.index'
 import { Route as TournamentsIdRouteImport } from './routes/tournaments.$id'
+import { Route as LabRouteImport } from './routes/lab'
+import { Route as StrategiesRouteImport } from './routes/strategies'
+import { Route as TradersRouteImport } from './routes/traders'
+import { Route as WalletRouteImport } from './routes/wallet'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -118,6 +122,26 @@ const TournamentsIdRoute = TournamentsIdRouteImport.update({
   path: '/tournaments/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LabRoute = LabRouteImport.update({
+  id: '/lab',
+  path: '/lab',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const StrategiesRoute = StrategiesRouteImport.update({
+  id: '/strategies',
+  path: '/strategies',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TradersRoute = TradersRouteImport.update({
+  id: '/traders',
+  path: '/traders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WalletRoute = WalletRouteImport.update({
+  id: '/wallet',
+  path: '/wallet',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -135,6 +159,10 @@ export interface FileRoutesByFullPath {
   '/agents/create': typeof AgentsCreateRoute
   '/battle/$id': typeof BattleIdRoute
   '/tournaments/$id': typeof TournamentsIdRoute
+  '/lab': typeof LabRoute
+  '/strategies': typeof StrategiesRoute
+  '/traders': typeof TradersRoute
+  '/wallet': typeof WalletRoute
   '/agents/': typeof AgentsIndexRoute
   '/battle/': typeof BattleIndexRoute
   '/tournaments/': typeof TournamentsIndexRoute
@@ -176,6 +204,10 @@ export interface FileRoutesById {
   '/agents/create': typeof AgentsCreateRoute
   '/battle/$id': typeof BattleIdRoute
   '/tournaments/$id': typeof TournamentsIdRoute
+  '/lab': typeof LabRoute
+  '/strategies': typeof StrategiesRoute
+  '/traders': typeof TradersRoute
+  '/wallet': typeof WalletRoute
   '/agents/': typeof AgentsIndexRoute
   '/battle/': typeof BattleIndexRoute
   '/tournaments/': typeof TournamentsIndexRoute
@@ -392,6 +424,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof TournamentsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lab': {
+      id: '/lab'
+      path: '/lab'
+      fullPath: '/lab'
+      preLoaderRoute: typeof LabRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/strategies': {
+      id: '/strategies'
+      path: '/strategies'
+      fullPath: '/strategies'
+      preLoaderRoute: typeof StrategiesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/traders': {
+      id: '/traders'
+      path: '/traders'
+      fullPath: '/traders'
+      preLoaderRoute: typeof TradersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/wallet': {
+      id: '/wallet'
+      path: '/wallet'
+      fullPath: '/wallet'
+      preLoaderRoute: typeof WalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -411,6 +471,10 @@ const rootRouteChildren: RootRouteChildren = {
   AgentsCreateRoute: AgentsCreateRoute,
   BattleIdRoute: BattleIdRoute,
   TournamentsIdRoute: TournamentsIdRoute,
+  LabRoute: LabRoute,
+  StrategiesRoute: StrategiesRoute,
+  TradersRoute: TradersRoute,
+  WalletRoute: WalletRoute,
   AgentsIndexRoute: AgentsIndexRoute,
   BattleIndexRoute: BattleIndexRoute,
   TournamentsIndexRoute: TournamentsIndexRoute,
