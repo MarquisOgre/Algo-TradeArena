@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { saveStrategy } from "@/data/strategies";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -57,6 +58,7 @@ function StrategyLabPage() {
   );
   const [running, setRunning] = useState(false);
   const [completed, setCompleted] = useState<number[]>([]);
+  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);
 
   const current = steps[step];
 
@@ -65,6 +67,27 @@ function StrategyLabPage() {
   function nextStep() {
     setCompleted((items) => (items.includes(step) ? items : [...items, step]));
     setStep((value) => Math.min(value + 1, steps.length - 1));
+  }
+
+  function saveCurrentStrategy() {
+    const saved = saveStrategy({
+      name: strategyName,
+      description: "Strategy created in ALPHENTRA Strategy Lab.",
+      specification: prompt,
+      style: "Momentum",
+      markets: ["Forex"],
+      riskLimit: 1,
+      status: "Published",
+      backtest: {
+        returnPct: 24.8,
+        maxDrawdownPct: -8.6,
+        winRatePct: 61.4,
+        sharpe: 1.72,
+        trades: 184,
+      },
+    });
+    setSavedStrategyId(saved.id);
+    setCompleted((items) => (items.includes(4) ? items : [...items, 4]));
   }
 
   function runBacktest() {
@@ -284,8 +307,14 @@ function StrategyLabPage() {
                     <div key={item} className="rounded-xl border border-border bg-surface/50 p-4 text-sm"><Check className="mx-auto mb-2 size-4 text-success" />{item}</div>
                   ))}
                 </div>
-                <Button className="mt-6" onClick={() => setCompleted((items) => (items.includes(4) ? items : [...items, 4]))}><Save />Save Strategy</Button>
-                <p className="mt-3 text-xs text-muted-foreground">Prototype only — publishing does not create a live trading account.</p>
+                <Button className="mt-6" onClick={saveCurrentStrategy} disabled={Boolean(savedStrategyId)}>
+                  <Save />{savedStrategyId ? "Strategy Saved" : "Save Strategy"}
+                </Button>
+                {savedStrategyId ? (
+                  <p className="mt-3 text-xs text-success">Saved to your strategy library. ID: {savedStrategyId}</p>
+                ) : (
+                  <p className="mt-3 text-xs text-muted-foreground">Prototype only — publishing saves a reusable strategy record locally; it does not create a live trading account.</p>
+                )}
               </div>
             )}
           </div>
