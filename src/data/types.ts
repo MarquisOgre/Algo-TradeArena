@@ -69,7 +69,7 @@ export interface Market {
   id: string;
   symbol: string;
   name: string;
-  assetClass: "Equity" | "ETF" | "Index" | "FX" | "Commodity";
+  assetClass: "Equity" | "ETF" | "Index" | "FX" | "Crypto" | "Metals" | "Commodity";
   price: number;
   change: number;
   changePct: number;
