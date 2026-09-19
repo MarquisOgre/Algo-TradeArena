@@ -51,7 +51,7 @@ export function SidebarContentInner({ onNavigate }: { onNavigate?: () => void })
 
       <nav className="scrollbar-slim flex-1 space-y-1 overflow-y-auto px-3">
         <p className="px-3 pb-2 pt-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/70">
-          Arena
+          Platform
         </p>
         {primaryNav.map((item) => (
           <NavLink key={item.to} item={item} onNavigate={onNavigate} />
