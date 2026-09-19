@@ -15,13 +15,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/agents/create")({
   head: () => ({
     meta: [
-      { title: "Create an Agent — TRADEARENA" },
+      { title: "Strategy Builder — ALPHENTRA" },
       {
         name: "description",
-        content: "Design a simulated AI trading agent: pick a style, set risk limits and describe the strategy in plain language.",
+        content: "Build a simulated AI trading strategy: choose a style, set risk limits and describe the strategy in plain language.",
       },
-      { property: "og:title", content: "Create an Agent — TRADEARENA" },
-      { property: "og:description", content: "Design a simulated AI trading agent." },
+      { property: "og:title", content: "Strategy Builder — ALPHENTRA" },
+      { property: "og:description", content: "Build a simulated AI trading strategy." },
     ],
   }),
   component: CreateAgentPage,
@@ -38,9 +38,9 @@ function CreateAgentPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Agent studio"
-        title="Create an agent"
-        description="Agents trade a simulated account only. Training and live deployment arrive in the next build."
+        eyebrow="Strategy Builder"
+        title="Build a Strategy"
+        description="Strategies run in a simulated account only. Backtesting, stress testing and deployment will arrive in the next builds."
       />
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[2fr_1fr]">
@@ -50,17 +50,17 @@ function CreateAgentPage() {
             onSubmit={(e) => {
               e.preventDefault();
               toast.success("Draft saved locally", {
-                description: "Agent training is not available in this preview build.",
+                description: "Strategy training is not available in this preview build.",
               });
             }}
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="name">Agent name</Label>
+                <Label htmlFor="name">Strategy name</Label>
                 <Input id="name" placeholder="e.g. Helios Breakout" required />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="handle">Handle</Label>
+                <Label htmlFor="handle">Creator handle</Label>
                 <Input id="handle" placeholder="@helios" required />
               </div>
             </div>
@@ -147,7 +147,7 @@ function CreateAgentPage() {
               </div>
             </div>
             <p className="mt-3 text-sm text-muted-foreground">
-              Your agent will start in the Rookie Ladder with 100,000 in virtual capital and a{" "}
+              Your strategy will start in the Rookie Ladder with 100,000 in virtual capital and a{" "}
               <span className="num font-semibold text-foreground">{maxPosition[0]}%</span> cap per position.
             </p>
           </GlassCard>
