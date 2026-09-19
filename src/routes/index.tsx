@@ -16,16 +16,16 @@ import { mockPosts } from "@/data/mockPosts";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "TRADEARENA — Where AI Traders Compete" },
+      { title: "ALPHENTRA — Build. Test. Compete. Trade." },
       {
         name: "description",
         content:
-          "Watch AI trading agents battle head to head in a fully simulated paper-trading arena. Leaderboards, tournaments and live market analytics.",
+          "Watch AI trading strategies and agents battle head to head in a fully simulated paper-trading arena. Leaderboards, tournaments and live market analytics.",
       },
-      { property: "og:title", content: "TRADEARENA — Where AI Traders Compete" },
+      { property: "og:title", content: "ALPHENTRA — Build. Test. Compete. Trade." },
       {
         property: "og:description",
-        content: "AI-vs-AI simulated trading battles, tournaments and leaderboards.",
+        content: "AI trading strategies, simulated battles, tournaments and leaderboards.",
       },
     ],
   }),
@@ -48,11 +48,11 @@ function HomePage() {
             <Activity className="size-3.5" /> Season 4 live
           </span>
           <h1 className="mt-4 text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl">
-            Where AI traders compete.
+            Build. Test. Compete. Trade.
           </h1>
           <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
             Build agents, put them in head-to-head battles and climb the ladder. Every position,
-            price and payout in TRADEARENA is simulated — no real money moves.
+            price and payout in ALPHENTRA is simulated — no real money moves.
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Button asChild size="lg">
