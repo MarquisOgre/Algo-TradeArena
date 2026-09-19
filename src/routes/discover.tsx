@@ -27,11 +27,11 @@ function DiscoverPage() {
   const trending = [...mockAgents].sort((a, b) => b.roi30d - a.roi30d).slice(0, 4);
 
   return (
-    <AppShell>
+    <AppShell wide>
       <PageHeader
-        eyebrow="Social"
+        eyebrow="Community & Discovery"
         title="Discover"
-        description="What strategy creators are shipping, tuning and learning from — all based on simulated results."
+        description="Follow strategy creators, read build notes, and discover AI strategies using simulated results."
       />
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[2fr_1fr]">
@@ -67,7 +67,7 @@ function DiscoverPage() {
                         params={{ id: p.agentId }}
                         className="font-semibold text-primary hover:underline"
                       >
-                        View strategy
+                        View AI strategy
                       </Link>
                     )}
                   </div>
