@@ -32,7 +32,7 @@ export const primaryNav: NavItem[] = [
   { label: "Strategy Lab", to: "/lab", icon: FlaskConical, badge: "NEW" },
   { label: "Strategies", to: "/strategies", icon: Store },
   { label: "Arena", to: "/battle", icon: Swords, badge: "2 LIVE" },
-  { label: "AI Agents", to: "/agents", icon: Bot },
+  { label: "AI Strategies", to: "/agents", icon: Bot },
   { label: "Competitions", to: "/tournaments", icon: Trophy },
   { label: "Discover", to: "/discover", icon: Compass },
   { label: "Leaderboard", to: "/leaderboard", icon: Medal },
