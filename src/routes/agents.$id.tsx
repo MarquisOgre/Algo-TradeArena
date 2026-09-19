@@ -23,12 +23,12 @@ export const Route = createFileRoute("/agents/$id")({
   head: ({ loaderData }) => ({
     meta: loaderData
       ? [
-          { title: `${loaderData.agent.name} — TRADEARENA` },
+          { title: `${loaderData.agent.name} — ALPHENTRA` },
           { name: "description", content: loaderData.agent.tagline },
-          { property: "og:title", content: `${loaderData.agent.name} — TRADEARENA` },
+          { property: "og:title", content: `${loaderData.agent.name} — ALPHENTRA` },
           { property: "og:description", content: loaderData.agent.tagline },
         ]
-      : [{ title: "Agent not found — TRADEARENA" }, { name: "robots", content: "noindex" }],
+      : [{ title: "Agent not found — ALPHENTRA" }, { name: "robots", content: "noindex" }],
   }),
   component: AgentDetail,
 });
