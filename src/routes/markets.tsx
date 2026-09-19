@@ -14,13 +14,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/markets")({
   head: () => ({
     meta: [
-      { title: "Markets — TRADEARENA" },
+      { title: "Markets — ALPHENTRA" },
       {
         name: "description",
         content:
           "Simulated market board with prices, movement and AI signal confidence across equities, ETFs, FX and commodities.",
       },
-      { property: "og:title", content: "Markets — TRADEARENA" },
+      { property: "og:title", content: "Markets — ALPHENTRA" },
       { property: "og:description", content: "Simulated market board with AI signals." },
     ],
   }),
