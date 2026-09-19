@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "@tanstack/react-router";
 import { Bell, Menu, Search, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserMenu } from "./UserMenu";
 import { Button } from "@/components/ui/button";
 import { SidebarContentInner } from "./Sidebar";
 import { Logo } from "@/components/brand/Logo";
@@ -72,16 +72,7 @@ export function TopBar() {
             <Bell className="size-[18px]" />
             <span className="absolute right-2 top-2 size-2 rounded-full bg-danger ring-2 ring-background" />
           </Button>
-          <Link
-            to="/profile"
-            aria-label="User profile"
-            className="flex items-center gap-2 rounded-xl border border-border bg-surface px-2 py-1.5 transition-colors hover:border-primary/40 hover:bg-surface-2"
-          >
-            <span className="hidden text-xs font-semibold text-foreground sm:inline">User</span>
-            <Avatar className="size-8 border border-border">
-              <AvatarFallback className="bg-surface-2 text-[10px] font-semibold">MO</AvatarFallback>
-            </Avatar>
-          </Link>
+          <UserMenu compact />
         </div>
       </div>
     </header>
