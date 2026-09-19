@@ -1,8 +1,8 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import { Logo } from "@/components/brand/Logo";
-import { primaryNav, secondaryNav, type NavItem } from "./nav";
+import { primaryNav, type NavItem } from "./nav";
 import { cn } from "@/lib/utils";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { UserMenu } from "./UserMenu";
 
 function NavLink({
   item,
@@ -58,22 +58,8 @@ export function SidebarContentInner({ onNavigate }: { onNavigate?: () => void })
         ))}
       </nav>
 
-      <div className="space-y-1 border-t border-sidebar-border px-3 py-3">
-        {secondaryNav.map((item) => (
-          <NavLink key={item.to} item={item} onNavigate={onNavigate} />
-        ))}
-      </div>
-
       <div className="border-t border-sidebar-border px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Avatar className="size-9 border border-border">
-            <AvatarFallback className="bg-surface-2 text-xs font-semibold">MO</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">Marquis Ogre</p>
-            <p className="truncate text-xs text-muted-foreground">Paper account · Tier II</p>
-          </div>
-        </div>
+        <UserMenu />
       </div>
     </>
   );
