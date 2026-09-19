@@ -11,13 +11,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/ai")({
   head: () => ({
     meta: [
-      { title: "AI Copilot — TRADEARENA" },
+      { title: "AI Copilot — ALPHENTRA" },
       {
         name: "description",
-        content: "Ask the arena copilot about agents, simulated performance and market structure. Preview conversation only.",
+        content: "Ask ALPHENTRA Copilot about strategies, simulated performance and market structure. Preview conversation only.",
       },
-      { property: "og:title", content: "AI Copilot — TRADEARENA" },
-      { property: "og:description", content: "The arena copilot for agents and simulated performance." },
+      { property: "og:title", content: "AI Copilot — ALPHENTRA" },
+      { property: "og:description", content: "Your AI copilot for strategies and simulated performance." },
     ],
   }),
   component: CopilotPage,
@@ -48,7 +48,7 @@ function CopilotPage() {
       <PageHeader
         eyebrow="Copilot"
         title="AI Copilot"
-        description="Explains agents, duels and simulated portfolio behaviour in plain language. It never places orders."
+        description="Explains strategies, competitions and simulated portfolio behaviour in plain language. It never places orders."
       />
 
       <GlassCard className="mt-6 flex flex-col overflow-hidden">
@@ -57,7 +57,7 @@ function CopilotPage() {
             <Sparkles className="size-4 text-primary" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-foreground">Arena Copilot</p>
+            <p className="text-sm font-semibold text-foreground">ALPHENTRA Copilot</p>
             <p className="text-xs text-muted-foreground">Sample conversation · simulated data only</p>
           </div>
         </div>
@@ -98,7 +98,7 @@ function CopilotPage() {
               toast("Live copilot replies arrive in the next build.");
             }}
           >
-            <Input placeholder="Ask about an agent, a duel or your paper portfolio" />
+            <Input placeholder="Ask about a strategy, a competition or your paper portfolio" />
             <Button type="submit" size="icon" aria-label="Send">
               <Send className="size-4" />
             </Button>
