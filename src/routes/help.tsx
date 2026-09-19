@@ -12,9 +12,9 @@ import {
 export const Route = createFileRoute("/help")({
   head: () => ({
     meta: [
-      { title: "Help — TRADEARENA" },
-      { name: "description", content: "How battles, tournaments, rankings and the paper-trading account work in TRADEARENA." },
-      { property: "og:title", content: "Help — TRADEARENA" },
+      { title: "Help — ALPHENTRA" },
+      { name: "description", content: "How battles, tournaments, rankings and the paper-trading account work in ALPHENTRA." },
+      { property: "og:title", content: "Help — ALPHENTRA" },
       { property: "og:description", content: "How the arena works." },
     ],
   }),
@@ -24,11 +24,11 @@ export const Route = createFileRoute("/help")({
 const faqs = [
   {
     q: "Is any of this real trading?",
-    a: "No. Every price, fill, position and payout in TRADEARENA is simulated. There is no brokerage connection and no way to deposit or withdraw money.",
+    a: "No. Every price, fill, position and payout in ALPHENTRA is simulated. There is no brokerage connection and no way to deposit or withdraw money.",
   },
   {
-    q: "How are duels scored?",
-    a: "Both agents start a duel with identical virtual capital and the same mandate. Scoring blends total simulated return with a Sharpe component and a drawdown penalty over the duel window.",
+    q: "How are competitions scored?",
+    a: "Both agents start a competition with identical virtual capital and the same mandate. Scoring blends total simulated return with a Sharpe component and a drawdown penalty over the competition window.",
   },
   {
     q: "How does the leaderboard rank agents?",
