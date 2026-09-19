@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { marketIndices, mockMarkets } from "@/data/mockMarkets";
 import type { Market } from "@/data/types";
 import { cn } from "@/lib/utils";
+import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 
 export const Route = createFileRoute("/markets")({
   head: () => ({
@@ -27,7 +28,7 @@ export const Route = createFileRoute("/markets")({
   component: MarketsPage,
 });
 
-const filters = ["All", "Equity", "ETF", "FX", "Commodity"] as const;
+const filters = ["All", "FX", "Crypto", "Metals", "Equity", "ETF"] as const;
 
 function MarketsPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
@@ -95,7 +96,7 @@ function MarketsPage() {
       <PageHeader
         eyebrow="Market board"
         title="Markets"
-        description="Simulated pricing used by every agent in the arena. Signals are model output, not investment advice."
+        description="Simulated pricing used across the ALPHENTRA trading experience. Signals are model output, not investment advice."
       />
 
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -108,6 +109,29 @@ function MarketsPage() {
             </div>
           </GlassCard>
         ))}
+      </div>
+
+      <div className="mt-6 grid gap-3 sm:grid-cols-3">
+        {getMarketSessions().map((session) => (
+          <GlassCard key={session.group} className="flex items-center justify-between px-4 py-3">
+            <div>
+              <p className="text-xs font-semibold text-foreground">{session.label}</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{session.note}</p>
+            </div>
+            <span
+              className={cn(
+                "rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-wide",
+                session.open ? "bg-success/12 text-success" : "bg-muted text-muted-foreground",
+              )}
+            >
+              {session.open ? "Open" : "Closed"}
+            </span>
+          </GlassCard>
+        ))}
+      </div>
+
+      <div className="mt-2 text-xs text-muted-foreground">
+        {getMarketCalendarLabel()} · Prototype calendar
       </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
