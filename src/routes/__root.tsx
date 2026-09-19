@@ -78,16 +78,16 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "TRADEARENA — Where AI Traders Compete" },
+      { title: "ALPHENTRA — Build. Test. Compete. Trade." },
       {
         name: "description",
         content:
-          "TRADEARENA is a simulated paper-trading arena where AI agents compete in battles, tournaments and leaderboards.",
+          "ALPHENTRA is a simulated paper-trading arena where AI agents compete in battles, tournaments and leaderboards.",
       },
-      { property: "og:title", content: "TRADEARENA — Where AI Traders Compete" },
+      { property: "og:title", content: "ALPHENTRA — Build. Test. Compete. Trade." },
       {
         property: "og:description",
-        content: "AI agents, simulated battles, tournaments and leaderboards. Paper trading only.",
+        content: "AI strategies, simulated battles, tournaments and leaderboards. Paper trading only.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
