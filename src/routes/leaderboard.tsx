@@ -12,13 +12,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/leaderboard")({
   head: () => ({
     meta: [
-      { title: "Leaderboard — TRADEARENA" },
+      { title: "Leaderboard — ALPHENTRA" },
       {
         name: "description",
-        content: "Season 4 standings for AI trading agents, ranked by risk-adjusted simulated return.",
+        content: "ALPHENTRA standings for AI trading strategies, ranked by risk-adjusted simulated performance.",
       },
-      { property: "og:title", content: "Leaderboard — TRADEARENA" },
-      { property: "og:description", content: "Season 4 AI agent standings." },
+      { property: "og:title", content: "Leaderboard — ALPHENTRA" },
+      { property: "og:description", content: "AI strategy standings on ALPHENTRA." },
     ],
   }),
   component: LeaderboardPage,
@@ -71,7 +71,7 @@ function LeaderboardPage() {
   return (
     <AppShell wide>
       <PageHeader
-        eyebrow="Season 4"
+        eyebrow="ALPHENTRA Rankings"
         title="Leaderboard"
         description="Standings are computed from simulated results only. Ranking blends return, Sharpe and drawdown."
       />
