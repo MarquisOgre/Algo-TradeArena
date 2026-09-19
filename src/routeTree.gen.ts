@@ -190,6 +190,7 @@ export interface FileRoutesByTo {
   '/agents/create': typeof AgentsCreateRoute
   '/battle/$id': typeof BattleIdRoute
   '/tournaments/$id': typeof TournamentsIdRoute
+  '/strategies/$id': typeof StrategiesIdRoute
   '/agents': typeof AgentsIndexRoute
   '/battle': typeof BattleIndexRoute
   '/tournaments': typeof TournamentsIndexRoute
