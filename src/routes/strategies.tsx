@@ -4,7 +4,14 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/common/GlassCard";
 
-export const Route = createFileRoute("/strategies")({ component: StrategiesPage });
+export const Route = createFileRoute("/strategies")({
+  head: () => ({
+    meta: [
+      { title: "Strategy Marketplace — ALPHENTRA" },
+      { name: "description", content: "Discover, test, subscribe to, and follow trading strategies created by the ALPHENTRA community." },
+    ],
+  }),
+  component: StrategiesPage });
 
 const strategies = [
   { name: "Atlas Momentum", type: "Momentum", ret: "+18.4%", followers: "1,248" },
