@@ -75,9 +75,9 @@ function PortfolioPage() {
   return (
     <AppShell wide>
       <PageHeader
-        eyebrow="Paper account"
+        eyebrow="Paper Trading Account"
         title="Portfolio"
-        description="A simulated account funded with virtual capital. Nothing here settles with a broker."
+        description="Track simulated equity, positions and activity. Nothing here settles with a broker or exchange."
         actions={
           <Button asChild>
             <Link to="/trade">
