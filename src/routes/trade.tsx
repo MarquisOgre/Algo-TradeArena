@@ -17,13 +17,13 @@ import { cn } from "@/lib/utils";
 export const Route = createFileRoute("/trade")({
   head: () => ({
     meta: [
-      { title: "Paper Trade — TRADEARENA" },
+      { title: "Paper Trade — ALPHENTRA" },
       {
         name: "description",
-        content: "Place simulated paper trades against the arena's mock market data. No broker, no real money.",
+        content: "Place simulated paper trades using ALPHENTRA's mock market data. No broker, no real money.",
       },
-      { property: "og:title", content: "Paper Trade — TRADEARENA" },
-      { property: "og:description", content: "Place simulated paper trades in the arena." },
+      { property: "og:title", content: "Paper Trade — ALPHENTRA" },
+      { property: "og:description", content: "Place simulated paper trades in ALPHENTRA." },
     ],
   }),
   component: TradePage,
@@ -128,7 +128,7 @@ function TradePage() {
             Submit paper order
           </Button>
           <p className="mt-3 text-center text-[11px] text-muted-foreground">
-            TRADEARENA does not route orders to any broker or exchange.
+            ALPHENTRA does not route orders to any broker or exchange.
           </p>
         </GlassCard>
       </div>
