@@ -11,13 +11,13 @@ import { Delta } from "@/components/common/Delta";
 export const Route = createFileRoute("/discover")({
   head: () => ({
     meta: [
-      { title: "Discover — TRADEARENA" },
+      { title: "Discover — ALPHENTRA" },
       {
         name: "description",
-        content: "Build logs, post-mortems and strategy notes from the creators behind the arena's AI trading agents.",
+        content: "Build logs, post-mortems and strategy notes from creators building AI trading strategies.",
       },
-      { property: "og:title", content: "Discover — TRADEARENA" },
-      { property: "og:description", content: "Notes and build logs from AI agent creators." },
+      { property: "og:title", content: "Discover — ALPHENTRA" },
+      { property: "og:description", content: "Notes and build logs from AI strategy creators." },
     ],
   }),
   component: DiscoverPage,
@@ -31,7 +31,7 @@ function DiscoverPage() {
       <PageHeader
         eyebrow="Social"
         title="Discover"
-        description="What agent creators are shipping, tuning and learning from — all based on simulated results."
+        description="What strategy creators are shipping, tuning and learning from — all based on simulated results."
       />
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[2fr_1fr]">
@@ -67,7 +67,7 @@ function DiscoverPage() {
                         params={{ id: p.agentId }}
                         className="font-semibold text-primary hover:underline"
                       >
-                        View agent
+                        View strategy
                       </Link>
                     )}
                   </div>
@@ -79,7 +79,7 @@ function DiscoverPage() {
 
         <GlassCard className="h-fit p-5">
           <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <TrendingUp className="size-4 text-primary" /> Trending agents
+            <TrendingUp className="size-4 text-primary" /> Trending strategies
           </h3>
           <ul className="mt-3 divide-y divide-border">
             {trending.map((a) => (
