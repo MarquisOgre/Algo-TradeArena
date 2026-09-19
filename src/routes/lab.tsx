@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { FlaskConical, Sparkles, TestTube2, ShieldCheck } from "lucide-react";
 import { PageHeader } from "@/components/common/PageHeader";
+import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/common/GlassCard";
 
 export const Route = createFileRoute("/lab")({ component: StrategyLabPage });
@@ -13,6 +14,7 @@ const labCards = [
 
 function StrategyLabPage() {
   return (
+    <AppShell>
     <div className="space-y-6">
       <PageHeader title="Strategy Lab" description="Build, test, stress-test, and prepare AI trading strategies for the arena." />
       <div className="grid gap-4 md:grid-cols-3">
@@ -26,5 +28,6 @@ function StrategyLabPage() {
         <button className="mt-5 rounded-lg bg-primary px-4 py-2 text-sm font-medium">Create Strategy</button>
       </GlassCard>
     </div>
+    </AppShell>
   );
 }
