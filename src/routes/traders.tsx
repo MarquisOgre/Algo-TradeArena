@@ -4,7 +4,14 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/common/GlassCard";
 
-export const Route = createFileRoute("/traders")({ component: TradersPage });
+export const Route = createFileRoute("/traders")({
+  head: () => ({
+    meta: [
+      { title: "Traders — ALPHENTRA" },
+      { name: "description", content: "Discover strategy creators, competition performers, and traders to follow on ALPHENTRA." },
+    ],
+  }),
+  component: TradersPage });
 
 const traders = [
   { name: "NovaQuant", role: "AI Strategist", rank: "Top 2%" },
