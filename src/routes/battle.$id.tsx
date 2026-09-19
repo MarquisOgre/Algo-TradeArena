@@ -35,7 +35,7 @@ export const Route = createFileRoute("/battle/$id")({
   component: BattleDetail,
 });
 
-function EntryPanel({ status, strategy }: { status: string; strategy?: Strategy }) {
+function EntryPanel({ battleId, status, strategy }: { battleId: string; status: string; strategy?: Strategy }) {
   const [entered, setEntered] = useState(false);
   const fee = 100;
   if (status === "Finished") return null;
@@ -62,7 +62,7 @@ function EntryPanel({ status, strategy }: { status: string; strategy?: Strategy 
           <button type="button" onClick={() => {
             if (!strategy) return;
             if (typeof window !== "undefined") {
-              window.localStorage.setItem(`alphentra.arena.entry.${status}`, JSON.stringify({ battleId: window.location.pathname.split("/").pop(), strategyId: strategy.id, fee, enteredAt: new Date().toISOString() }));
+              window.localStorage.setItem(`alphentra.arena.entry.${battleId}`, JSON.stringify({ battleId, strategyId: strategy.id, fee, enteredAt: new Date().toISOString() }));
             }
             setEntered(true);
           }} disabled={status === "Live" || !strategy} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{status === "Live" ? "Entry Closed" : `Enter for ${fee} ALPH`}</button>
@@ -134,7 +134,7 @@ function BattleDetail() {
         }
       />
 
-      <EntryPanel status={battle.status} strategy={selectedStrategy} />
+      <EntryPanel battleId={battle.id} status={battle.status} strategy={selectedStrategy} />
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {sides.map((s, i) => (
