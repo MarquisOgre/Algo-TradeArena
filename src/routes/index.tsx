@@ -20,12 +20,12 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Watch AI trading strategies and agents battle head to head in a fully simulated paper-trading arena. Leaderboards, tournaments and live market analytics.",
+          "Build AI trading strategies, test them with simulated markets, compete in the Arena and discover what works.",
       },
       { property: "og:title", content: "ALPHENTRA — Build. Test. Compete. Trade." },
       {
         property: "og:description",
-        content: "AI trading strategies, simulated battles, tournaments and leaderboards.",
+        content: "Build, test and compete with AI trading strategies on ALPHENTRA.",
       },
     ],
   }),
@@ -45,14 +45,13 @@ function HomePage() {
         <div className="pointer-events-none absolute -bottom-32 left-1/3 size-72 rounded-full bg-accent/10 blur-3xl" />
         <div className="relative max-w-2xl">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-background/60 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-primary">
-            <Activity className="size-3.5" /> Season 4 live
+            <Activity className="size-3.5" /> ALPHENTRA Arena live
           </span>
           <h1 className="mt-4 text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl">
             Build. Test. Compete. Trade.
           </h1>
           <p className="mt-3 max-w-xl text-sm text-muted-foreground sm:text-base">
-            Build agents, put them in head-to-head battles and climb the ladder. Every position,
-            price and payout in ALPHENTRA is simulated — no real money moves.
+            Build AI trading strategies. Backtest them, stress-test them and compete against other strategies. Every trade in ALPHENTRA is simulated — no real money moves.
           </p>
           <div className="mt-6 flex flex-wrap gap-2">
             <Button asChild size="lg">
@@ -61,7 +60,7 @@ function HomePage() {
               </Link>
             </Button>
             <Button asChild size="lg" variant="outline">
-              <Link to="/agents/create">Create an agent</Link>
+              <Link to="/agents/create">Build a Strategy</Link>
             </Button>
           </div>
         </div>
@@ -82,22 +81,22 @@ function HomePage() {
 
       {/* Stats */}
       <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Active agents" value="4,812" delta={6.2} icon={Bot} hint="last 7 days" />
-        <StatCard label="Battles today" value="1,204" delta={12.8} icon={Swords} hint="vs yesterday" />
-        <StatCard label="Arena traders" value="128,440" delta={3.1} icon={Users} hint="paper accounts" />
-        <StatCard label="Season prize pool" value="250,000 XP" delta={0} icon={Trophy} hint="Arena Cup S4" />
+        <StatCard label="Active strategies" value="4,812" delta={6.2} icon={Bot} hint="last 7 days" />
+        <StatCard label="Competitions today" value="1,204" delta={12.8} icon={Swords} hint="vs yesterday" />
+        <StatCard label="Active traders" value="128,440" delta={3.1} icon={Users} hint="paper accounts" />
+        <StatCard label="Competition rewards" value="250,000 ALPH" delta={0} icon={Trophy} hint="Prototype rewards" />
       </div>
 
-      {/* Live battles */}
+      {/* Live competitions */}
       <section className="mt-8">
         <div className="flex items-end justify-between gap-4">
           <div>
-            <h2 className="text-lg font-bold text-foreground">Live battles</h2>
-            <p className="text-sm text-muted-foreground">Simulated duels running right now.</p>
+            <h2 className="text-lg font-bold text-foreground">Live competitions</h2>
+            <p className="text-sm text-muted-foreground">Strategies competing in the Arena right now.</p>
           </div>
           <Button asChild variant="ghost" size="sm">
             <Link to="/battle">
-              All battles <ArrowRight className="size-4" />
+              All competitions <ArrowRight className="size-4" />
             </Link>
           </Button>
         </div>
@@ -109,12 +108,12 @@ function HomePage() {
       </section>
 
       <div className="mt-8 grid gap-4 xl:grid-cols-[2fr_1fr]">
-        {/* Top agents */}
+        {/* Featured strategies */}
         <section>
           <div className="flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-lg font-bold text-foreground">Top ranked agents</h2>
-              <p className="text-sm text-muted-foreground">Ranked by risk-adjusted simulated return.</p>
+              <h2 className="text-lg font-bold text-foreground">Featured strategies</h2>
+              <p className="text-sm text-muted-foreground">Ranked by risk-adjusted simulated performance.</p>
             </div>
             <Button asChild variant="ghost" size="sm">
               <Link to="/leaderboard">
@@ -161,10 +160,10 @@ function HomePage() {
         </section>
       </div>
 
-      {/* Feed */}
+      {/* Community feed */}
       <section className="mt-8">
         <div className="flex items-end justify-between gap-4">
-          <h2 className="text-lg font-bold text-foreground">From the arena</h2>
+          <h2 className="text-lg font-bold text-foreground">From the community</h2>
           <Button asChild variant="ghost" size="sm">
             <Link to="/discover">
               Discover <ArrowRight className="size-4" />
