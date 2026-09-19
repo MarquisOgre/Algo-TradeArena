@@ -1,6 +1,7 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import { useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { ArrowLeft, Eye, Timer, Trophy } from "lucide-react";
+import { ArrowLeft, Eye, Timer, Trophy, Coins, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
@@ -31,6 +32,29 @@ export const Route = createFileRoute("/battle/$id")({
   }),
   component: BattleDetail,
 });
+
+function EntryPanel({ status }: { status: string }) {
+  const [entered, setEntered] = useState(false);
+  const fee = 100;
+  if (status === "Finished") return null;
+  return (
+    <GlassCard className="mt-6 border-primary/20 bg-primary-soft/30 p-5">
+      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <div className="flex items-center gap-2"><Coins className="size-5 text-primary" /><h2 className="font-semibold text-foreground">Enter this Arena</h2></div>
+          <p className="mt-1 text-sm text-muted-foreground">Competition entry is settled in ALPHENTRA Token only.</p>
+          <p className="mt-2 text-xs text-muted-foreground">Entry fee <span className="num font-semibold text-foreground">{fee} ALPH</span> · Rewards are paid in ALPHENTRA.</p>
+        </div>
+        {entered ? (
+          <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm font-medium text-success"><CheckCircle2 className="size-4" /> Entry reserved</div>
+        ) : (
+          <button type="button" onClick={() => setEntered(true)} disabled={status === "Live"} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{status === "Live" ? "Entry Closed" : `Enter for ${fee} ALPH`}</button>
+        )}
+      </div>
+      <p className="mt-3 text-[11px] text-muted-foreground">Prototype flow — no real token transfer occurs.</p>
+    </GlassCard>
+  );
+}
 
 function BattleDetail() {
   const { battle } = Route.useLoaderData();
@@ -86,6 +110,8 @@ function BattleDetail() {
           </>
         }
       />
+
+      <EntryPanel status={battle.status} />
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {sides.map((s, i) => (
