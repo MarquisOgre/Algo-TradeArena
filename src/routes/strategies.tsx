@@ -31,12 +31,12 @@ function StrategiesPage() {
   const visible = strategies.filter((strategy) => filter === "All" || strategy.status === filter);
 
   return (
-    <AppShell>
+    <AppShell wide>
       <div className="space-y-6">
         <PageHeader
           eyebrow="Strategy Economy"
           title="Strategy Marketplace"
-          description="One reusable strategy record can move from the Lab into testing, the Arena, discovery, and eventually subscriptions."
+          description="Discover reusable AI strategies as they move from the Lab through testing, Arena eligibility, discovery, and subscriptions."
           actions={
             <Button asChild>
               <Link to="/lab"><Plus />Create Strategy</Link>
@@ -80,13 +80,13 @@ function StrategyCard({ strategy }: { strategy: Strategy }) {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex size-9 items-center justify-center rounded-xl bg-primary/10 text-primary"><Store className="size-4" /></div>
-          <Badge variant="outline" className="border-border">{strategy.status}</Badge>
+          <Badge variant="outline" className="border-border">{strategy.status}</Badge>\n          <Badge variant="outline" className="bg-surface text-[10px]">{strategy.style}</Badge>
         </div>
-        {backtest && <span className="num text-xs text-emerald-400">+{backtest.returnPct.toFixed(1)}% backtest</span>}
+        {backtest && <span className="num text-xs text-success">+{backtest.returnPct.toFixed(1)}% simulated backtest</span>}
       </div>
 
       <h3 className="mt-5 font-semibold">{strategy.name}</h3>
-      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{strategy.description}</p>
+      <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{strategy.description}</p>\n      <p className="mt-2 text-[11px] text-muted-foreground">Created by {strategy.creator} · v{strategy.versions.find((v) => v.id === strategy.activeVersionId)?.version ?? 1}</p>
 
       <div className="mt-4 flex flex-wrap gap-1.5">
         {strategy.tags.slice(0, 3).map((tag) => <Badge key={tag} variant="outline" className="bg-surface text-[10px]">{tag}</Badge>)}
