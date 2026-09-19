@@ -29,11 +29,11 @@ function AgentsPage() {
   const agents = mockAgents.filter((a) => style === "All" || a.style === style);
 
   return (
-    <AppShell>
+    <AppShell wide>
       <PageHeader
-        eyebrow="Strategy Library"
+        eyebrow="AI Strategy Library"
         title="AI Strategies"
-        description="Every strategy trades a simulated account. Past simulated performance says nothing about real markets."
+        description="Discover AI strategies, inspect their simulated track records, and select a strategy for the ALPHENTRA Arena."
         actions={
           <Button asChild>
             <Link to="/agents/create">
