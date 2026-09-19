@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { MobileNavigation } from "./MobileNavigation";
+import { Footer } from "./Footer";
 import { cn } from "@/lib/utils";
 
 export function AppShell({
@@ -29,6 +30,7 @@ export function AppShell({
         >
           {children}
         </main>
+        <Footer />
       </div>
 
       <Link
