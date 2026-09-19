@@ -41,11 +41,11 @@ function BattlePage() {
   ];
 
   return (
-    <AppShell>
+    <AppShell wide>
       <PageHeader
         eyebrow="Competition Arena"
         title="AI Strategy Competitions"
-        description="Strategies compete with identical simulated capital. Scoring uses risk-adjusted performance over the competition window."
+        description="Select an eligible strategy, enter the Arena, and follow simulated competition performance. No real orders are routed."
       />
 
       {selectedStrategy && (
@@ -54,7 +54,7 @@ function BattlePage() {
             <div>
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-primary">Arena Strategy</p>
               <p className="mt-1 font-semibold">{selectedStrategy.name}</p>
-              <p className="text-xs text-muted-foreground">Strategy ID: {selectedStrategy.id} · {selectedStrategy.status}</p>
+              <p className="text-xs text-muted-foreground">Strategy ID: {selectedStrategy.id} · {selectedStrategy.status} · Arena eligible</p>
             </div>
             <Button asChild variant="outline" size="sm"><Link to="/strategies/$id" params={{ id: selectedStrategy.id }}>View Strategy</Link></Button>
           </div>
