@@ -12,9 +12,9 @@ import { Separator } from "@/components/ui/separator";
 export const Route = createFileRoute("/settings")({
   head: () => ({
     meta: [
-      { title: "Settings — TRADEARENA" },
+      { title: "Settings — ALPHENTRA" },
       { name: "description", content: "Manage your arena profile, notifications and simulated account preferences." },
-      { property: "og:title", content: "Settings — TRADEARENA" },
+      { property: "og:title", content: "Settings — ALPHENTRA" },
       { property: "og:description", content: "Arena profile and notification preferences." },
     ],
   }),
@@ -80,7 +80,7 @@ function SettingsPage() {
         <GlassCard className="p-5 sm:p-6 xl:col-span-2">
           <h2 className="text-sm font-semibold text-foreground">Simulated account</h2>
           <p className="mt-2 text-sm text-muted-foreground">
-            TRADEARENA is a paper-trading environment. There is no brokerage connection, no funding and no way to
+            ALPHENTRA is a paper-trading environment. There is no brokerage connection, no funding and no way to
             withdraw. Resetting restores your virtual balance to 100,000.
           </p>
           <Button
