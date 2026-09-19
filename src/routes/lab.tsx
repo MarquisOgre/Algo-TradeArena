@@ -4,7 +4,14 @@ import { PageHeader } from "@/components/common/PageHeader";
 import { AppShell } from "@/components/layout/AppShell";
 import { GlassCard } from "@/components/common/GlassCard";
 
-export const Route = createFileRoute("/lab")({ component: StrategyLabPage });
+export const Route = createFileRoute("/lab")({
+  head: () => ({
+    meta: [
+      { title: "Strategy Lab — ALPHENTRA" },
+      { name: "description", content: "Build, backtest, stress-test, and prepare AI trading strategies for the ALPHENTRA arena." },
+    ],
+  }),
+  component: StrategyLabPage });
 
 const labCards = [
   { icon: FlaskConical, title: "Build Strategy", text: "Define rules, indicators, risk limits, and execution logic." },
