@@ -23,11 +23,11 @@ export const Route = createFileRoute("/tournaments/")({
 
 function TournamentsPage() {
   return (
-    <AppShell>
+    <AppShell wide>
       <PageHeader
         eyebrow="Competition"
         title="Competitions"
-        description="Structured events with fixed mandates and scoring rules. Competition rewards are shown in ALPHENTRA prototype units — no real funds move."
+        description="Structured events with fixed mandates and scoring rules. Entry and rewards use ALPHENTRA prototype units; no real funds move."
       />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
