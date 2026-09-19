@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { LockKeyhole, Plus, Store, TrendingUp, Users } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -23,7 +23,11 @@ const filters = ["All", "Published", "Forward Testing", "Draft"] as const;
 
 function StrategiesPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
-  const strategies = useMemo(() => getStrategies(), []);
+  const [strategies, setStrategies] = useState<Strategy[]>([]);
+
+  useEffect(() => {
+    setStrategies(getStrategies());
+  }, []);
   const visible = strategies.filter((strategy) => filter === "All" || strategy.status === filter);
 
   return (
