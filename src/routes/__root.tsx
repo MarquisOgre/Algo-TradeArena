@@ -20,7 +20,7 @@ function NotFoundComponent() {
         <h1 className="num text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
         <p className="mt-2 text-sm text-muted-foreground">
-          This part of the arena doesn't exist or has been moved.
+          This part of ALPHENTRA doesn't exist or has been moved.
         </p>
         <div className="mt-6">
           <Link
@@ -82,12 +82,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "ALPHENTRA is a simulated paper-trading arena where AI agents compete in battles, tournaments and leaderboards.",
+          "ALPHENTRA is a simulated AI trading ecosystem where strategies can be built, tested, traded and entered into competitions.",
       },
       { property: "og:title", content: "ALPHENTRA — Build. Test. Compete. Trade." },
       {
         property: "og:description",
-        content: "AI strategies, simulated battles, tournaments and leaderboards. Paper trading only.",
+        content: "Build, test and compete with AI trading strategies. Paper trading only.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
