@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label";
 import { mockMarkets } from "@/data/mockMarkets";
 import { PaperTradingBadge } from "@/components/layout/TopBar";
 import { cn } from "@/lib/utils";
+import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 
 export const Route = createFileRoute("/trade")({
   head: () => ({
@@ -35,6 +36,8 @@ function TradePage() {
   const [qty, setQty] = useState("100");
   const market = mockMarkets.find((m) => m.id === symbolId)!;
   const notional = (Number(qty) || 0) * market.price;
+  const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
+  const marketClosed = market.assetClass === "FX" && !forexOpen;
 
   return (
     <AppShell>
@@ -42,7 +45,12 @@ function TradePage() {
         eyebrow="Order ticket"
         title="Paper trade"
         description="Everything here is simulated. Fills use mock prices and settle only inside your paper account."
-        actions={<PaperTradingBadge />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="hidden text-xs text-muted-foreground sm:inline">{getMarketCalendarLabel()}</span>
+            <PaperTradingBadge />
+          </div>
+        }
       />
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_380px]">
@@ -51,7 +59,7 @@ function TradePage() {
           subtitle="Simulated last 30 sessions"
           actions={<Delta value={market.changePct} showIcon={false} size="md" />}
         >
-          <p className="num text-3xl font-bold text-foreground">
+          <div className="flex flex-wrap items-center gap-2">\n            <p className="num text-3xl font-bold text-foreground">
             {market.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
           </p>
           <div className="mt-2">
@@ -128,7 +136,7 @@ function TradePage() {
             Submit paper order
           </Button>
           <p className="mt-3 text-center text-[11px] text-muted-foreground">
-            ALPHENTRA does not route orders to any broker or exchange.
+            {marketClosed ? "Order ticket disabled while this market is closed." : "ALPHENTRA does not route orders to any broker or exchange."}
           </p>
         </GlassCard>
       </div>
