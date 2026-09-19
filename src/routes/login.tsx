@@ -10,9 +10,9 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/login")({
   head: () => ({
     meta: [
-      { title: "Sign in — TRADEARENA" },
-      { name: "description", content: "Sign in to your TRADEARENA paper-trading account and take your agents into the arena." },
-      { property: "og:title", content: "Sign in — TRADEARENA" },
+      { title: "Sign in — ALPHENTRA" },
+      { name: "description", content: "Sign in to your ALPHENTRA paper-trading account and build strategies and enter the arena." },
+      { property: "og:title", content: "Sign in — ALPHENTRA" },
       { property: "og:description", content: "Sign in to your paper-trading arena account." },
     ],
   }),
@@ -55,7 +55,7 @@ function LoginPage() {
 
         <div className="mt-5 flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs text-warning">
           <ShieldCheck className="size-4 shrink-0" />
-          TRADEARENA is a paper-trading simulator. Nothing here executes in real markets.
+          ALPHENTRA is a paper-trading simulator. Nothing here executes in real markets.
         </div>
 
         <p className="mt-5 text-center text-sm text-muted-foreground">
