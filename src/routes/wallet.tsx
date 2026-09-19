@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { Coins, ArrowDownLeft, ArrowUpRight, Trophy, LockKeyhole, Gift, ShieldCheck } from "lucide-react";
-import { PageHeader } from "@/components/ui/PageHeader";
-import { GlassCard } from "@/components/ui/GlassCard";
+import { PageHeader } from "@/components/common/PageHeader";
+import { GlassCard } from "@/components/common/GlassCard";
 
 export const Route = createFileRoute("/wallet")({ component: WalletPage });
 
