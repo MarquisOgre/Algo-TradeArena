@@ -180,7 +180,7 @@ function StrategyLabPage() {
                     <div>
                       <p className="font-semibold">AI Strategy Builder</p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        The prototype converts your description into a structured strategy specification. Live model generation will plug into this step later.
+                        The prototype converts your description into a structured strategy specification. A live model can plug into this step later.
                       </p>
                     </div>
                   </div>
@@ -275,7 +275,7 @@ function StrategyLabPage() {
                 <div>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Paper environment</p>
                   <h2 className="mt-1 text-xl font-semibold">Forward Test</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">Run the strategy against live market data in a paper environment before publishing it to the marketplace or Arena.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">Run the strategy against simulated market data in a paper environment before publishing it to the marketplace or Arena.</p>
                   <div className="mt-5 space-y-3">
                     {[
                       ["Paper balance", "$100,000"],
@@ -292,7 +292,7 @@ function StrategyLabPage() {
                 <GlassCard className="p-5">
                   <Badge variant="outline" className="border-warning/30 text-warning">Paper trading only</Badge>
                   <p className="mt-4 text-sm text-muted-foreground">No real orders are sent from Strategy Lab. Broker execution will be connected after the paper workflow is validated.</p>
-                  <Button className="mt-5 w-full" onClick={nextStep}>Start Forward Test <ArrowRight /></Button>
+                  <Button className="mt-5 w-full" onClick={nextStep}>Start Paper Forward Test <ArrowRight /></Button>
                 </GlassCard>
               </div>
             )}
@@ -300,15 +300,15 @@ function StrategyLabPage() {
             {step === 4 && (
               <div className="mx-auto max-w-2xl text-center">
                 <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-success/10 text-success"><Check className="size-7" /></div>
-                <h2 className="mt-5 text-2xl font-semibold">Ready to publish</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Your strategy has completed the prototype validation path. Save it now, then connect marketplace subscriptions and Arena eligibility later.</p>
+                <h2 className="mt-5 text-2xl font-semibold">Validation complete</h2>
+                <p className="mt-2 text-sm text-muted-foreground">Your strategy has completed the prototype validation path. Save it to your strategy library, then complete the observation period before treating it as production-ready.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
                   {["Backtest complete", "Stress test complete", "Forward test ready"].map((item) => (
                     <div key={item} className="rounded-xl border border-border bg-surface/50 p-4 text-sm"><Check className="mx-auto mb-2 size-4 text-success" />{item}</div>
                   ))}
                 </div>
                 <Button className="mt-6" onClick={saveCurrentStrategy} disabled={Boolean(savedStrategyId)}>
-                  <Save />{savedStrategyId ? "Strategy Saved" : "Save Strategy"}
+                  <Save />{savedStrategyId ? "Strategy Saved Locally" : "Save Strategy Locally"}
                 </Button>
                 {savedStrategyId ? (
                   <p className="mt-3 text-xs text-success">Saved to your strategy library. ID: {savedStrategyId}</p>
