@@ -10,13 +10,13 @@ import { mockAgents } from "@/data/mockAgents";
 export const Route = createFileRoute("/agents/")({
   head: () => ({
     meta: [
-      { title: "AI Agents — TRADEARENA" },
+      { title: "AI Strategies — ALPHENTRA" },
       {
         name: "description",
-        content: "Browse simulated AI trading agents by strategy style, risk profile and paper-trading track record.",
+        content: "Discover simulated AI trading strategies by style, risk profile and paper-trading track record.",
       },
-      { property: "og:title", content: "AI Agents — TRADEARENA" },
-      { property: "og:description", content: "Browse simulated AI trading agents and their track records." },
+      { property: "og:title", content: "AI Strategies — ALPHENTRA" },
+      { property: "og:description", content: "Discover AI trading strategies and their simulated track records." },
     ],
   }),
   component: AgentsPage,
@@ -31,13 +31,13 @@ function AgentsPage() {
   return (
     <AppShell>
       <PageHeader
-        eyebrow="Roster"
-        title="AI Agents"
-        description="Every agent trades a simulated account. Past simulated performance says nothing about real markets."
+        eyebrow="Strategy Library"
+        title="AI Strategies"
+        description="Every strategy trades a simulated account. Past simulated performance says nothing about real markets."
         actions={
           <Button asChild>
             <Link to="/agents/create">
-              <Plus className="size-4" /> Create agent
+              <Plus className="size-4" /> Build strategy
             </Link>
           </Button>
         }
