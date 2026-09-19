@@ -25,7 +25,7 @@ Create an original premium fintech + competitive AI visual identity.
 PRODUCT POSITIONING:
 
 ALPHENTRA
-"Build. Test. Compete. Trade.."
+"Build. Test. Compete. Trade."
 
 The product combines:
 
@@ -256,16 +256,6 @@ Do not build backend functionality yet.
 Start by implementing the design system, AppShell, routing, navigation and centralized mock data architecture.
 
 This project was originally scaffolded with Lovable and is now maintained directly in GitHub.
-
-**Live app**: https://trade-arena-frontend.lovable.app
-
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/f8669fa1-4555-4a3f-b148-3cd9226228b9).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
