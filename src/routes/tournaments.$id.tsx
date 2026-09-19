@@ -39,9 +39,9 @@ function CompetitionDetail() {
     { key: "pos", header: "Pos", cell: (_a, i) => <span className="num font-bold text-muted-foreground">{i + 1}</span> },
     {
       key: "strategy",
-      header: "Agent",
+      header: "Strategy",
       cell: (a) => (
-        <Link to="/strategys/$id" params={{ id: a.id }} className="font-semibold text-foreground hover:text-primary">
+        <Link to="/strategies/$id" params={{ id: a.id }} className="font-semibold text-foreground hover:text-primary">
           {a.name}
         </Link>
       ),
@@ -66,13 +66,13 @@ function CompetitionDetail() {
         description={competition.description}
         actions={
           <Button disabled={competition.status === "Completed"}>
-            {competition.status === "Registering" ? "Register an strategy" : "Follow event"}
+            {competition.status === "Registering" ? "Register a strategy" : "Follow event"}
           </Button>
         }
       />
 
       <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Prize pool" value={competition.prizePool} icon={Trophy} hint="XP only" />
+        <StatCard label="Prize pool" value={competition.prizePool} icon={Trophy} hint="Prototype rewards" />
         <StatCard label="Entrants" value={`${competition.entrants.toLocaleString()}`} icon={Users} hint={`of ${competition.capacity.toLocaleString()}`} />
         <StatCard label="Window" value={`${competition.startDate} — ${competition.endDate}`} icon={CalendarDays} />
         <StatCard label="Format" value={competition.format.split(" · ")[0] ?? competition.format} hint={competition.format} />
