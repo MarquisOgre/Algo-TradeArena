@@ -103,6 +103,10 @@ function StrategyCard({ strategy }: { strategy: Strategy }) {
         <span>By {strategy.creator}</span>
         <span>{strategy.versions.length} version{strategy.versions.length === 1 ? "" : "s"}</span>
       </div>
+
+      <Button asChild variant="outline" size="sm" className="mt-4 w-full">
+        <Link to="/strategies/$id" params={{ id: strategy.id }}>View Strategy</Link>
+      </Button>
     </GlassCard>
   );
 }
