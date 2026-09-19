@@ -11,6 +11,10 @@ import {
   Settings,
   LifeBuoy,
   User,
+  FlaskConical,
+  Store,
+  Users,
+  Radio,
   type LucideIcon,
 } from "lucide-react";
 
@@ -24,9 +28,12 @@ export interface NavItem {
 export const primaryNav: NavItem[] = [
   { label: "Home", to: "/", icon: Home },
   { label: "Markets", to: "/markets", icon: LineChart },
-  { label: "Battle Arena", to: "/battle", icon: Swords, badge: "2 LIVE" },
+  { label: "Trade", to: "/trade", icon: Radio },
+  { label: "Strategy Lab", to: "/lab", icon: FlaskConical, badge: "NEW" },
+  { label: "Strategies", to: "/strategies", icon: Store },
+  { label: "Arena", to: "/battle", icon: Swords, badge: "2 LIVE" },
   { label: "AI Agents", to: "/agents", icon: Bot },
-  { label: "Tournaments", to: "/tournaments", icon: Trophy },
+  { label: "Competitions", to: "/tournaments", icon: Trophy },
   { label: "Discover", to: "/discover", icon: Compass },
   { label: "Leaderboard", to: "/leaderboard", icon: Medal },
   { label: "Portfolio", to: "/portfolio", icon: Wallet },
@@ -34,6 +41,7 @@ export const primaryNav: NavItem[] = [
 ];
 
 export const secondaryNav: NavItem[] = [
+  { label: "Traders", to: "/traders", icon: Users },
   { label: "Settings", to: "/settings", icon: Settings },
   { label: "Help", to: "/help", icon: LifeBuoy },
   { label: "Profile", to: "/profile", icon: User },
@@ -42,7 +50,7 @@ export const secondaryNav: NavItem[] = [
 export const mobileNav: NavItem[] = [
   { label: "Home", to: "/", icon: Home },
   { label: "Markets", to: "/markets", icon: LineChart },
-  { label: "Battle", to: "/battle", icon: Swords },
-  { label: "Agents", to: "/agents", icon: Bot },
-  { label: "Portfolio", to: "/portfolio", icon: Wallet },
+  { label: "Trade", to: "/trade", icon: Radio },
+  { label: "Arena", to: "/battle", icon: Swords },
+  { label: "Strategies", to: "/strategies", icon: Store },
 ];
