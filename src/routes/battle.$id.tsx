@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { ArrowLeft, Eye, Timer, Trophy, Coins, CheckCircle2 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -10,6 +10,8 @@ import { DataTable, type Column } from "@/components/common/DataTable";
 import { Delta } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
 import { getBattle } from "@/data/mockBattles";
+import { getStrategy } from "@/data/strategies";
+import type { Strategy } from "@/data/types";
 import { mockTrades } from "@/data/mockTrades";
 import type { Trade } from "@/data/types";
 import { cn } from "@/lib/utils";
@@ -33,7 +35,7 @@ export const Route = createFileRoute("/battle/$id")({
   component: BattleDetail,
 });
 
-function EntryPanel({ status }: { status: string }) {
+function EntryPanel({ status, strategy }: { status: string; strategy?: Strategy }) {
   const [entered, setEntered] = useState(false);
   const fee = 100;
   if (status === "Finished") return null;
@@ -44,11 +46,26 @@ function EntryPanel({ status }: { status: string }) {
           <div className="flex items-center gap-2"><Coins className="size-5 text-primary" /><h2 className="font-semibold text-foreground">Enter this Arena</h2></div>
           <p className="mt-1 text-sm text-muted-foreground">Competition entry is settled in ALPHENTRA Token only.</p>
           <p className="mt-2 text-xs text-muted-foreground">Entry fee <span className="num font-semibold text-foreground">{fee} ALPH</span> · Rewards are paid in ALPHENTRA.</p>
+          {strategy ? (
+            <div className="mt-3 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Selected Strategy</p>
+              <p className="mt-1 font-semibold text-foreground">{strategy.name}</p>
+              <p className="text-[11px] text-muted-foreground">Strategy ID: {strategy.id}</p>
+            </div>
+          ) : (
+            <p className="mt-3 text-xs text-amber-300">No strategy selected. Open the Marketplace and choose a strategy first.</p>
+          )}
         </div>
         {entered ? (
           <div className="flex items-center gap-2 rounded-lg border border-success/30 bg-success/10 px-4 py-2 text-sm font-medium text-success"><CheckCircle2 className="size-4" /> Entry reserved</div>
         ) : (
-          <button type="button" onClick={() => setEntered(true)} disabled={status === "Live"} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{status === "Live" ? "Entry Closed" : `Enter for ${fee} ALPH`}</button>
+          <button type="button" onClick={() => {
+            if (!strategy) return;
+            if (typeof window !== "undefined") {
+              window.localStorage.setItem(`alphentra.arena.entry.${status}`, JSON.stringify({ battleId: window.location.pathname.split("/").pop(), strategyId: strategy.id, fee, enteredAt: new Date().toISOString() }));
+            }
+            setEntered(true);
+          }} disabled={status === "Live" || !strategy} className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50">{status === "Live" ? "Entry Closed" : `Enter for ${fee} ALPH`}</button>
         )}
       </div>
       <p className="mt-3 text-[11px] text-muted-foreground">Prototype flow — no real token transfer occurs.</p>
@@ -58,6 +75,12 @@ function EntryPanel({ status }: { status: string }) {
 
 function BattleDetail() {
   const { battle } = Route.useLoaderData();
+  const [selectedStrategy, setSelectedStrategy] = useState<Strategy>();
+
+  useEffect(() => {
+    const id = window.localStorage.getItem("alphentra.arena.selectedStrategyId");
+    if (id) setSelectedStrategy(getStrategy(id));
+  }, []);
   const chart = battle.left.equity.map((v, i) => ({
     session: `S${i + 1}`,
     [battle.left.name]: v,
@@ -111,7 +134,7 @@ function BattleDetail() {
         }
       />
 
-      <EntryPanel status={battle.status} />
+      <EntryPanel status={battle.status} strategy={selectedStrategy} />
 
       <div className="mt-6 grid gap-4 md:grid-cols-2">
         {sides.map((s, i) => (
