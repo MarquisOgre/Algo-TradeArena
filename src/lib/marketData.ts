@@ -27,6 +27,25 @@ type MarketRow = {
   exchange: string | null;
 };
 
+export type MarketProviderStatus = "live" | "no_quote" | "unsupported";
+
+export type MarketStatus = {
+  marketId: string;
+  symbol: string;
+  status: MarketProviderStatus;
+  provider: string;
+  providerSymbol: string | null;
+  checkedAt: string;
+};
+
+type StatusRow = {
+  market_id: string;
+  provider: string;
+  status: MarketProviderStatus;
+  provider_symbol: string | null;
+  checked_at: string;
+};
+
 type QuoteRow = {
   market_id: string;
   provider: string;
@@ -130,8 +149,35 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
   return latestByMarket;
 }
 
+export async function loadMarketStatuses(): Promise<Map<string, MarketStatus>> {
+  const { data, error } = await supabase
+    .from("market_provider_status")
+    .select("market_id, provider, status, provider_symbol, checked_at")
+    .eq("provider", "mt5")
+    .order("checked_at", { ascending: false });
+
+  if (error) throw error;
+
+  const latestByMarket = new Map<string, MarketStatus>();
+  for (const row of (data ?? []) as StatusRow[]) {
+    if (latestByMarket.has(row.market_id)) continue;
+    latestByMarket.set(row.market_id, {
+      marketId: row.market_id,
+      symbol: "",
+      status: row.status,
+      provider: row.provider,
+      providerSymbol: row.provider_symbol,
+      checkedAt: row.checked_at,
+    });
+  }
+  return latestByMarket;
+}
+
 export async function loadMarketBoard(): Promise<Market[]> {
-  const liveQuotes = await loadLiveMarketQuotes();
+  const [liveQuotes, statuses] = await Promise.all([
+    loadLiveMarketQuotes(),
+    loadMarketStatuses(),
+  ]);
   const { data: marketRows, error } = await supabase
     .from("markets")
     .select("id, symbol, name, asset_class, exchange")
@@ -148,9 +194,10 @@ export async function loadMarketBoard(): Promise<Market[]> {
 
   return ((marketRows ?? []) as MarketRow[]).map((row) => {
     const live = bySymbol.get(row.symbol.toUpperCase());
+    const status = statuses.get(row.id);
     const fallback = mockBySymbol.get(row.symbol.toUpperCase());
-    const fallbackPrice = fallback?.price ?? 0;
-    const price = live?.price ?? fallbackPrice;
+    const providerStatus = status?.status ?? (live ? "live" : "unsupported");
+    const price = providerStatus === "live" && live ? live.price : 0;
 
     return {
       id: row.id,
@@ -158,13 +205,15 @@ export async function loadMarketBoard(): Promise<Market[]> {
       name: row.name,
       assetClass: assetClassLabel(row.asset_class),
       price,
-      change: live?.change ?? fallback?.change ?? 0,
-      changePct: live?.changePct ?? fallback?.changePct ?? 0,
-      volume: formatVolume(live?.volume ?? null),
+      change: providerStatus === "live" ? live?.change ?? 0 : 0,
+      changePct: providerStatus === "live" ? live?.changePct ?? 0 : 0,
+      volume: providerStatus === "live" ? formatVolume(live?.volume ?? null) : "—",
       marketCap: fallback?.marketCap ?? "—",
-      spark: fallback?.spark ?? Array.from({ length: 30 }, () => price),
+      spark: providerStatus === "live" ? fallback?.spark ?? Array.from({ length: 30 }, () => price) : Array.from({ length: 30 }, () => 0),
       aiSignal: fallback?.aiSignal ?? "Neutral",
       aiConfidence: fallback?.aiConfidence ?? 50,
+      providerStatus,
+      providerSymbol: status?.providerSymbol ?? live?.symbol ?? null,
     };
   });
 }
@@ -237,6 +286,15 @@ export function subscribeToMarketQuotes(onChange: () => void) {
         event: "*",
         schema: "public",
         table: "market_quotes",
+      },
+      () => onChange(),
+    )
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "market_provider_status",
       },
       () => onChange(),
     )
