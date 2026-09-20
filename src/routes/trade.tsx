@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { loadMarketBoard } from "@/lib/marketData";
+import { loadMarketBoard, subscribeToMarketQuotes } from "@/lib/marketData";
 
 export const Route = createFileRoute("/trade")({
   head: () => ({
@@ -52,18 +52,24 @@ function TradePage() {
   useEffect(() => {
     let active = true;
 
-    void loadMarketBoard()
-      .then((nextMarkets) => {
-        if (!active) return;
-        setMarkets(nextMarkets);
-        setLiveData(nextMarkets.some((item, index) => item.price !== mockMarkets[index]?.price));
-      })
-      .catch((error) => {
-        console.error("Failed to load market data:", error);
-      });
+    const refresh = () => {
+      void loadMarketBoard()
+        .then((nextMarkets) => {
+          if (!active) return;
+          setMarkets(nextMarkets);
+          setLiveData(nextMarkets.some((item, index) => item.price !== mockMarkets[index]?.price));
+        })
+        .catch((error) => {
+          console.error("Failed to load market data:", error);
+        });
+    };
+
+    refresh();
+    const unsubscribe = subscribeToMarketQuotes(refresh);
 
     return () => {
       active = false;
+      unsubscribe();
     };
   }, []);
 
