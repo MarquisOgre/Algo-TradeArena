@@ -465,6 +465,7 @@ def sync_once(
         "broker_account_id": BROKER_ACCOUNT_ID,
         "mt5_account_id": MT5_ACCOUNT_ID,
         "market_statuses": collect_market_statuses(markets, market_symbol_map),
+        "broker_market_mappings": collect_market_statuses(markets, market_symbol_map),
         "account": collect_account(),
         "quotes": collect_quotes(markets, market_symbol_map),
         "positions": collect_positions(),
