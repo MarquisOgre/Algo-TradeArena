@@ -58,7 +58,7 @@ type PositionSnapshot = {
 type SyncPayload = {
   broker_account_id: string;
   mt5_account_id: string;
-  account: AccountSnapshot;
+  account?: AccountSnapshot;
   quotes?: QuoteSnapshot[];
   candles?: CandleSnapshot[];
   positions?: PositionSnapshot[];
@@ -91,9 +91,9 @@ export default {
 
     const body = (await req.json()) as SyncPayload;
 
-    if (!body.broker_account_id || !body.mt5_account_id || !body.account) {
+    if (!body.broker_account_id || !body.mt5_account_id) {
       return Response.json(
-        { error: "broker_account_id, mt5_account_id and account are required" },
+        { error: "broker_account_id and mt5_account_id are required" },
         { status: 400, headers: corsHeaders() },
       );
     }
@@ -118,43 +118,47 @@ export default {
 
     const now = new Date().toISOString();
 
-    const { error: brokerError } = await ctx.supabaseAdmin
-      .from("broker_accounts")
-      .update({
-        status: "connected",
-        last_synced_at: now,
-        metadata: {
-          source: "mt5_bridge",
-          last_bridge_sync: now,
-        },
-        updated_at: now,
-      })
-      .eq("id", body.broker_account_id);
+    if (body.account) {
+      const { error: brokerError } = await ctx.supabaseAdmin
+        .from("broker_accounts")
+        .update({
+          status: "connected",
+          last_synced_at: now,
+          metadata: {
+            source: "mt5_bridge",
+            last_bridge_sync: now,
+          },
+          updated_at: now,
+        })
+        .eq("id", body.broker_account_id);
 
-    if (brokerError) {
-      return Response.json({ error: brokerError.message }, { status: 500, headers: corsHeaders() });
-    }
+      if (brokerError) {
+        return Response.json({ error: brokerError.message }, { status: 500, headers: corsHeaders() });
+      }
 
-    const { error: mt5Error } = await ctx.supabaseAdmin
-      .from("mt5_accounts")
-      .update({
-        login_identifier: String(body.account.login),
-        server_name: body.account.server,
-        terminal_build: body.account.terminal_build,
-        balance: body.account.balance,
-        equity: body.account.equity,
-        margin: body.account.margin,
-        free_margin: body.account.free_margin,
-        leverage: body.account.leverage,
-        currency: body.account.currency,
-        is_hedging_account: body.account.is_hedging_account,
-        last_account_sync_at: now,
-        updated_at: now,
-      })
-      .eq("id", body.mt5_account_id);
+      const { error: mt5Error } = await ctx.supabaseAdmin
+        .from("mt5_accounts")
+        .update({
+          login_identifier: String(body.account.login),
+          server_name: body.account.server,
+          terminal_build: body.account.terminal_build,
+          balance: body.account.balance,
+          equity: body.account.equity,
+          margin: body.account.margin,
+          free_margin: body.account.free_margin,
+          leverage: body.account.leverage,
+          currency: body.account.currency,
+          is_hedging_account: body.account.is_hedging_account,
+          last_account_sync_at: now,
+          updated_at: now,
+        })
+        .eq("id", body.mt5_account_id);
 
-    if (mt5Error) {
-      return Response.json({ error: mt5Error.message }, { status: 500, headers: corsHeaders() });
+      if (mt5Error) {
+        return Response.json({ error: mt5Error.message }, { status: 500, headers: corsHeaders() });
+      }
+
+
     }
 
     let quotesUpdated = 0;
@@ -182,13 +186,12 @@ export default {
       if (quoteRows.length) {
         const { error: quoteError, data } = await ctx.supabaseAdmin
           .from("market_quotes")
-          .upsert(quoteRows, { onConflict: "market_id,provider" })
-          .select("id");
+          .upsert(quoteRows, { onConflict: "market_id,provider" });
 
         if (quoteError) {
           return Response.json({ error: quoteError.message }, { status: 500, headers: corsHeaders() });
         }
-        quotesUpdated = data?.length ?? quoteRows.length;
+        quotesUpdated = quoteRows.length;
       }
     }
 
@@ -242,13 +245,12 @@ export default {
 
       const { error: positionError, data } = await ctx.supabaseAdmin
         .from("mt5_positions")
-        .upsert(positionRows, { onConflict: "mt5_account_id,mt5_ticket" })
-        .select("id");
+        .upsert(positionRows, { onConflict: "mt5_account_id,mt5_ticket" });
 
       if (positionError) {
         return Response.json({ error: positionError.message }, { status: 500, headers: corsHeaders() });
       }
-      positionsUpdated = data?.length ?? positionRows.length;
+      positionsUpdated = positionRows.length;
     }
 
     return Response.json(
