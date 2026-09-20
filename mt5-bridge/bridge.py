@@ -212,7 +212,11 @@ def build_market_symbol_map(
     return resolved
 
 
-def print_unresolved_candidates(\n    markets: list[dict[str, Any]],\n    symbol_map: dict[str, str],\n    market_symbol_map: dict[str, dict[str, Any]],\n) -> None:
+def print_unresolved_candidates(
+    markets: list[dict[str, Any]],
+    symbol_map: dict[str, str],
+    market_symbol_map: dict[str, dict[str, Any]],
+) -> None:
     """Print likely MT5 candidates for markets that could not be validated."""
     for market in markets:
         ui_symbol = str(market["symbol"]).strip()
