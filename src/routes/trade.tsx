@@ -92,7 +92,7 @@ function TradePage() {
 
     if (side === "BUY" && cashBalance !== null && notional > cashBalance) {
       toast.error("Insufficient paper buying power", {
-        description: \`Available $${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} · Required $${notional.toLocaleString("en-US", { maximumFractionDigits: 2 })}\`,
+        description: `Available $${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} · Required $${notional.toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
       });
       return;
     }
@@ -128,8 +128,8 @@ function TradePage() {
 
     setCashBalance(result.cash_balance == null ? cashBalance : Number(result.cash_balance));
 
-    toast.success(\`${side} ${market.symbol} filled\`, {
-      description: \`${quantity} @ ${market.price.toFixed(2)} · Paper account equity $${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}\`,
+    toast.success(`${side} ${market.symbol} filled`, {
+      description: `${quantity} @ ${market.price.toFixed(2)} · Paper account equity $${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
     });
   };
 
@@ -149,7 +149,7 @@ function TradePage() {
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_380px]">
         <ChartCard
-          title={\`${market.symbol} · ${market.name}\`}
+          title={`${market.symbol} · ${market.name}`}
           subtitle="Simulated last 30 sessions"
           actions={<Delta value={market.changePct} showIcon={false} size="md" />}
         >
@@ -231,7 +231,7 @@ function TradePage() {
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Paper cash</dt>
               <dd className="num text-foreground">
-                {cashBalance == null ? "—" : \`$${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })}\`}
+                {cashBalance == null ? "—" : `$${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })}`}
               </dd>
             </div>
           </dl>
@@ -253,7 +253,7 @@ function TradePage() {
             disabled={marketClosed || submitting || !user}
             onClick={() => void submitOrder()}
           >
-            {submitting ? "Executing…" : \`${side} ${market.symbol}\`}
+            {submitting ? "Executing…" : `${side} ${market.symbol}`}
           </Button>
 
           <p className="mt-3 text-center text-[11px] text-muted-foreground">
