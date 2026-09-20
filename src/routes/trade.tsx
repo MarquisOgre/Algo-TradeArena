@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { loadMarketBoard, subscribeToMarketQuotes } from "@/lib/marketData";
+import { isQuoteFresh, loadLiveMarketQuotes, loadMarketBoard, subscribeToMarketQuotes } from "@/lib/marketData";
 
 export const Route = createFileRoute("/trade")({
   head: () => ({
@@ -39,11 +39,14 @@ function TradePage() {
   const [symbolId, setSymbolId] = useState(mockMarkets[0]!.id);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [liveData, setLiveData] = useState(false);
+  const [liveQuotes, setLiveQuotes] = useState<Awaited<ReturnType<typeof loadLiveMarketQuotes>>>(new Map());
   const [qty, setQty] = useState("100");
   const [cashBalance, setCashBalance] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const market = markets.find((m) => m.id === symbolId) ?? markets[0]!;
+  const liveQuote = liveQuotes.get(market.id);
+  const quoteIsFresh = isQuoteFresh(liveQuote, 15_000);
   const quantity = Number(qty);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * market.price;
   const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
@@ -53,11 +56,12 @@ function TradePage() {
     let active = true;
 
     const refresh = () => {
-      void loadMarketBoard()
-        .then((nextMarkets) => {
+      void Promise.all([loadMarketBoard(), loadLiveMarketQuotes()])
+        .then(([nextMarkets, nextQuotes]) => {
           if (!active) return;
           setMarkets(nextMarkets);
-          setLiveData(nextMarkets.some((item, index) => item.price !== mockMarkets[index]?.price));
+          setLiveQuotes(nextQuotes);
+          setLiveData([...nextQuotes.values()].some((quote) => quote.provider === "mt5" && isQuoteFresh(quote, 15_000)));
         })
         .catch((error) => {
           console.error("Failed to load market data:", error);
@@ -180,14 +184,31 @@ function TradePage() {
       <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_380px]">
         <ChartCard
           title={`${market.symbol} · ${market.name}`}
-          subtitle="Simulated last 30 sessions"
-          actions={<Delta value={market.changePct} showIcon={false} size="md" />}
+          subtitle={quoteIsFresh && liveQuote?.provider === "mt5" ? "MetaTrader 5 live quote" : "Simulated last 30 sessions"}
+          actions={
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide",
+                quoteIsFresh && liveQuote?.provider === "mt5"
+                  ? "border-success/30 bg-success/10 text-success"
+                  : "border-border bg-muted text-muted-foreground",
+              )}>
+                {quoteIsFresh && liveQuote?.provider === "mt5" ? "● MT5 Live" : "No live quote"}
+              </span>
+              <Delta value={market.changePct} showIcon={false} size="md" />
+            </div>
+          }
         >
           <div className="flex flex-wrap items-center gap-2">
             <p className="num text-3xl font-bold text-foreground">
               {market.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </p>
             <span className="rounded-full bg-primary-soft px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">{market.assetClass}</span>
+            {liveQuote?.quoteTime && (
+              <span className="text-[10px] text-muted-foreground">
+                {quoteIsFresh ? "Updated " : "Last quote "}{new Date(liveQuote.quoteTime).toLocaleTimeString()}
+              </span>
+            )}
           </div>
           <div className="mt-2">
             <Sparkline data={market.spark} height={180} />
@@ -244,6 +265,24 @@ function TradePage() {
           </div>
 
           <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
+            {quoteIsFresh && liveQuote?.provider === "mt5" && liveQuote.bid != null && liveQuote.ask != null && (
+              <>
+                <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-2">
+                  <div>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Bid</dt>
+                    <dd className="num mt-1 font-semibold text-foreground">{liveQuote.bid.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 8 })}</dd>
+                  </div>
+                  <div className="text-right">
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Ask</dt>
+                    <dd className="num mt-1 font-semibold text-foreground">{liveQuote.ask.toLocaleString("en-US", { minimumFractionDigits: 4, maximumFractionDigits: 8 })}</dd>
+                  </div>
+                </div>
+                <div className="flex justify-between">
+                  <dt className="text-muted-foreground">Spread</dt>
+                  <dd className="num text-foreground">{liveQuote.spread == null ? "—" : liveQuote.spread.toLocaleString("en-US", { maximumFractionDigits: 8 })}</dd>
+                </div>
+              </>
+            )}
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Est. price</dt>
               <dd className="num text-foreground">{market.price.toFixed(2)}</dd>
