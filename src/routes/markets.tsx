@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
@@ -11,6 +11,7 @@ import { marketIndices, mockMarkets } from "@/data/mockMarkets";
 import type { Market } from "@/data/types";
 import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
+import { loadMarketBoard } from "@/lib/marketData";
 
 export const Route = createFileRoute("/markets")({
   head: () => ({
@@ -32,7 +33,28 @@ const filters = ["All", "FX", "Crypto", "Metals", "Equity", "ETF"] as const;
 
 function MarketsPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
-  const rows = mockMarkets.filter((m) => filter === "All" || m.assetClass === filter);
+  const [markets, setMarkets] = useState(mockMarkets);
+  const [liveData, setLiveData] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+
+    void loadMarketBoard()
+      .then((nextMarkets) => {
+        if (!active) return;
+        setMarkets(nextMarkets);
+        setLiveData(nextMarkets.some((market, index) => market.price !== mockMarkets[index]?.price));
+      })
+      .catch((error) => {
+        console.error("Failed to load market data:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const rows = markets.filter((m) => filter === "All" || m.assetClass === filter);
 
   const columns: Column<Market>[] = [
     {
@@ -96,7 +118,7 @@ function MarketsPage() {
       <PageHeader
         eyebrow="Market board"
         title="Markets"
-        description="Simulated pricing used across the ALPHENTRA trading experience. Signals are model output, not investment advice."
+        description="Live provider-backed quotes when available, with a simulated fallback until market-data ingestion is configured."
       />
 
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -131,8 +153,12 @@ function MarketsPage() {
       </div>
 
       <div className="mt-2 text-xs text-muted-foreground">
-        {getMarketCalendarLabel()} · Prototype calendar
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span>{getMarketCalendarLabel()} · Prototype calendar</span>
+          <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
+            {liveData ? "Live quotes" : "Simulated fallback"}
+          </span>
+        </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
         {filters.map((f) => (
