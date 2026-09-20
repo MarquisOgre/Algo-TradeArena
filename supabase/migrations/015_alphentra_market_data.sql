@@ -147,3 +147,22 @@ comment on table public.market_quotes is
 
 comment on function public.refresh_paper_portfolio_marks() is
   'Marks the authenticated paper portfolio against the latest market quotes and recalculates equity/unrealized P&L.';
+
+
+-- Stream quote updates to connected clients. Realtime must still be enabled for the
+-- project; this block only adds the table to the publication when it is available.
+do $$
+begin
+  if exists (select 1 from pg_publication where pubname = 'supabase_realtime')
+     and not exists (
+       select 1
+       from pg_publication_tables
+       where pubname = 'supabase_realtime'
+         and schemaname = 'public'
+         and tablename = 'market_quotes'
+     )
+  then
+    execute 'alter publication supabase_realtime add table public.market_quotes';
+  end if;
+end
+$$;
