@@ -47,10 +47,41 @@ def fetch_markets() -> list[dict[str, Any]]:
     response.raise_for_status()
     return response.json()
 
-def collect_quotes(markets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def build_mt5_symbol_map() -> dict[str, str]:
+    symbols = mt5.symbols_get() or []
+    return {str(symbol.name).upper(): str(symbol.name) for symbol in symbols if getattr(symbol, "name", None)}
+
+def resolve_mt5_symbol(market: dict[str, Any], symbol_map: dict[str, str]) -> str | None:
+    requested = str(market.get("broker_symbol") or market["symbol"]).strip()
+    candidates = [requested, str(market["symbol"]).strip()]
+
+    # Common crypto aliases on MetaQuotes-Demo. The terminal exposes BTC/ETH
+    # rather than the UI's BTCUSD/ETHUSD symbols.
+    aliases = {
+        "BTCUSD": ["BTC", "BTCUSD"],
+        "ETHUSD": ["ETH", "ETHUSD"],
+        "XAUUSD": ["XAUUSD", "GOLD"],
+    }
+    candidates.extend(aliases.get(requested.upper(), []))
+
+    for candidate in candidates:
+        if candidate.upper() in symbol_map:
+            return symbol_map[candidate.upper()]
+
+    normalized = "".join(ch for ch in requested.upper() if ch.isalnum())
+    for name_upper, actual_name in symbol_map.items():
+        normalized_name = "".join(ch for ch in name_upper if ch.isalnum())
+        if normalized_name == normalized:
+            return actual_name
+
+    return None
+
+def collect_quotes(markets: list[dict[str, Any]], symbol_map: dict[str, str]) -> list[dict[str, Any]]:
     quotes=[]
     for market in markets:
-        symbol=(market.get("broker_symbol") or market["symbol"]).strip()
+        symbol = resolve_mt5_symbol(market, symbol_map)
+        if not symbol:
+            continue
         info=mt5.symbol_info(symbol)
         if info is None: continue
         if not info.visible and not mt5.symbol_select(symbol, True): continue
@@ -113,7 +144,7 @@ def push_sync(payload: dict[str, Any]) -> None:
     result=response.json()
     print(f"Synced quotes={result.get('quotes_updated',0)} positions={result.get('positions_updated',0)}")
 
-def sync_once(markets: list[dict[str, Any]], include_candles: bool = False) -> None:
+def sync_once(markets: list[dict[str, Any]], symbol_map: dict[str, str], include_candles: bool = False) -> None:
     candles: list[dict[str, Any]] = []
 
     if include_candles:
@@ -127,7 +158,9 @@ def sync_once(markets: list[dict[str, Any]], include_candles: bool = False) -> N
         ):
             count = 120 if timeframe_name in {"1m", "5m", "15m"} else 100
             for market in markets:
-                symbol = (market.get("broker_symbol") or market["symbol"]).strip()
+                symbol = resolve_mt5_symbol(market, symbol_map)
+                if not symbol:
+                    continue
                 info = mt5.symbol_info(symbol)
                 if info is None:
                     continue
@@ -158,7 +191,7 @@ def sync_once(markets: list[dict[str, Any]], include_candles: bool = False) -> N
         "broker_account_id": BROKER_ACCOUNT_ID,
         "mt5_account_id": MT5_ACCOUNT_ID,
         "account": collect_account(),
-        "quotes": collect_quotes(markets),
+        "quotes": collect_quotes(markets, symbol_map),
         "candles": candles,
         "positions": collect_positions(),
     })
@@ -167,13 +200,15 @@ def main() -> None:
     initialize_mt5()
     try:
         markets = fetch_markets()
+        symbol_map = build_mt5_symbol_map()
+        print(f"MT5 symbol resolver: {len(symbol_map)} terminal symbols available")
         last_candle_sync = 0.0
         while True:
             started = time.monotonic()
             try:
                 now = time.monotonic()
                 include_candles = now - last_candle_sync >= CANDLE_SYNC_SECONDS
-                sync_once(markets, include_candles=include_candles)
+                sync_once(markets, symbol_map, include_candles=include_candles)
                 if include_candles:
                     last_candle_sync = now
             except Exception as exc:
