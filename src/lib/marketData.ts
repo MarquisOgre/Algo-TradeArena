@@ -23,6 +23,7 @@ type MarketRow = {
   symbol: string;
   name: string;
   asset_class: string;
+  exchange: string | null;
 };
 
 type QuoteRow = {
@@ -78,7 +79,7 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
     await Promise.all([
       supabase
         .from("markets")
-        .select("id, symbol, name, asset_class")
+        .select("id, symbol, name, asset_class, exchange")
         .eq("status", "active")
         .order("symbol"),
       supabase
@@ -127,32 +128,39 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
 
 export async function loadMarketBoard(): Promise<Market[]> {
   const liveQuotes = await loadLiveMarketQuotes();
+  const { data: marketRows, error } = await supabase
+    .from("markets")
+    .select("id, symbol, name, asset_class, exchange")
+    .eq("status", "active")
+    .eq("is_tradable", true)
+    .order("symbol");
 
+  if (error) throw error;
+
+  const mockBySymbol = new Map(mockMarkets.map((market) => [market.symbol.toUpperCase(), market]));
   const bySymbol = new Map(
     [...liveQuotes.values()].map((quote) => [quote.symbol.toUpperCase(), quote]),
   );
 
-  return mockMarkets.map((market) => {
-    const live = bySymbol.get(market.symbol.toUpperCase());
-    if (!live) return market;
+  return ((marketRows ?? []) as MarketRow[]).map((row) => {
+    const live = bySymbol.get(row.symbol.toUpperCase());
+    const fallback = mockBySymbol.get(row.symbol.toUpperCase());
+    const fallbackPrice = fallback?.price ?? 0;
+    const price = live?.price ?? fallbackPrice;
 
     return {
-      ...market,
-      price: live.price,
-      change: live.change,
-      changePct: live.changePct,
-      volume: formatVolume(live.volume),
-      assetClass: assetClassLabel(
-        market.assetClass === "FX"
-          ? "forex"
-          : market.assetClass === "Crypto"
-            ? "crypto"
-            : market.assetClass === "ETF"
-              ? "etf"
-              : market.assetClass === "Metals"
-                ? "commodity"
-                : "stocks",
-      ),
+      id: row.id,
+      symbol: row.symbol,
+      name: row.name,
+      assetClass: assetClassLabel(row.asset_class),
+      price,
+      change: live?.change ?? fallback?.change ?? 0,
+      changePct: live?.changePct ?? fallback?.changePct ?? 0,
+      volume: formatVolume(live?.volume ?? null),
+      marketCap: fallback?.marketCap ?? "—",
+      spark: fallback?.spark ?? Array.from({ length: 30 }, () => price),
+      aiSignal: fallback?.aiSignal ?? "Neutral",
+      aiConfidence: fallback?.aiConfidence ?? 50,
     };
   });
 }
