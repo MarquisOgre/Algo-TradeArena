@@ -13,6 +13,9 @@ export type LiveMarketQuote = {
   quoteTime: string;
   isMarketOpen: boolean | null;
   provider: string;
+  bid: number | null;
+  ask: number | null;
+  spread: number | null;
 };
 
 type MarketRow = {
@@ -32,6 +35,9 @@ type QuoteRow = {
   previous_close: number | string | null;
   volume: number | string | null;
   is_market_open: boolean | null;
+  bid: number | string | null;
+  ask: number | string | null;
+  spread: number | string | null;
 };
 
 function numberOrNull(value: number | string | null | undefined) {
@@ -78,7 +84,7 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
       supabase
         .from("market_quotes")
         .select(
-          "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open",
+          "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread",
         )
         .order("quote_time", { ascending: false })
         .limit(100),
@@ -110,6 +116,9 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
       quoteTime: quote.quote_time,
       isMarketOpen: quote.is_market_open,
       provider: quote.provider,
+      bid: numberOrNull(quote.bid),
+      ask: numberOrNull(quote.ask),
+      spread: numberOrNull(quote.spread),
     });
   }
 
