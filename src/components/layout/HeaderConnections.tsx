@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BadgeCheck, ChevronDown, ExternalLink, WalletCards } from "lucide-react";
+import { BadgeCheck, ChevronDown, ExternalLink, RefreshCw, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -43,6 +43,52 @@ export function HeaderConnections() {
   const resetMt5Status = () => {
     setMt5Error("");
     setRegisteredIds(null);
+  };
+
+  const loadMt5Account = async () => {
+    if (!user) return;
+
+    setMt5Loading(true);
+    setMt5Error("");
+
+    const { data, error } = await supabase
+      .from("broker_accounts")
+      .select(
+        "id, broker_name, account_name, account_identifier, environment, status, mt5_accounts(server_name, balance, equity, margin, free_margin, leverage, currency, last_account_sync_at)",
+      )
+      .eq("profile_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    setMt5Loading(false);
+
+    if (error) {
+      setMt5Error(error.message);
+      return;
+    }
+
+    if (!data) {
+      setMt5Account(null);
+      return;
+    }
+
+    const account = Array.isArray(data.mt5_accounts) ? data.mt5_accounts[0] : data.mt5_accounts;
+    setMt5Account({
+      broker_name: data.broker_name,
+      account_name: data.account_name,
+      account_identifier: data.account_identifier,
+      environment: data.environment,
+      status: data.status,
+      server_name: account?.server_name ?? "",
+      balance: Number(account?.balance ?? 0),
+      equity: Number(account?.equity ?? 0),
+      margin: Number(account?.margin ?? 0),
+      free_margin: Number(account?.free_margin ?? 0),
+      leverage: account?.leverage ?? null,
+      currency: account?.currency ?? "USD",
+      last_account_sync_at: account?.last_account_sync_at ?? null,
+    });
   };
 
   const registerMt5 = async () => {
@@ -106,6 +152,7 @@ export function HeaderConnections() {
         onClick={() => {
           resetMt5Status();
           setMt5Open(true);
+          void loadMt5Account();
         }}
       >
         <span className="grid size-4 place-items-center rounded bg-primary/15 text-[9px] font-bold text-primary">MT5</span>
@@ -172,6 +219,74 @@ export function HeaderConnections() {
             <div className="rounded-xl border border-border bg-surface p-4 text-sm text-muted-foreground">
               Please sign in to Alphentra before connecting a MetaTrader 5 account.
             </div>
+          ) : mt5Loading ? (
+            <div className="flex min-h-40 items-center justify-center rounded-2xl border border-border bg-surface p-5 text-sm text-muted-foreground">
+              Loading MT5 account...
+            </div>
+          ) : mt5Account ? (
+            <div className="space-y-4">
+              <div className="rounded-2xl border border-success/25 bg-success/5 p-5">
+                <div className="flex items-center gap-2 text-sm font-semibold">
+                  <BadgeCheck className="size-4 text-success" />
+                  {mt5Account.status === "connected" ? "MT5 Connected" : "MT5 Registered"}
+                  <Badge variant="outline" className="ml-auto">
+                    {mt5Account.environment === "demo" ? "Demo" : "Live"}
+                  </Badge>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {mt5Account.broker_name} · {mt5Account.server_name} · Login {mt5Account.account_identifier}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-xs text-muted-foreground">Balance</p>
+                  <p className="mt-1 text-2xl font-semibold">
+                    {mt5Account.currency} {mt5Account.balance.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-xs text-muted-foreground">Equity</p>
+                  <p className="mt-1 text-2xl font-semibold">
+                    {mt5Account.currency} {mt5Account.equity.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-xs text-muted-foreground">Free Margin</p>
+                  <p className="mt-1 text-lg font-medium">
+                    {mt5Account.currency} {mt5Account.free_margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-border bg-surface p-4">
+                  <p className="text-xs text-muted-foreground">Margin</p>
+                  <p className="mt-1 text-lg font-medium">
+                    {mt5Account.currency} {mt5Account.margin.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-border bg-surface/60 p-3 text-xs text-muted-foreground">
+                <span>
+                  {mt5Account.last_account_sync_at
+                    ? `Last sync: ${new Date(mt5Account.last_account_sync_at).toLocaleString()}`
+                    : "Waiting for the MT5 bridge to send the first account sync."}
+                </span>
+                <Button variant="ghost" size="sm" onClick={() => void loadMt5Account()} disabled={mt5Loading}>
+                  <RefreshCw className="size-3.5" />
+                  Refresh
+                </Button>
+              </div>
+
+              {mt5Account.status !== "connected" && (
+                <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-muted-foreground">
+                  The account is registered, but the local MT5 bridge has not reported a live synchronization yet. Keep MT5 and the bridge running.
+                </div>
+              )}
+
+              <Button className="w-full" onClick={() => setMt5Open(false)}>
+                Done
+              </Button>
+            </div>
           ) : registeredIds ? (
             <div className="space-y-4">
               <div className="rounded-2xl border border-success/25 bg-success/5 p-5">
@@ -180,27 +295,11 @@ export function HeaderConnections() {
                   MT5 account registered
                 </div>
                 <p className="mt-2 text-sm text-muted-foreground">
-                  Your Alphentra account is now ready for the MT5 bridge.
+                  Your Alphentra account is ready for the MT5 bridge. Open this panel again after the bridge performs its first sync to see balance and equity.
                 </p>
               </div>
-
-              <div className="space-y-2 rounded-xl border border-border bg-surface p-4 font-mono text-xs">
-                <div>
-                  <span className="text-muted-foreground">BROKER_ACCOUNT_ID=</span>
-                  <span>{registeredIds.broker_account_id}</span>
-                </div>
-                <div>
-                  <span className="text-muted-foreground">MT5_ACCOUNT_ID=</span>
-                  <span>{registeredIds.mt5_account_id}</span>
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-border bg-surface/60 p-3 text-xs text-muted-foreground">
-                Keep these IDs available for the local MT5 bridge. Do not put your MT5 password or gateway secret in this screen.
-              </div>
-
-              <Button className="w-full" onClick={() => setMt5Open(false)}>
-                Done
+              <Button className="w-full" onClick={() => void loadMt5Account()}>
+                Check MT5 Status
               </Button>
             </div>
           ) : (
