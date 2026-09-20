@@ -8,7 +8,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
 
 import appCss from "../styles.css?url";
@@ -151,8 +151,13 @@ function AuthenticationGate() {
     );
   }
 
+  useEffect(() => {
+    if (!loading && !user && pathname !== "/login") {
+      void router.navigate({ to: "/login", replace: true });
+    }
+  }, [loading, pathname, router, user]);
+
   if (!user) {
-    void router.navigate({ to: "/login", replace: true });
     return null;
   }
 
