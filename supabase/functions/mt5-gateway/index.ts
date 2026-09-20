@@ -39,6 +39,15 @@ type CandleSnapshot = {
   metadata?: Record<string, unknown>;
 };
 
+type MarketStatusSnapshot = {
+  market_id: string;
+  symbol: string;
+  status: "live" | "no_quote" | "unsupported";
+  provider_symbol?: string | null;
+  checked_at?: string;
+  metadata?: Record<string, unknown>;
+};
+
 type PositionSnapshot = {
   ticket: number;
   symbol: string;
@@ -62,6 +71,7 @@ type SyncPayload = {
   quotes?: QuoteSnapshot[];
   candles?: CandleSnapshot[];
   positions?: PositionSnapshot[];
+  market_statuses?: MarketStatusSnapshot[];
 };
 
 function corsHeaders() {
@@ -159,6 +169,31 @@ export default {
       }
 
 
+    }
+
+    let marketStatusesUpdated = 0;
+    if (body.market_statuses?.length) {
+      const statusRows = body.market_statuses.map((status) => ({
+        market_id: status.market_id,
+        provider: "mt5",
+        status: status.status,
+        provider_symbol: status.provider_symbol ?? null,
+        checked_at: status.checked_at ?? now,
+        metadata: {
+          ...(status.metadata ?? {}),
+          provider: "mt5",
+          synced_at: now,
+        },
+      }));
+
+      const { error: statusError } = await ctx.supabaseAdmin
+        .from("market_provider_status")
+        .upsert(statusRows, { onConflict: "market_id,provider" });
+
+      if (statusError) {
+        return Response.json({ error: statusError.message }, { status: 500, headers: corsHeaders() });
+      }
+      marketStatusesUpdated = statusRows.length;
     }
 
     let quotesUpdated = 0;
@@ -259,6 +294,7 @@ export default {
         broker_account_id: body.broker_account_id,
         mt5_account_id: body.mt5_account_id,
         quotes_updated: quotesUpdated,
+        market_statuses_updated: marketStatusesUpdated,
         positions_updated: positionsUpdated,
         synced_at: now,
       },
