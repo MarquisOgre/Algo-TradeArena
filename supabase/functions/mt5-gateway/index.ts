@@ -25,6 +25,20 @@ type QuoteSnapshot = {
   metadata?: Record<string, unknown>;
 };
 
+type CandleSnapshot = {
+  market_id: string;
+  symbol: string;
+  timeframe: string;
+  candle_time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume?: number | null;
+  trade_count?: number | null;
+  metadata?: Record<string, unknown>;
+};
+
 type PositionSnapshot = {
   ticket: number;
   symbol: string;
@@ -46,6 +60,7 @@ type SyncPayload = {
   mt5_account_id: string;
   account: AccountSnapshot;
   quotes?: QuoteSnapshot[];
+  candles?: CandleSnapshot[];
   positions?: PositionSnapshot[];
 };
 
@@ -174,6 +189,29 @@ export default {
           return Response.json({ error: quoteError.message }, { status: 500, headers: corsHeaders() });
         }
         quotesUpdated = data?.length ?? quoteRows.length;
+      }
+    }
+
+    if (body.candles?.length) {
+      const candleRows = body.candles.map((candle) => ({
+        market_id: candle.market_id,
+        timeframe: candle.timeframe,
+        candle_time: candle.candle_time,
+        open: candle.open,
+        high: candle.high,
+        low: candle.low,
+        close: candle.close,
+        volume: candle.volume ?? null,
+        trade_count: candle.trade_count ?? null,
+        source: "mt5",
+      }));
+
+      const { error: candleError } = await ctx.supabaseAdmin
+        .from("market_data")
+        .upsert(candleRows, { onConflict: "market_id,timeframe,candle_time,source" });
+
+      if (candleError) {
+        return Response.json({ error: candleError.message }, { status: 500, headers: corsHeaders() });
       }
     }
 
