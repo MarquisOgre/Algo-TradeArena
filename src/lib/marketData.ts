@@ -165,10 +165,19 @@ export async function loadMarketBoard(): Promise<Market[]> {
   });
 }
 
-export async function loadMarketHistory(marketId: string, timeframe = "1m", limit = 60): Promise<number[]> {
+export type MarketCandle = {
+  candle_time: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number | null;
+};
+
+export async function loadMarketHistory(marketId: string, timeframe = "1m", limit = 120): Promise<MarketCandle[]> {
   const { data, error } = await supabase
     .from("market_data")
-    .select("close")
+    .select("candle_time, open, high, low, close, volume")
     .eq("market_id", marketId)
     .eq("timeframe", timeframe)
     .eq("source", "mt5")
@@ -178,8 +187,15 @@ export async function loadMarketHistory(marketId: string, timeframe = "1m", limi
   if (error) throw error;
 
   return (data ?? [])
-    .map((row) => Number(row.close))
-    .filter((value) => Number.isFinite(value) && value > 0)
+    .map((row) => ({
+      candle_time: row.candle_time,
+      open: Number(row.open),
+      high: Number(row.high),
+      low: Number(row.low),
+      close: Number(row.close),
+      volume: row.volume == null ? null : Number(row.volume),
+    }))
+    .filter((row) => [row.open, row.high, row.low, row.close].every(Number.isFinite))
     .reverse();
 }
 
