@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BadgeCheck, ChevronDown, Copy, ExternalLink, WalletCards } from "lucide-react";
+import { BadgeCheck, ChevronDown, ExternalLink, WalletCards } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
