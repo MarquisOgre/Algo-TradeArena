@@ -78,8 +78,8 @@ export interface Market {
   spark: number[];
   aiSignal: "Bullish" | "Bearish" | "Neutral";
   aiConfidence: number;
-  providerStatus: "live" | "no_quote" | "unsupported";
-  providerSymbol: string | null;
+  providerStatus?: "live" | "no_quote" | "unsupported";
+  providerSymbol?: string | null;
 }
 
 export interface Battle {
