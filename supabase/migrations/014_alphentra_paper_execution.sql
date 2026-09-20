@@ -455,6 +455,9 @@ begin
 end;
 $$;
 
+grant usage on schema private to authenticated;
+grant execute on function private.execute_paper_market_order(text, public.order_side, numeric, numeric, text) to authenticated;
+
 create or replace function public.execute_paper_market_order(
   p_market_symbol text,
   p_side public.order_side,
