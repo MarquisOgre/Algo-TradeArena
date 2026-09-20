@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import { Bell, Menu, Search, ShieldCheck } from "lucide-react";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { UserMenu } from "./UserMenu";
+import { HeaderConnections } from "./HeaderConnections";
 import { Button } from "@/components/ui/button";
 import { SidebarContentInner } from "./Sidebar";
 import { Logo } from "@/components/brand/Logo";
@@ -67,6 +68,7 @@ export function TopBar() {
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <MarketStatus />
+          <HeaderConnections />
           <PaperTradingBadge />
           <Button variant="ghost" size="icon" className="relative" aria-label="Notifications">
             <Bell className="size-[18px]" />
