@@ -58,6 +58,40 @@ def collect_quotes(markets: list[dict[str, Any]]) -> list[dict[str, Any]]:
         quotes.append({"market_id":market["id"],"symbol":symbol,"bid":float(tick.bid),"ask":float(tick.ask),"price":float((tick.bid+tick.ask)/2),"quote_time":iso_from_seconds(getattr(tick,"time",None)),"volume":None,"metadata":{"asset_class":market["asset_class"],"mt5_time_msc":getattr(tick,"time_msc",None)}})
     return quotes
 
+def collect_candles(markets: list[dict[str, Any]], count: int = 60) -> list[dict[str, Any]]:
+    candles: list[dict[str, Any]] = []
+    for market in markets:
+        symbol = (market.get("broker_symbol") or market["symbol"]).strip()
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            continue
+        if not info.visible and not mt5.symbol_select(symbol, True):
+            continue
+        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, count)
+        if rates is None:
+            continue
+        for rate in rates:
+            candle_time = iso_from_seconds(rate["time"])
+            if not candle_time:
+                continue
+            candles.append({
+                "market_id": market["id"],
+                "symbol": symbol,
+                "timeframe": "1m",
+                "candle_time": candle_time,
+                "open": float(rate["open"]),
+                "high": float(rate["high"]),
+                "low": float(rate["low"]),
+                "close": float(rate["close"]),
+                "volume": float(rate["tick_volume"]),
+                "trade_count": None,
+                "metadata": {
+                    "asset_class": market["asset_class"],
+                    "source": "mt5",
+                },
+            })
+    return candles
+
 def collect_positions() -> list[dict[str, Any]]:
     positions=mt5.positions_get() or []
     snapshots=[]
@@ -80,7 +114,7 @@ def push_sync(payload: dict[str, Any]) -> None:
 
 def sync_once() -> None:
     markets=fetch_markets()
-    push_sync({"broker_account_id":BROKER_ACCOUNT_ID,"mt5_account_id":MT5_ACCOUNT_ID,"account":collect_account(),"quotes":collect_quotes(markets),"positions":collect_positions()})
+    push_sync({"broker_account_id":BROKER_ACCOUNT_ID,"mt5_account_id":MT5_ACCOUNT_ID,"account":collect_account(),"quotes":collect_quotes(markets),"candles":collect_candles(markets),"positions":collect_positions()})
 
 def main() -> None:
     initialize_mt5()
