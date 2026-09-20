@@ -79,7 +79,28 @@ def symbol_matches_market(market: dict[str, Any], info: Any) -> bool:
     base = str(getattr(info, "currency_base", "") or "").upper()
     profit = str(getattr(info, "currency_profit", "") or "").upper()
 
-    return base == expected_base and profit == expected_profit
+    if base != expected_base or profit != expected_profit:
+        return False
+
+    asset_class = str(market.get("asset_class") or "").lower()
+    description = str(getattr(info, "description", "") or "").upper()
+    path = str(getattr(info, "path", "") or "").upper()
+
+    # Crypto markets must be genuine crypto instruments. This prevents
+    # accidental matches to securities/ETFs whose names contain BTC or ETH.
+    if asset_class == "crypto":
+        crypto_markers = (
+            "CRYPTO",
+            "DIGITAL",
+            "BITCOIN",
+            "ETHEREUM",
+            "\\CRYPTO",
+            "\\DIGITAL",
+        )
+        if not any(marker in description or marker in path for marker in crypto_markers):
+            return False
+
+    return True
 
 
 def symbol_metadata(info: Any) -> dict[str, Any]:
