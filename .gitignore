@@ -33,3 +33,6 @@ dist-ssr
 
 # Supabase Edge Function secrets
 supabase/functions/.env
+
+# MT5 bridge credentials
+mt5-bridge/.env
