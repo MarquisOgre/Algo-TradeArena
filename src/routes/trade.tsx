@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { isQuoteFresh, loadLiveMarketQuotes, loadMarketBoard, subscribeToMarketQuotes } from "@/lib/marketData";
+import { isQuoteFresh, loadLiveMarketQuotes, loadMarketBoard, loadMarketHistory, subscribeToMarketQuotes } from "@/lib/marketData";
 
 export const Route = createFileRoute("/trade")({
   head: () => ({
@@ -42,6 +42,7 @@ function TradePage() {
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [liveData, setLiveData] = useState(false);
   const [liveQuotes, setLiveQuotes] = useState<Awaited<ReturnType<typeof loadLiveMarketQuotes>>>(new Map());
+  const [chartPrices, setChartPrices] = useState<number[]>([]);
   const [qty, setQty] = useState("100");
   const [cashBalance, setCashBalance] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -78,6 +79,20 @@ function TradePage() {
   const liveQuote = liveQuotes.get(market.id);
   const quoteIsFresh = isQuoteFresh(liveQuote, 15_000);
   const quantity = Number(qty);
+
+  useEffect(() => {
+    let active = true;
+    void loadMarketHistory(market.id, "1m", 60)
+      .then((history) => {
+        if (active) setChartPrices(history.length >= 2 ? history : market.spark);
+      })
+      .catch(() => {
+        if (active) setChartPrices(market.spark);
+      });
+    return () => {
+      active = false;
+    };
+  }, [market.id, market.spark]);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * market.price;
   const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
   const marketClosed = market.assetClass === "FX" && !forexOpen;
@@ -428,7 +443,7 @@ function TradePage() {
             )}
           </div>
           <div className="mt-2">
-            <Sparkline data={market.spark} height={180} />
+            <Sparkline data={chartPrices.length ? chartPrices : market.spark} height={180} />
           </div>
         </ChartCard>
 
