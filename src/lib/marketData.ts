@@ -164,3 +164,23 @@ export async function refreshPaperPortfolioMarks() {
     marked_at: string;
   };
 }
+
+
+export function subscribeToMarketQuotes(onChange: () => void) {
+  const channel = supabase
+    .channel("alphentra-market-quotes")
+    .on(
+      "postgres_changes",
+      {
+        event: "*",
+        schema: "public",
+        table: "market_quotes",
+      },
+      () => onChange(),
+    )
+    .subscribe();
+
+  return () => {
+    void supabase.removeChannel(channel);
+  };
+}
