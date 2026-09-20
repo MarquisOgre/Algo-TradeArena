@@ -135,32 +135,7 @@ function RootComponent() {
 }
 
 function AuthenticationGate() {
-  const pathname = useRouterState({ select: (state) => state.location.pathname });
-  const router = useRouter();
-  const { user, loading } = useAuth();
-
-  useEffect(() => {
-    if (!loading && !user && pathname !== "/login") {
-      void router.navigate({ to: "/login", replace: true });
-    }
-  }, [loading, pathname, router, user]);
-
-  if (pathname === "/login") {
-    return <Outlet />;
-  }
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
-        Loading ALPHENTRA...
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
-
-  {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+  // The public ALPHENTRA home page and discovery experience remain accessible
+  // without an account. Authentication is required for account actions.
   return <Outlet />;
 }
