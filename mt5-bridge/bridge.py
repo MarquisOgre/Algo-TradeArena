@@ -216,7 +216,7 @@ def print_unresolved_candidates(\n    markets: list[dict[str, Any]],\n    symbol
     """Print likely MT5 candidates for markets that could not be validated."""
     for market in markets:
         ui_symbol = str(market["symbol"]).strip()
-        if ui_symbol in {str(v.get("alphentra_symbol", "")) for v in []}:
+        if market["id"] in market_symbol_map:
             continue
 
         expected_base, expected_profit = expected_currencies(market)
@@ -461,11 +461,12 @@ def sync_once(
     markets: list[dict[str, Any]],
     market_symbol_map: dict[str, dict[str, Any]],
 ) -> None:
+    market_statuses = collect_market_statuses(markets, market_symbol_map)
     push_sync({
         "broker_account_id": BROKER_ACCOUNT_ID,
         "mt5_account_id": MT5_ACCOUNT_ID,
-        "market_statuses": collect_market_statuses(markets, market_symbol_map),
-        "broker_market_mappings": collect_market_statuses(markets, market_symbol_map),
+        "market_statuses": market_statuses,
+        "broker_market_mappings": market_statuses,
         "account": collect_account(),
         "quotes": collect_quotes(markets, market_symbol_map),
         "positions": collect_positions(),
