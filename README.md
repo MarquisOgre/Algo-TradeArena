@@ -1,269 +1,650 @@
 # ALPHENTRA
 
-Build the frontend foundation for a premium AI trading ecosystem called ALPHENTRA.
+**Build. Test. Compete. Trade.**
 
-IMPORTANT:
+ALPHENTRA is a frontend prototype for an AI-powered trading ecosystem where users can **build, test, trade, copy, compete, and earn** through strategy-driven workflows.
 
-Frontend only.
+> **Build → Test → Trade → Copy → Compete → Earn**
 
-No backend.
+## Prototype Scope
 
-No real brokerage APIs.
+The current application is **frontend-only**.
 
-No real-money trading.
+- No backend
+- No real brokerage execution
+- No real-money trading
+- No live copy-trading execution
+- No real ALPH transactions
+- No real ALPH purchases
+- Paper/simulated trading only
+- Simulated/backtest results are clearly labelled
+- Prototype strategy state can be persisted in browser local storage
+- No external API keys are required
 
-No external API keys.
+Real financial, wallet, payment, custody, token, broker, and regulated functionality belongs to later production phases.
 
-Use mock data only.
+---
 
-All trading must be simulated/paper trading.
+## Product Pillars
 
-Do not copy RockFlow's exact UI, branding, logo, text, or proprietary design.
+### 1. Strategy Lab
 
-Create an original premium fintech + competitive AI visual identity.
+Primary lifecycle:
 
-PRODUCT POSITIONING:
+```
+Build
+  ↓
+Backtest
+  ↓
+Stress Test
+  ↓
+Forward Test
+  ↓
+Publish
+```
 
-ALPHENTRA
-"Build. Test. Compete. Trade."
+The frontend supports the Strategy Lab concept with:
 
-The product combines:
+- Strategy definition
+- Strategy styles
+- Entry/exit specification
+- Markets
+- Risk limit
+- Backtest metrics
+- Stress-test state
+- Paper forward testing
+- Strategy versions
+- Save Strategy Locally
+- Prototype validation states
 
-AI trading strategies
+Target production capabilities include an AI strategy builder, rules engine, optimization, historical data, stress testing, Monte Carlo analysis, and out-of-sample validation.
 
-simulated trading
+### 2. Strategy Marketplace
 
-strategy competitions
+`/strategies` and `/strategies/:id`
 
+Users can discover prototype strategies and inspect:
+
+- Creator
+- Strategy style
+- Status
+- Versions
+- Simulated return
+- Drawdown
+- Win rate
+- Sharpe
+- Followers
+- Markets
+- Risk
+- Strategy lifecycle
+
+Prototype actions include Follow, Subscribe, Copy Strategy, and Enter Arena.
+
+### 3. Copy Trading
+
+Copy Trading is a first-class product pillar.
+
+Routes:
+
+- `/copy`
+- `/copy/:strategyId`
+
+Current prototype flow:
+
+```
+Discover Strategy
+      ↓
+View Strategy
+      ↓
+Copy Strategy
+      ↓
+Configure Allocation
+      ↓
+Choose Copy Ratio
+      ↓
+Choose Risk Mode
+      ↓
+Set Maximum Drawdown
+      ↓
+Start Paper Copy
+```
+
+The Copy Trading concept includes:
+
+- Discover strategies
+- My Copies
+- Copy allocation
+- Copy ratio
+- Conservative/Balanced/Full Risk modes
+- Maximum drawdown guard
+- Stop-copy conditions
+- Copy performance
+- Copy history
+- Creator subscriptions
+- ALPH payment context
+
+Future Copy Trading infrastructure will include:
+
+- Signal replication
+- Portfolio allocation
+- Copy-risk engine
+- Exposure/concentration checks
+- Slippage handling
+- Broker execution
+- MT5 execution
+- Live copy monitoring
+- Kill switches and reconciliation
+
+### 4. Markets
+
+`/markets`
+
+Prototype asset classes:
+
+- Forex
+- Crypto
+- Metals
+- Equities
+- ETFs
+
+The UI includes market-session awareness:
+
+- Weekdays: Forex, Crypto, Metals active
+- Weekends: Crypto and Metals active; Forex closed
+
+Production requires instrument/venue-specific calendars, holidays, sessions, and live market data.
+
+### 5. Trade
+
+`/trade`
+
+Paper trading terminal concept with:
+
+- Instrument selection
+- Buy/sell controls
+- Position sizing
+- Paper orders
+- Session awareness
+- Paper balance
+- Portfolio context
+
+Production requires live market data, execution, broker adapters, reconciliation, and risk controls.
+
+### 6. Arena
+
+`/battle` and `/battle/:id`
+
+Strategy competition environment.
+
+Prototype flow:
+
+```
+Select Strategy
+      ↓
+Check Eligibility
+      ↓
+Enter Arena
+      ↓
+Competition
+```
+
+Eligible strategies can be selected from Strategy detail pages.
+
+### 7. Competitions
+
+`/tournaments` and `/tournaments/:id`
+
+Competition concepts include:
+
+- Entry rules
+- Strategy eligibility
+- Duration
+- Starting balance
+- Risk rules
+- Drawdown limits
+- Leaderboards
+- Prize/reward pools
+- Competition history
+
+ALPH entry/reward values in the prototype are simulated.
+
+### 8. Leaderboard
+
+`/leaderboard`
+
+Prototype AI strategy rankings using simulated competition/performance data.
+
+### 9. ALPHENTRA Wallet
+
+`/wallet`
+
+The wallet is the prototype economic hub.
+
+Current actions:
+
+- **Buy ALPH** — prototype flow
+- **Sell ALPH** — Coming Soon
+- **Send ALPH** — Coming Soon
+- **Receive ALPH** — Coming Soon
+- Competition credits
+- Recent activity
+- Competition rewards
+- Strategy payment context
+- Future staking/utility context
+
+Buy ALPH currently opens a prototype purchase experience only. No real payment or token transfer occurs.
+
+Future wallet architecture:
+
+```
+Buy ALPH
+   ↓
+ALPH Wallet
+   ├── Strategy Subscriptions
+   ├── Arena Entry
+   ├── Competition Entry
+   ├── Premium Features
+   ├── Creator Payments
+   └── Competition Rewards
+```
+
+### 10. Crypto Wallet Connection
+
+The top header includes **Connect Wallet**.
+
+The prototype wallet selector covers a small curated set of common wallets:
+
+- MetaMask
+- WalletConnect
+- Coinbase Wallet
+- Trust Wallet
+
+Connection is simulated and does not authorize blockchain transactions.
+
+### 11. MetaTrader 5 Connection
+
+The top header includes **Connect MT5**.
+
+The prototype explains future capabilities:
+
+- Broker account linking
+- Account/equity synchronization
+- Order execution
+- Live Copy Trading
+
+MT5 is currently **Coming Soon** and does not connect to a broker.
+
+### 12. AI Copilot
+
+`/ai`
+
+Prototype AI assistant for:
+
+- Strategy questions
+- Market explanations
+- Competition information
+- Portfolio context
+- Product guidance
+- Risk education
+
+Live AI services are a future integration.
+
+### 13. Discover & Traders
+
+Routes:
+
+- `/discover`
+- `/traders`
+
+Community/discovery concepts include:
+
+- Creator discovery
+- Following
+- Strategy notes
+- AI strategy discovery
+- Creator profiles
+
+### 14. Portfolio
+
+`/portfolio`
+
+Paper trading account with simulated positions, performance, and portfolio analytics.
+
+### 15. Profile / Settings / Help
+
+Routes:
+
+- `/profile`
+- `/settings`
+- `/help`
+
+Profile includes account/strategy activity.
+
+Settings includes paper-trading and future broker connection settings.
+
+Help contains product and prototype FAQs.
+
+Profile, Settings, and Help are exposed through the shared **User Menu** in both the top header and sidebar bottom.
+
+---
+
+## Core User Journey
+
+```
+Build Strategy
+      ↓
+Backtest
+      ↓
+Stress Test
+      ↓
+Forward Test
+      ↓
+Publish
+      ↓
+Strategy Marketplace
+      ↓
+Follow / Subscribe
+      ↓
+Copy Strategy
+      ↓
+Paper Copy Trading
+      ↓
+Arena
+      ↓
+Competitions
+      ↓
+ALPH Rewards
+      ↓
+Creator Economy
+```
+
+---
+
+## Header Connectivity
+
+The top header contains:
+
+- Global search
+- Market status
+- Connect Wallet
+- Connect MT5
+- Paper Trading badge
+- Notifications
+- User Menu
+
+The connectivity buttons are intentionally separated:
+
+**Crypto Wallet**
+
+Used for future ALPH/token ecosystem functions.
+
+**MetaTrader 5**
+
+Used for future broker-linked trading and live copy execution.
+
+A crypto wallet connection does not imply exchange connectivity.
+
+---
+
+## ALPH Economy
+
+Proposed ALPH utility:
+
+- Competition entry
+- Competition rewards
+- Strategy subscriptions
+- Marketplace fees
+- Premium AI features
+- Creator tools
+- Potential future fee discounts
+- Future staking/reward mechanisms subject to final design and review
+
+The frontend does not currently issue, custody, transfer, or sell a real token.
+
+---
+
+## Creator Economy
+
+Future creator monetization can support:
+
+- Strategy subscriptions
+- Performance-based models
+- Hybrid subscription/performance models
+- Creator analytics
+- Earnings
+- Payouts
+- Premium strategy tools
+
+Exact fee splits are intentionally not hard-coded yet.
+
+---
+
+## Production Domain Model
+
+Target entities include:
+
+```
+users
+traders
+strategies
+strategy_versions
+backtests
+backtest_trades
+portfolios
+positions
+orders
+markets
+competitions
+competition_entries
 leaderboards
+followers
+subscriptions
+copy_trading
+copy_trading_allocations
+copy_trading_events
+creator_earnings
+wallets
+transactions
+broker_accounts
+notifications
+strategy_signals
+strategy_risk_profiles
+copy_risk_checks
+market_data
+execution_events
+competition_rewards
+payment_orders
+audit_logs
+```
 
-tournaments
+---
 
-social discovery
+## Production Architecture Direction
 
-market analytics
+```
+Frontend
+   ↓
+API Layer
+   ↓
+Application Services
+   ├── Users
+   ├── Strategies
+   ├── Backtesting
+   ├── Market Data
+   ├── Paper Trading
+   ├── Copy Trading
+   ├── Competitions
+   ├── Marketplace
+   ├── Wallet
+   └── Notifications
+   ↓
+Data / Event Infrastructure
+   ↓
+External Providers
+   ├── Market Data
+   ├── Brokers / MT5
+   ├── Wallet Infrastructure
+   └── Payment / Regulated Providers
+```
 
-AI Copilot
+---
 
-paper portfolio
+## Current Route Map
 
-TECH STACK:
-
-React
-
-TypeScript
-
-Tailwind CSS
-
-React Router
-
-shadcn/ui
-
-Lucide icons
-
-Recharts
-
-Framer Motion
-
-Create a clean reusable component architecture.
-
-==================================================
-APP SHELL
-
-Create:
-
-Desktop sidebar:
-
-ALPHENTRA logo
-
-Navigation:
-
-Home
-Markets
-Battle Arena
-AI Agents
-Tournaments
-Discover
-Leaderboard
-Portfolio
-AI Copilot
-
-Bottom:
-
-Settings
-Help
-Profile
-
-Top header:
-
-Global search
-Market status
-Notifications
-Paper Trading badge
-User avatar
-
-Mobile:
-
-Top header
-Bottom navigation:
-
-Home
-Markets
-Battle
-Agents
-Portfolio
-
-Floating AI button.
-
-==================================================
-DESIGN
-
-Dark-first premium fintech interface.
-
-Background:
-very dark navy/black.
-
-Use:
-
-electric blue
-
-subtle violet
-
-green for positive performance
-
-red for negative performance
-
-Do not overuse gradients.
-
-Use glass effects sparingly.
-
-Typography:
-Inter.
-
-Use strong typography for:
-prices
-ROI
-P&L
-rankings
-statistics.
-
-The interface should feel like:
-
-premium fintech + AI + esports
-
-NOT:
-casino
-crypto scam
-generic SaaS dashboard
-
-==================================================
-ROUTES
-
-Create working routes:
-
+```
 /
 /markets
-/battle
-/battle/:id
+/trade
+
+/lab
+/strategies
+/strategies/:id
+
+/copy
+/copy/:strategyId
+
 /agents
 /agents/:id
 /agents/create
+
+/battle
+/battle/:id
+
 /tournaments
 /tournaments/:id
+
 /discover
+/traders
 /leaderboard
+
 /portfolio
-/trade
+/wallet
+
 /ai
 /profile
 /settings
+/help
 /login
+```
 
-For now, create placeholder pages for routes that will be implemented later.
+The `agents`, `battle`, and `tournaments` routes are retained during the architecture transition. The target terminology is:
 
-Each placeholder should have:
+```
+AI Strategy → Arena → Competition
+```
 
-proper page title
+Legacy Agent/Battle/Tournament concepts will be progressively consolidated into the Strategy architecture.
 
-consistent layout
+---
 
-navigation
+## Prototype State
 
-"Coming next" message
+Strategy persistence currently uses browser local storage.
 
-==================================================
-REUSABLE COMPONENTS
+Example state keys:
 
-Create:
+```
+alphentra.strategies.v1
+alphentra.arena.selectedStrategyId
+alphentra.arena.entry.*
+```
 
-AppShell
-Sidebar
-TopBar
-MobileNavigation
-PageHeader
-StatCard
-GlassCard
-Badge
-Button
-Avatar
-DataTable
-ChartCard
-AgentCard
-BattleCard
-TournamentCard
+This is temporary frontend state and will be replaced by authenticated backend state.
 
-Keep components reusable.
+---
 
-==================================================
-MOCK DATA
+## Technology
 
-Create a centralized mock data structure.
+- React
+- TypeScript
+- TanStack Start
+- TanStack Router
+- Tailwind CSS
+- Recharts
+- Framer Motion
+- Lucide
+- React Query
+- Zod
+- Vite
 
-Files:
+---
 
-src/data/mockAgents.ts
-src/data/mockMarkets.ts
-src/data/mockBattles.ts
-src/data/mockTrades.ts
-src/data/mockTournaments.ts
-src/data/mockPortfolio.ts
-src/data/mockPosts.ts
+## Reusable UI Architecture
 
-Populate them with realistic simulated data.
+Core components include:
 
-==================================================
-PAPER TRADING
+- AppShell
+- Sidebar
+- TopBar
+- MobileNavigation
+- UserMenu
+- HeaderConnections
+- Footer
+- PageHeader
+- StatCard
+- GlassCard
+- Badge
+- Button
+- Avatar
+- DataTable
+- ChartCard
+- Strategy cards
+- Battle/Arena cards
+- Competition cards
 
-Add a persistent "PAPER TRADING" badge in the application.
+---
 
-Do not imply real trading.
+## Compliance & Safety Direction
 
-==================================================
-QUALITY
+The prototype must clearly distinguish simulated product flows from live financial functionality.
 
-Make the app polished immediately.
+Principles:
 
-No lorem ipsum.
+- No guaranteed returns
+- Clearly label simulated/backtested/paper results
+- Clearly label prototype ALPH balances
+- Do not represent ALPH as currently purchasable when live infrastructure is not active
+- Do not represent Copy Trading as live execution when it is simulated
+- Use appropriate risk disclosures
+- Complete legal/regulatory review before live token, payment, custody, broker, or copy-trading functionality
 
-No broken links.
+For an Indonesia-focused launch, the applicable OJK digital financial asset/crypto framework and other relevant financial/payment rules must be reviewed before enabling real-asset functionality.
 
-No empty white screens.
-
-Use responsive layouts.
-
-Do not build backend functionality yet.
-
-Start by implementing the design system, AppShell, routing, navigation and centralized mock data architecture.
-
-This project was originally scaffolded with Lovable and is now maintained directly in GitHub.
+---
 
 ## Development
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Install dependencies and run the frontend:
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
 npm i
 npm run dev
 ```
+
+The frontend is designed to be developed independently while the future backend and integrations are being specified.
+
+---
+
+## Vision
+
+ALPHENTRA is evolving toward a complete AI trading ecosystem:
+
+```
+BUILD
+  ↓
+TEST
+  ↓
+TRADE
+  ↓
+COPY
+  ↓
+COMPETE
+  ↓
+EARN
+  ↓
+ALPHENTRA ECONOMY
+```
+
+**ALPHENTRA**
+
+> **Build. Test. Compete. Trade.**
