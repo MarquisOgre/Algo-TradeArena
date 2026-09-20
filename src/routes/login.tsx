@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Loader2, ShieldCheck } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { GlassCard } from "@/components/common/GlassCard";
 import { Logo } from "@/components/brand/Logo";
 import { Button } from "@/components/ui/button";
@@ -16,19 +16,21 @@ export const Route = createFileRoute("/login")({
       { title: "Sign in — ALPHENTRA" },
       {
         name: "description",
-        content: "Sign in to your ALPHENTRA paper-trading account and build strategies and enter the arena.",
+        content: "Sign in to your ALPHENTRA account.",
       },
       { property: "og:title", content: "Sign in — ALPHENTRA" },
-      { property: "og:description", content: "Sign in to your paper-trading arena account." },
+      { property: "og:description", content: "Sign in to your ALPHENTRA account." },
     ],
   }),
   component: LoginPage,
 });
 
+type Mode = "signin" | "signup" | "forgot";
+
 function LoginPage() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [mode, setMode] = useState<Mode>("signin");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -48,11 +50,7 @@ function LoginPage() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: {
-            data: {
-              full_name: displayName.trim(),
-            },
-          },
+          options: { data: { full_name: displayName.trim() } },
         });
 
         if (error) throw error;
@@ -64,6 +62,14 @@ function LoginPage() {
           toast.success("Account created. Check your email to confirm your account.");
           setMode("signin");
         }
+      } else if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+          redirectTo: window.location.origin + "/login",
+        });
+
+        if (error) throw error;
+        toast.success("If an account exists for that email, a password reset link has been sent.");
+        setMode("signin");
       } else {
         const { error } = await supabase.auth.signInWithPassword({
           email: email.trim(),
@@ -83,6 +89,13 @@ function LoginPage() {
     }
   }
 
+  const title =
+    mode === "signup"
+      ? "Create your ALPHENTRA account"
+      : mode === "forgot"
+        ? "Reset your password"
+        : "Enter the arena";
+
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
       <div className="arena-grid absolute inset-0 opacity-60" />
@@ -91,37 +104,9 @@ function LoginPage() {
 
       <GlassCard className="relative w-full max-w-md p-7">
         <Logo />
-        <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">
-          {mode === "signin" ? "Enter the arena" : "Create your ALPHENTRA account"}
-        </h1>
-        <p className="mt-1.5 text-sm text-muted-foreground">
-          {mode === "signin"
-            ? "Sign in to your simulated account. No funding, no brokerage, no real money."
-            : "Create your paper-trading identity and start building strategies."}
-        </p>
+        <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">{title}</h1>
 
-        <div className="mt-6 grid grid-cols-2 rounded-xl border border-border bg-surface p-1">
-          <button
-            type="button"
-            onClick={() => setMode("signin")}
-            className={mode === "signin"
-              ? "rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
-              : "rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"}
-          >
-            Sign in
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("signup")}
-            className={mode === "signup"
-              ? "rounded-lg bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground"
-              : "rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"}
-          >
-            Create account
-          </button>
-        </div>
-
-        <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
+        <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
           {mode === "signup" && (
             <div className="space-y-2">
               <Label htmlFor="display-name">Display name</Label>
@@ -149,34 +134,76 @@ function LoginPage() {
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              placeholder="At least 6 characters"
-              autoComplete={mode === "signin" ? "current-password" : "new-password"}
-              minLength={6}
-              required
-            />
-          </div>
+          {mode !== "forgot" && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="password">Password</Label>
+                {mode === "signin" && (
+                  <button
+                    type="button"
+                    onClick={() => setMode("forgot")}
+                    className="text-xs font-medium text-primary hover:underline"
+                  >
+                    Forgot Password?
+                  </button>
+                )}
+              </div>
+              <Input
+                id="password"
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                placeholder="At least 6 characters"
+                autoComplete={mode === "signin" ? "current-password" : "new-password"}
+                minLength={6}
+                required
+              />
+            </div>
+          )}
 
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting && <Loader2 className="size-4 animate-spin" />}
-            {mode === "signin" ? "Sign in" : "Create account"}
+            {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset link"}
           </Button>
         </form>
 
-        <div className="mt-5 flex items-center gap-2 rounded-xl border border-warning/30 bg-warning/10 px-3 py-2.5 text-xs text-warning">
-          <ShieldCheck className="size-4 shrink-0" />
-          ALPHENTRA is a paper-trading simulator. Nothing here executes in real markets.
-        </div>
+        <div className="mt-5 flex items-center justify-center gap-2 text-sm">
+          {mode === "signin" && (
+            <>
+              <span className="text-muted-foreground">New to ALPHENTRA?</span>
+              <button
+                type="button"
+                onClick={() => setMode("signup")}
+                className="font-medium text-primary hover:underline"
+              >
+                Create Account
+              </button>
+            </>
+          )}
 
-        <p className="mt-5 text-center text-sm text-muted-foreground">
-          ALPHENTRA requires an authenticated account. Guest access is disabled.
-        </p>
+          {mode === "signup" && (
+            <>
+              <span className="text-muted-foreground">Already have an account?</span>
+              <button
+                type="button"
+                onClick={() => setMode("signin")}
+                className="font-medium text-primary hover:underline"
+              >
+                Sign In
+              </button>
+            </>
+          )}
+
+          {mode === "forgot" && (
+            <button
+              type="button"
+              onClick={() => setMode("signin")}
+              className="font-medium text-primary hover:underline"
+            >
+              Back to Sign In
+            </button>
+          )}
+        </div>
       </GlassCard>
     </div>
   );
