@@ -249,6 +249,71 @@ def resolve_mt5_symbol(
     mapping = market_symbol_map.get(market["id"])
     return mapping["symbol"] if mapping else None
 
+def collect_market_statuses(
+    markets: list[dict[str, Any]],
+    market_symbol_map: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    statuses: list[dict[str, Any]] = []
+
+    for market in markets:
+        mapping = market_symbol_map.get(market["id"])
+
+        if not mapping:
+            statuses.append({
+                "market_id": market["id"],
+                "symbol": market["symbol"],
+                "status": "unsupported",
+                "provider_symbol": None,
+                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "metadata": {
+                    "asset_class": market.get("asset_class"),
+                    "reason": "No MT5 instrument matched the Alphentra market specification.",
+                },
+            })
+            continue
+
+        symbol = mapping["symbol"]
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            statuses.append({
+                "market_id": market["id"],
+                "symbol": market["symbol"],
+                "status": "no_quote",
+                "provider_symbol": symbol,
+                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "metadata": {
+                    **mapping["metadata"],
+                    "asset_class": market.get("asset_class"),
+                    "reason": "MT5 instrument exists but symbol_info is unavailable.",
+                },
+            })
+            continue
+
+        if not info.visible:
+            mt5.symbol_select(symbol, True)
+            info = mt5.symbol_info(symbol) or info
+
+        tick = mt5.symbol_info_tick(symbol)
+        has_quote = tick is not None and tick.bid > 0 and tick.ask > 0
+
+        statuses.append({
+            "market_id": market["id"],
+            "symbol": market["symbol"],
+            "status": "live" if has_quote else "no_quote",
+            "provider_symbol": symbol,
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "metadata": {
+                **mapping["metadata"],
+                "asset_class": market.get("asset_class"),
+                "bid": float(tick.bid) if tick and tick.bid > 0 else None,
+                "ask": float(tick.ask) if tick and tick.ask > 0 else None,
+                "reason": "Usable bid/ask received." if has_quote else "Instrument is valid but MT5 returned no usable bid/ask.",
+            },
+        })
+
+    return statuses
+
+
 def collect_quotes(
     markets: list[dict[str, Any]],
     market_symbol_map: dict[str, dict[str, Any]],
@@ -378,6 +443,7 @@ def sync_once(
     push_sync({
         "broker_account_id": BROKER_ACCOUNT_ID,
         "mt5_account_id": MT5_ACCOUNT_ID,
+        "market_statuses": collect_market_statuses(markets, market_symbol_map),
         "account": collect_account(),
         "quotes": collect_quotes(markets, market_symbol_map),
         "positions": collect_positions(),
