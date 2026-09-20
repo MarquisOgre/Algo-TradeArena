@@ -15,6 +15,7 @@ import {
   Store,
   Users,
   Radio,
+  Copy,
   type LucideIcon,
 } from "lucide-react";
 
@@ -31,6 +32,7 @@ export const primaryNav: NavItem[] = [
   { label: "Trade", to: "/trade", icon: Radio },
   { label: "Strategy Lab", to: "/lab", icon: FlaskConical, badge: "NEW" },
   { label: "Strategies", to: "/strategies", icon: Store },
+  { label: "Copy Trading", to: "/copy", icon: Copy, badge: "NEW" },
   { label: "Arena", to: "/battle", icon: Swords, badge: "2 LIVE" },
   { label: "AI Strategies", to: "/agents", icon: Bot },
   { label: "Competitions", to: "/tournaments", icon: Trophy },
