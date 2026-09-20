@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { refreshPaperPortfolioMarks } from "@/lib/marketData";
 
 export const Route = createFileRoute("/portfolio")({
   head: () => ({
@@ -103,6 +104,12 @@ function PortfolioPage() {
     if (silent) setRefreshing(true);
     else setLoading(true);
 
+    try {
+      await refreshPaperPortfolioMarks();
+    } catch (error) {
+      console.error("Failed to refresh live paper marks:", error);
+    }
+
     const { data: account, error: accountError } = await supabase
       .from("portfolios")
       .select("id, initial_cash, cash_balance, equity, realized_pnl, unrealized_pnl")
@@ -176,13 +183,20 @@ function PortfolioPage() {
   const totalPnl = account ? account.equity - account.initialCash : 0;
   const totalPnlPct = account && account.initialCash > 0 ? (totalPnl / account.initialCash) * 100 : 0;
 
-  const allocation = useMemo(
-    () =>
-      positions
-        .map((position) => ({ name: position.market?.symbol ?? "Unknown", value: num(position.market_value) }))
-        .filter((item) => item.value > 0),
-    [positions],
-  );
+  const allocation = useMemo(() => {
+    const positionAllocation = positions
+      .map((position) => ({ name: position.market?.symbol ?? "Unknown", value: num(position.market_value) }))
+      .filter((item) => item.value > 0);
+
+    if (!account || account.equity <= 0) return positionAllocation;
+
+    const invested = positionAllocation.reduce((sum, item) => sum + item.value, 0);
+    const cash = Math.max(0, account.cash);
+    return [
+      ...positionAllocation,
+      ...(cash > 0 ? [{ name: "Cash", value: cash }] : []),
+    ].filter((item) => item.value > 0 && item.value <= account.equity + 0.01);
+  }, [positions, account]);
 
   const allocationTotal = allocation.reduce((sum, item) => sum + item.value, 0);
   const allocationRows = allocation.map((item) => ({
@@ -323,7 +337,7 @@ function PortfolioPage() {
               </div>
             </ChartCard>
 
-            <ChartCard title="Allocation" subtitle={allocationRows.length ? "Open position exposure" : "No open positions"}>
+            <ChartCard title="Allocation" subtitle={allocationRows.length ? "Account exposure" : "No allocation yet"}>
               {allocationRows.length ? (
                 <>
                   <div className="h-52 w-full">
