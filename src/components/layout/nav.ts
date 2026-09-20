@@ -54,6 +54,6 @@ export const mobileNav: NavItem[] = [
   { label: "Home", to: "/", icon: Home },
   { label: "Markets", to: "/markets", icon: LineChart },
   { label: "Trade", to: "/trade", icon: Radio },
+  { label: "Copy", to: "/copy", icon: Copy },
   { label: "Arena", to: "/battle", icon: Swords },
-  { label: "Strategies", to: "/strategies", icon: Store },
 ];
