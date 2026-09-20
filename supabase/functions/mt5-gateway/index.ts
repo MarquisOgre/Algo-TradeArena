@@ -65,7 +65,7 @@ function numberOrNull(value: unknown) {
 }
 
 export default {
-  fetch: withSupabase({ auth: "secret:mt5-gateway" }, async (req, ctx) => {
+  fetch: withSupabase({ auth: "secret:mt5_gateway" }, async (req, ctx) => {
     if (req.method === "OPTIONS") {
       return new Response("ok", { headers: corsHeaders() });
     }
