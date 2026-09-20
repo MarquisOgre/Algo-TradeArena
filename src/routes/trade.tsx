@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { Check, ChevronDown, Search, Star } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
@@ -11,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { mockMarkets } from "@/data/mockMarkets";
+import type { Market } from "@/data/types";
 import { PaperTradingBadge } from "@/components/layout/TopBar";
 import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
@@ -43,6 +45,10 @@ function TradePage() {
   const [qty, setQty] = useState("100");
   const [cashBalance, setCashBalance] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [marketPickerOpen, setMarketPickerOpen] = useState(false);
+  const [marketSearch, setMarketSearch] = useState("");
+  const [marketCategory, setMarketCategory] = useState<"All" | Market["assetClass"]>("All");
+  const marketPickerRef = useRef<HTMLDivElement>(null);
 
   const market = markets.find((m) => m.id === symbolId) ?? markets[0]!;
   const liveQuote = liveQuotes.get(market.id);
@@ -51,6 +57,29 @@ function TradePage() {
   const notional = (Number.isFinite(quantity) ? quantity : 0) * market.price;
   const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
   const marketClosed = market.assetClass === "FX" && !forexOpen;
+
+  const filteredMarkets = useMemo(() => {
+    const query = marketSearch.trim().toLowerCase();
+    return markets.filter((item) => {
+      const categoryMatch = marketCategory === "All" || item.assetClass === marketCategory;
+      const searchMatch =
+        !query ||
+        item.symbol.toLowerCase().includes(query) ||
+        item.name.toLowerCase().includes(query);
+      return categoryMatch && searchMatch;
+    });
+  }, [marketSearch, marketCategory, markets]);
+
+  useEffect(() => {
+    if (!marketPickerOpen) return;
+    const handlePointerDown = (event: MouseEvent) => {
+      if (!marketPickerRef.current?.contains(event.target as Node)) {
+        setMarketPickerOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDown);
+    return () => document.removeEventListener("mousedown", handlePointerDown);
+  }, [marketPickerOpen]);
 
   useEffect(() => {
     let active = true;
@@ -62,6 +91,9 @@ function TradePage() {
           setMarkets(nextMarkets);
           setLiveQuotes(nextQuotes);
           setLiveData([...nextQuotes.values()].some((quote) => quote.provider === "mt5" && isQuoteFresh(quote, 15_000)));
+          setSymbolId((current) =>
+            nextMarkets.some((item) => item.id === current) ? current : nextMarkets[0]?.id ?? current,
+          );
         })
         .catch((error) => {
           console.error("Failed to load market data:", error);
@@ -238,18 +270,96 @@ function TradePage() {
 
           <div className="mt-4 space-y-2">
             <Label htmlFor="symbol">Instrument</Label>
-            <select
-              id="symbol"
-              value={symbolId}
-              onChange={(e) => setSymbolId(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-ring/25"
-            >
-              {markets.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.symbol} — {m.name}
-                </option>
-              ))}
-            </select>
+            <div ref={marketPickerRef} className="relative">
+              <button
+                type="button"
+                aria-expanded={marketPickerOpen}
+                onClick={() => setMarketPickerOpen((open) => !open)}
+                className="flex h-11 w-full items-center justify-between rounded-xl border border-border bg-surface px-3 text-left text-sm text-foreground transition hover:border-primary/50 focus:outline-none focus:ring-2 focus:ring-ring/25"
+              >
+                <span className="min-w-0">
+                  <span className="block truncate font-semibold">{market.symbol}</span>
+                  <span className="block truncate text-[11px] text-muted-foreground">{market.name}</span>
+                </span>
+                <ChevronDown className={cn("ml-2 size-4 shrink-0 text-muted-foreground transition-transform", marketPickerOpen && "rotate-180")} />
+              </button>
+
+              {marketPickerOpen && (
+                <div className="absolute inset-x-0 top-[calc(100%+8px)] z-50 overflow-hidden rounded-2xl border border-border bg-surface shadow-2xl">
+                  <div className="border-b border-border p-3">
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
+                        autoFocus
+                        value={marketSearch}
+                        onChange={(event) => setMarketSearch(event.target.value)}
+                        placeholder="Search symbol or market..."
+                        className="h-10 pl-9"
+                      />
+                    </div>
+                    <div className="mt-2 flex gap-1.5 overflow-x-auto pb-1">
+                      {(["All", "FX", "Crypto", "Equity", "ETF", "Metals"] as const).map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setMarketCategory(category === "All" ? "All" : category)}
+                          className={cn(
+                            "shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+                            marketCategory === category
+                              ? "border-primary/40 bg-primary/10 text-primary"
+                              : "border-border text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {category}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="max-h-72 overflow-y-auto p-2">
+                    {filteredMarkets.length === 0 ? (
+                      <div className="px-3 py-8 text-center text-xs text-muted-foreground">
+                        No markets match your search.
+                      </div>
+                    ) : (
+                      filteredMarkets.map((item) => {
+                        const quote = liveQuotes.get(item.id);
+                        const live = quote?.provider === "mt5" && isQuoteFresh(quote, 15_000);
+                        return (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => {
+                              setSymbolId(item.id);
+                              setMarketPickerOpen(false);
+                              setMarketSearch("");
+                            }}
+                            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition hover:bg-muted/60"
+                          >
+                            <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                              {live ? <span className="size-1.5 rounded-full bg-success" /> : <Star className="size-3.5 opacity-40" />}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="num font-semibold text-foreground">{item.symbol}</span>
+                                {live && <span className="text-[9px] font-bold uppercase tracking-wide text-success">Live</span>}
+                              </div>
+                              <p className="truncate text-[11px] text-muted-foreground">{item.name}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="num text-xs text-muted-foreground">
+                                {item.price > 0 ? item.price.toLocaleString("en-US", { maximumFractionDigits: item.assetClass === "FX" ? 5 : 2 }) : "—"}
+                              </span>
+                              {item.id === symbolId && <Check className="size-4 text-primary" />}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="mt-4 space-y-2">
