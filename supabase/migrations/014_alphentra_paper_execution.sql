@@ -20,6 +20,34 @@ create unique index if not exists positions_one_open_per_market_idx
   on public.positions(portfolio_id, market_id)
   where is_open = true;
 
+create table if not exists public.portfolio_snapshots (
+  id bigint generated always as identity primary key,
+  portfolio_id uuid not null references public.portfolios(id) on delete cascade,
+  snapshot_time timestamptz not null default now(),
+  equity numeric(30,12) not null,
+  cash_balance numeric(30,12) not null,
+  realized_pnl numeric(30,12) not null,
+  unrealized_pnl numeric(30,12) not null,
+  reason text not null default 'trade',
+  order_id uuid references public.orders(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists portfolio_snapshots_portfolio_time_idx
+  on public.portfolio_snapshots(portfolio_id, snapshot_time desc);
+
+alter table public.portfolio_snapshots enable row level security;
+
+drop policy if exists "portfolio_snapshots_select_own" on public.portfolio_snapshots;
+create policy "portfolio_snapshots_select_own"
+on public.portfolio_snapshots for select
+to authenticated
+using (
+  portfolio_id in (
+    select id from public.portfolios where profile_id = auth.uid()
+  )
+);
+
 -- Seed the instruments currently shown by the prototype trading UI.
 -- These are still simulated prices; live market-data ingestion comes later.
 insert into public.markets (
@@ -383,6 +411,27 @@ begin
     total_fees = total_fees + v_fee,
     updated_at = now()
   where id = v_portfolio.id;
+
+  insert into public.portfolio_snapshots (
+    portfolio_id,
+    snapshot_time,
+    equity,
+    cash_balance,
+    realized_pnl,
+    unrealized_pnl,
+    reason,
+    order_id
+  )
+  values (
+    v_portfolio.id,
+    now(),
+    v_equity,
+    v_cash_after,
+    v_portfolio.realized_pnl + v_realized,
+    v_unrealized,
+    'trade',
+    v_order_id
+  );
 
   v_result := jsonb_build_object(
     'status', 'filled',
