@@ -1,12 +1,21 @@
-import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { tanstackStart } from "@tanstack/react-start/plugin/vite";
+import { defineConfig } from "vite";
+import { nitro } from "nitro/vite";
+import viteReact from "@vitejs/plugin-react";
 
 const isVercel = !!process.env.VERCEL;
 
 export default defineConfig({
-  tanstackStart: {
-    server: { entry: "server" },
+  resolve: {
+    tsconfigPaths: true,
   },
-  // Lovable's wrapper defaults to Cloudflare for its sandbox.
-  // Vercel builds must emit a Vercel-compatible Nitro target.
-  nitro: isVercel ? { preset: "vercel" } : true,
+  plugins: [
+    tanstackStart({
+      server: {
+        entry: "server",
+      },
+    }),
+    nitro(isVercel ? { preset: "vercel" } : {}),
+    viteReact(),
+  ],
 });
