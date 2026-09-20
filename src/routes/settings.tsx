@@ -163,7 +163,7 @@ function SettingsPage() {
     }
 
     if (authResult.error) {
-      toast.error(\`Profile saved, but account display name could not be synced: \${authResult.error.message}\`);
+      toast.error(`Profile saved, but account display name could not be synced: ${authResult.error.message}`);
       return;
     }
 
