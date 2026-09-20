@@ -72,6 +72,11 @@ function StrategyDetail() {
               <Copy /> {subscribed ? "Subscribed" : "Subscribe"}
             </Button>
             {canEnterArena && (
+              <Button asChild variant="outline">
+                <Link to="/copy/$strategyId" params={{ strategyId: strategy.id }}><Copy /> Copy Strategy</Link>
+              </Button>
+            )}
+            {canEnterArena && (
               <Button asChild onClick={selectForArena}>
                 <Link to="/battle"><Trophy /> Enter Arena</Link>
               </Button>
