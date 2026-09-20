@@ -1,5 +1,2 @@
-[functions.market-data-sync]
-verify_jwt = false
-
 [functions.mt5-gateway]
 verify_jwt = false
