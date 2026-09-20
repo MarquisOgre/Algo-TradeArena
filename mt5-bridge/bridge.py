@@ -21,6 +21,7 @@ MT5_PASSWORD = os.environ["MT5_PASSWORD"]
 MT5_SERVER = os.environ["MT5_SERVER"]
 MT5_PATH = os.getenv("MT5_PATH", "")
 POLL_SECONDS = float(os.getenv("POLL_SECONDS", "2"))
+CANDLE_SYNC_SECONDS = float(os.getenv("CANDLE_SYNC_SECONDS", "60"))
 ALLOW_LIVE = os.getenv("ALLOW_LIVE", "false").lower() == "true"
 
 REST_HEADERS = {"apikey": SUPABASE_PUBLISHABLE_KEY, "Accept": "application/json"}
@@ -112,47 +113,46 @@ def push_sync(payload: dict[str, Any]) -> None:
     result=response.json()
     print(f"Synced quotes={result.get('quotes_updated',0)} positions={result.get('positions_updated',0)}")
 
-def sync_once() -> None:
-    markets = fetch_markets()
+def sync_once(markets: list[dict[str, Any]], include_candles: bool = False) -> None:
     candles: list[dict[str, Any]] = []
-    for timeframe_name, timeframe in (
-        ("1m", mt5.TIMEFRAME_M1),
-        ("5m", mt5.TIMEFRAME_M5),
-        ("15m", mt5.TIMEFRAME_M15),
-        ("1h", mt5.TIMEFRAME_H1),
-        ("4h", mt5.TIMEFRAME_H4),
-        ("1d", mt5.TIMEFRAME_D1),
-    ):
-        # Keep enough history for a useful terminal chart without making every
-        # two-second sync payload unnecessarily large.
-        count = 120 if timeframe_name in {"1m", "5m", "15m"} else 100
-        for market in markets:
-            symbol = (market.get("broker_symbol") or market["symbol"]).strip()
-            info = mt5.symbol_info(symbol)
-            if info is None:
-                continue
-            if not info.visible and not mt5.symbol_select(symbol, True):
-                continue
-            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
-            if rates is None:
-                continue
-            for rate in rates:
-                candle_time = iso_from_seconds(rate["time"])
-                if not candle_time:
+
+    if include_candles:
+        for timeframe_name, timeframe in (
+            ("1m", mt5.TIMEFRAME_M1),
+            ("5m", mt5.TIMEFRAME_M5),
+            ("15m", mt5.TIMEFRAME_M15),
+            ("1h", mt5.TIMEFRAME_H1),
+            ("4h", mt5.TIMEFRAME_H4),
+            ("1d", mt5.TIMEFRAME_D1),
+        ):
+            count = 120 if timeframe_name in {"1m", "5m", "15m"} else 100
+            for market in markets:
+                symbol = (market.get("broker_symbol") or market["symbol"]).strip()
+                info = mt5.symbol_info(symbol)
+                if info is None:
                     continue
-                candles.append({
-                    "market_id": market["id"],
-                    "symbol": symbol,
-                    "timeframe": timeframe_name,
-                    "candle_time": candle_time,
-                    "open": float(rate["open"]),
-                    "high": float(rate["high"]),
-                    "low": float(rate["low"]),
-                    "close": float(rate["close"]),
-                    "volume": float(rate["tick_volume"]),
-                    "trade_count": None,
-                    "metadata": {"asset_class": market["asset_class"], "source": "mt5"},
-                })
+                if not info.visible and not mt5.symbol_select(symbol, True):
+                    continue
+                rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
+                if rates is None:
+                    continue
+                for rate in rates:
+                    candle_time = iso_from_seconds(rate["time"])
+                    if not candle_time:
+                        continue
+                    candles.append({
+                        "market_id": market["id"],
+                        "symbol": symbol,
+                        "timeframe": timeframe_name,
+                        "candle_time": candle_time,
+                        "open": float(rate["open"]),
+                        "high": float(rate["high"]),
+                        "low": float(rate["low"]),
+                        "close": float(rate["close"]),
+                        "volume": float(rate["tick_volume"]),
+                        "trade_count": None,
+                        "metadata": {"asset_class": market["asset_class"], "source": "mt5"},
+                    })
 
     push_sync({
         "broker_account_id": BROKER_ACCOUNT_ID,
@@ -166,12 +166,22 @@ def sync_once() -> None:
 def main() -> None:
     initialize_mt5()
     try:
+        markets = fetch_markets()
+        last_candle_sync = 0.0
         while True:
-            started=time.monotonic()
-            try: sync_once()
-            except Exception as exc: print(f"Sync error: {exc}",file=sys.stderr)
-            time.sleep(max(0.25,POLL_SECONDS-(time.monotonic()-started)))
-    except KeyboardInterrupt: print("Stopping MT5 bridge.")
-    finally: mt5.shutdown()
+            started = time.monotonic()
+            try:
+                now = time.monotonic()
+                include_candles = now - last_candle_sync >= CANDLE_SYNC_SECONDS
+                sync_once(markets, include_candles=include_candles)
+                if include_candles:
+                    last_candle_sync = now
+            except Exception as exc:
+                print(f"Sync error: {exc}", file=sys.stderr)
+            time.sleep(max(0.25, POLL_SECONDS - (time.monotonic() - started)))
+    except KeyboardInterrupt:
+        print("Stopping MT5 bridge.")
+    finally:
+        mt5.shutdown()
 
 if __name__ == "__main__": main()
