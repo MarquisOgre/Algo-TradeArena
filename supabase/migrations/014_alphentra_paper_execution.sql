@@ -38,6 +38,10 @@ create index if not exists portfolio_snapshots_portfolio_time_idx
 
 alter table public.portfolio_snapshots enable row level security;
 
+revoke all on table public.portfolio_snapshots from anon;
+revoke insert, update, delete on table public.portfolio_snapshots from authenticated;
+grant select on table public.portfolio_snapshots to authenticated;
+
 drop policy if exists "portfolio_snapshots_select_own" on public.portfolio_snapshots;
 create policy "portfolio_snapshots_select_own"
 on public.portfolio_snapshots for select
