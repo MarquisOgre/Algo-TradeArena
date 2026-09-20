@@ -190,7 +190,6 @@ function PortfolioPage() {
 
     if (!account || account.equity <= 0) return positionAllocation;
 
-    const invested = positionAllocation.reduce((sum, item) => sum + item.value, 0);
     const cash = Math.max(0, account.cash);
     return [
       ...positionAllocation,
