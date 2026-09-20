@@ -1,0 +1,166 @@
+import { mockMarkets } from "@/data/mockMarkets";
+import type { Market } from "@/data/types";
+import { supabase } from "@/lib/supabase";
+
+export type LiveMarketQuote = {
+  marketId: string;
+  symbol: string;
+  price: number;
+  change: number;
+  changePct: number;
+  previousClose: number | null;
+  volume: number | null;
+  quoteTime: string;
+  isMarketOpen: boolean | null;
+  provider: string;
+};
+
+type MarketRow = {
+  id: string;
+  symbol: string;
+  name: string;
+  asset_class: string;
+};
+
+type QuoteRow = {
+  market_id: string;
+  provider: string;
+  quote_time: string;
+  price: number | string;
+  change: number | string | null;
+  percent_change: number | string | null;
+  previous_close: number | string | null;
+  volume: number | string | null;
+  is_market_open: boolean | null;
+};
+
+function numberOrNull(value: number | string | null | undefined) {
+  if (value === null || value === undefined) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function assetClassLabel(value: string): Market["assetClass"] {
+  switch (value) {
+    case "stocks":
+      return "Equity";
+    case "etf":
+      return "ETF";
+    case "index":
+      return "Index";
+    case "forex":
+      return "FX";
+    case "crypto":
+      return "Crypto";
+    case "commodity":
+      return "Metals";
+    default:
+      return "Commodity";
+  }
+}
+
+function formatVolume(value: number | null) {
+  if (value === null) return "—";
+  if (value >= 1_000_000_000) return `${(value / 1_000_000_000).toFixed(1)}B`;
+  if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1)}M`;
+  if (value >= 1_000) return `${(value / 1_000).toFixed(1)}K`;
+  return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
+}
+
+export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuote>> {
+  const [{ data: markets, error: marketError }, { data: quotes, error: quoteError }] =
+    await Promise.all([
+      supabase
+        .from("markets")
+        .select("id, symbol, name, asset_class")
+        .eq("status", "active")
+        .order("symbol"),
+      supabase
+        .from("market_quotes")
+        .select(
+          "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open",
+        )
+        .order("quote_time", { ascending: false })
+        .limit(100),
+    ]);
+
+  if (marketError) throw marketError;
+  if (quoteError) throw quoteError;
+
+  const marketById = new Map(
+    ((markets ?? []) as MarketRow[]).map((market) => [market.id, market]),
+  );
+  const latestByMarket = new Map<string, LiveMarketQuote>();
+
+  for (const quote of (quotes ?? []) as QuoteRow[]) {
+    if (latestByMarket.has(quote.market_id)) continue;
+
+    const market = marketById.get(quote.market_id);
+    const price = numberOrNull(quote.price);
+    if (!market || price === null || price <= 0) continue;
+
+    latestByMarket.set(quote.market_id, {
+      marketId: market.id,
+      symbol: market.symbol,
+      price,
+      change: numberOrNull(quote.change) ?? 0,
+      changePct: numberOrNull(quote.percent_change) ?? 0,
+      previousClose: numberOrNull(quote.previous_close),
+      volume: numberOrNull(quote.volume),
+      quoteTime: quote.quote_time,
+      isMarketOpen: quote.is_market_open,
+      provider: quote.provider,
+    });
+  }
+
+  return latestByMarket;
+}
+
+export async function loadMarketBoard(): Promise<Market[]> {
+  const liveQuotes = await loadLiveMarketQuotes();
+
+  const bySymbol = new Map(
+    [...liveQuotes.values()].map((quote) => [quote.symbol.toUpperCase(), quote]),
+  );
+
+  return mockMarkets.map((market) => {
+    const live = bySymbol.get(market.symbol.toUpperCase());
+    if (!live) return market;
+
+    return {
+      ...market,
+      price: live.price,
+      change: live.change,
+      changePct: live.changePct,
+      volume: formatVolume(live.volume),
+      assetClass: assetClassLabel(
+        market.assetClass === "FX"
+          ? "forex"
+          : market.assetClass === "Crypto"
+            ? "crypto"
+            : market.assetClass === "ETF"
+              ? "etf"
+              : market.assetClass === "Metals"
+                ? "commodity"
+                : "stocks",
+      ),
+    };
+  });
+}
+
+export function isQuoteFresh(quote: LiveMarketQuote | undefined, maxAgeMs = 120_000) {
+  if (!quote) return false;
+  return Date.now() - new Date(quote.quoteTime).getTime() <= maxAgeMs;
+}
+
+export async function refreshPaperPortfolioMarks() {
+  const { data, error } = await supabase.rpc("refresh_paper_portfolio_marks");
+  if (error) throw error;
+  return data as {
+    portfolio_id: string;
+    equity: number;
+    cash_balance: number;
+    unrealized_pnl: number;
+    marked_at: string;
+  };
+}
