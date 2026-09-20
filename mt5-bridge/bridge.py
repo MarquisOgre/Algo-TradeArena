@@ -191,6 +191,57 @@ def build_market_symbol_map(
     return resolved
 
 
+def print_unresolved_candidates(markets: list[dict[str, Any]], symbol_map: dict[str, str]) -> None:
+    """Print likely MT5 candidates for markets that could not be validated."""
+    for market in markets:
+        ui_symbol = str(market["symbol"]).strip()
+        if ui_symbol in {str(v.get("alphentra_symbol", "")) for v in []}:
+            continue
+
+        expected_base, expected_profit = expected_currencies(market)
+        if not expected_base and not expected_profit:
+            continue
+
+        tokens = {expected_base or "", expected_profit or "", ui_symbol.upper()}
+        tokens.discard("")
+        candidates: list[tuple[int, str, Any]] = []
+
+        for actual in symbol_map.values():
+            info = mt5.symbol_info(actual)
+            if info is None:
+                continue
+
+            name = str(getattr(info, "name", "") or "")
+            description = str(getattr(info, "description", "") or "")
+            path = str(getattr(info, "path", "") or "")
+            haystack = f"{name} {description} {path}".upper()
+            score = 0
+
+            if ui_symbol.upper() in name.upper():
+                score += 100
+            if expected_base and expected_base in haystack:
+                score += 25
+            if expected_profit and expected_profit in haystack:
+                score += 25
+            if "CRYPTO" in haystack or "DIGITAL" in haystack:
+                score += 10
+
+            if score > 0:
+                candidates.append((score, name, info))
+
+        candidates.sort(key=lambda item: (-item[0], item[1]))
+
+        print(f"  {ui_symbol} candidates:")
+        for _, name, info in candidates[:8]:
+            metadata = symbol_metadata(info)
+            print(
+                f"    {name} | {metadata['currency_base']}/{metadata['currency_profit']} | "
+                f"{metadata['description']} | path={metadata['path']} | "
+                f"contract={metadata['trade_contract_size']} | "
+                f"bid={getattr(info, 'bid', 0)} ask={getattr(info, 'ask', 0)}"
+            )
+
+
 def resolve_mt5_symbol(
     market: dict[str, Any],
     market_symbol_map: dict[str, dict[str, Any]],
@@ -355,6 +406,7 @@ def main() -> None:
                 )
             else:
                 print(f"  {market['symbol']} -> NO VALID MT5 INSTRUMENT")
+        print_unresolved_candidates(markets, symbol_map)
         last_candle_sync = 0.0
         bootstrap_pending = CANDLE_BOOTSTRAP
 
