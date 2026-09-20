@@ -4,6 +4,7 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  useRouterState,
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
@@ -12,7 +13,7 @@ import { type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { Toaster } from "@/components/ui/sonner";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider, useAuth } from "@/lib/auth";
 
 function NotFoundComponent() {
   return (
@@ -126,10 +127,35 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
-        <Outlet />
+        <AuthenticationGate />
         <Toaster />
       </AuthProvider>
     </QueryClientProvider>
   );
+}
+
+function AuthenticationGate() {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  if (pathname === "/login") {
+    return <Outlet />;
+  }
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background text-sm text-muted-foreground">
+        Loading ALPHENTRA...
+      </div>
+    );
+  }
+
+  if (!user) {
+    void router.navigate({ to: "/login", replace: true });
+    return null;
+  }
+
+  {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
+  return <Outlet />;
 }
