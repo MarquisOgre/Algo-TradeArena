@@ -36,9 +36,27 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
 
   async function handleSignOut() {
     const { error } = await signOut();
-    if (error) {
-      console.error("ALPHENTRA sign out failed:", error);
-    }
+    if (error) console.error("ALPHENTRA sign out failed:", error);
+  }
+
+  if (!user && !loading) {
+    return (
+      <Link
+        to="/login"
+        className={cn(
+          "font-semibold text-foreground transition-colors hover:text-primary",
+          compact
+            ? "inline-flex items-center rounded-xl border border-border bg-surface px-3 py-2 text-xs"
+            : "block w-full px-3 py-2 text-sm",
+        )}
+      >
+        Sign In
+      </Link>
+    );
+  }
+
+  if (loading) {
+    return <span className={compact ? "px-3 py-2 text-xs text-muted-foreground" : "px-3 py-2 text-sm text-muted-foreground"}>...</span>;
   }
 
   return (
@@ -50,13 +68,9 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
             aria-label="Open user menu"
             className="flex items-center gap-2 rounded-xl border border-border bg-surface px-2 py-1.5 transition-colors hover:border-primary/40 hover:bg-surface-2"
           >
-            <span className="hidden text-xs font-semibold text-foreground sm:inline">
-              {loading ? "..." : user ? displayName : "Login"}
-            </span>
+            <span className="hidden text-xs font-semibold text-foreground sm:inline">{displayName}</span>
             <Avatar className="size-8 border border-border">
-              <AvatarFallback className="bg-surface-2 text-[10px] font-semibold">
-                {user ? fallback : "?"}
-              </AvatarFallback>
+              <AvatarFallback className="bg-surface-2 text-[10px] font-semibold">{fallback}</AvatarFallback>
             </Avatar>
           </button>
         ) : (
@@ -66,17 +80,11 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
             className="flex w-full items-center gap-3 rounded-xl px-0 py-0 text-left transition-colors hover:bg-surface-2/60"
           >
             <Avatar className="size-9 border border-border">
-              <AvatarFallback className="bg-surface-2 text-xs font-semibold">
-                {user ? fallback : "?"}
-              </AvatarFallback>
+              <AvatarFallback className="bg-surface-2 text-xs font-semibold">{fallback}</AvatarFallback>
             </Avatar>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-foreground">
-                {loading ? "Loading..." : user ? displayName : "Login"}
-              </span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {user ? email : "Authentication required"}
-              </span>
+              <span className="block truncate text-sm font-medium text-foreground">{displayName}</span>
+              <span className="block truncate text-xs text-muted-foreground">{email}</span>
             </span>
           </button>
         )}
@@ -88,38 +96,27 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         sideOffset={8}
         className={cn("w-60", !compact && "mb-1")}
       >
-        {user ? (
-          <>
-            <div className="px-2 py-1.5">
-              <p className="truncate text-xs font-semibold text-foreground">{displayName}</p>
-              <p className="truncate text-[11px] text-muted-foreground">{email}</p>
-            </div>
-            <DropdownMenuSeparator />
-            {userOptions.map((item) => {
-              const Icon = item.icon;
-              return (
-                <DropdownMenuItem key={item.to} asChild>
-                  <Link to={item.to} className="cursor-pointer">
-                    <Icon className="size-4" />
-                    {item.label}
-                  </Link>
-                </DropdownMenuItem>
-              );
-            })}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => void handleSignOut()} className="cursor-pointer">
-              <LogOut className="size-4" />
-              Sign out
+        <div className="px-2 py-1.5">
+          <p className="truncate text-xs font-semibold text-foreground">{displayName}</p>
+          <p className="truncate text-[11px] text-muted-foreground">{email}</p>
+        </div>
+        <DropdownMenuSeparator />
+        {userOptions.map((item) => {
+          const Icon = item.icon;
+          return (
+            <DropdownMenuItem key={item.to} asChild>
+              <Link to={item.to} className="cursor-pointer">
+                <Icon className="size-4" />
+                {item.label}
+              </Link>
             </DropdownMenuItem>
-          </>
-        ) : (
-          <DropdownMenuItem asChild>
-            <Link to="/login" className="cursor-pointer">
-              <LogIn className="size-4" />
-              Login
-            </Link>
-          </DropdownMenuItem>
-        )}
+          );
+        })}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => void handleSignOut()} className="cursor-pointer">
+          <LogOut className="size-4" />
+          Sign out
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
