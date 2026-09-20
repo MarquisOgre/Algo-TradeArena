@@ -44,7 +44,7 @@ function MarketsPage() {
         .then((nextMarkets) => {
           if (!active) return;
           setMarkets(nextMarkets);
-          setLiveData(nextMarkets.some((market, index) => market.price !== mockMarkets[index]?.price));
+          setLiveData(nextMarkets.some((market) => market.providerStatus === "live"));
         })
         .catch((error) => {
           console.error("Failed to load market data:", error);
@@ -68,7 +68,21 @@ function MarketsPage() {
       header: "Instrument",
       cell: (m) => (
         <div>
-          <p className="num text-sm font-bold text-foreground">{m.symbol}</p>
+          <div className="flex items-center gap-2">
+            <p className="num text-sm font-bold text-foreground">{m.symbol}</p>
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide",
+                m.providerStatus === "live"
+                  ? "bg-success/12 text-success"
+                  : m.providerStatus === "no_quote"
+                    ? "bg-warning/12 text-warning"
+                    : "bg-muted text-muted-foreground",
+              )}
+            >
+              {m.providerStatus === "live" ? "Live" : m.providerStatus === "no_quote" ? "No quote" : "Unavailable"}
+            </span>
+          </div>
           <p className="text-xs text-muted-foreground">{m.name}</p>
         </div>
       ),
@@ -79,7 +93,9 @@ function MarketsPage() {
       align: "right",
       cell: (m) => (
         <span className="num font-semibold text-foreground">
-          {m.price.toLocaleString("en-US", { minimumFractionDigits: m.assetClass === "FX" ? 4 : 2 })}
+          {m.providerStatus === "live"
+            ? m.price.toLocaleString("en-US", { minimumFractionDigits: m.assetClass === "FX" ? 4 : 2 })
+            : "—"}
         </span>
       ),
     },
@@ -124,7 +140,7 @@ function MarketsPage() {
       <PageHeader
         eyebrow="Market board"
         title="Markets"
-        description="Live provider-backed quotes when available, with a simulated fallback until market-data ingestion is configured."
+        description="Provider-backed market data with explicit live, no-quote and unavailable states."
       />
 
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -162,7 +178,7 @@ function MarketsPage() {
         <div className="flex flex-wrap items-center gap-2">
           <span>{getMarketCalendarLabel()} · Prototype calendar</span>
           <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
-            {liveData ? "Live quotes" : "Simulated fallback"}
+            {liveData ? "MT5 live quotes" : "No live quotes"}
           </span>
         </div>
       </div>
