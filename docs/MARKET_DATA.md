@@ -6,7 +6,7 @@ The market-data layer is provider-backed and browser-safe.
 
 `Twelve Data -> Supabase Edge Function -> market_quotes -> Supabase Realtime -> Markets / Trade UI`
 
-The browser never receives the Twelve Data API key. Supabase recommends keeping third-party credentials in Edge Function secrets rather than shipping them to clients. citeturn0search0turn7search3
+The browser never receives the Twelve Data API key. Supabase recommends keeping third-party credentials in Edge Function secrets rather than shipping them to clients.
 
 ## Current provider adapter
 
