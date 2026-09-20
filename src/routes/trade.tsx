@@ -174,7 +174,8 @@ function TradePage() {
 
   const market = markets.find((m) => m.id === symbolId) ?? markets[0]!;
   const liveQuote = liveQuotes.get(market.id);
-  const quoteIsFresh = isQuoteFresh(liveQuote, 15_000);
+  const providerStatus = market.providerStatus ?? "unsupported";
+  const quoteIsFresh = providerStatus === "live" && isQuoteFresh(liveQuote, 15_000);
   const quantity = Number(qty);
 
   useEffect(() => {
@@ -191,7 +192,7 @@ function TradePage() {
       active = false;
     };
   }, [market.id, chartTimeframe]);
-  const notional = (Number.isFinite(quantity) ? quantity : 0) * market.price;
+  const notional = (Number.isFinite(quantity) ? quantity : 0) * (liveQuote?.price ?? 0);
   const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
   const marketClosed = market.assetClass === "FX" && !forexOpen;
 
@@ -660,7 +661,8 @@ function TradePage() {
                     ) : (
                       filteredMarkets.map((item) => {
                         const quote = liveQuotes.get(item.id);
-                        const live = quote?.provider === "mt5" && isQuoteFresh(quote, 15_000);
+                        const status = item.providerStatus ?? "unsupported";
+                        const live = status === "live" && quote?.provider === "mt5" && isQuoteFresh(quote, 15_000);
                         return (
                           <button
                             key={item.id}
@@ -678,13 +680,22 @@ function TradePage() {
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="num font-semibold text-foreground">{item.symbol}</span>
-                                {live && <span className="text-[9px] font-bold uppercase tracking-wide text-success">Live</span>}
+                                <span
+                                  className={cn(
+                                    "text-[9px] font-bold uppercase tracking-wide",
+                                    live ? "text-success" : status === "no_quote" ? "text-warning" : "text-muted-foreground",
+                                  )}
+                                >
+                                  {live ? "Live" : status === "no_quote" ? "No quote" : "Unavailable"}
+                                </span>
                               </div>
                               <p className="truncate text-[11px] text-muted-foreground">{item.name}</p>
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="num text-xs text-muted-foreground">
-                                {item.price > 0 ? item.price.toLocaleString("en-US", { maximumFractionDigits: item.assetClass === "FX" ? 5 : 2 }) : "—"}
+                                {live && item.price > 0
+                                  ? item.price.toLocaleString("en-US", { maximumFractionDigits: item.assetClass === "FX" ? 5 : 2 })
+                                  : "—"}
                               </span>
                               {item.id === symbolId && <Check className="size-4 text-primary" />}
                             </div>
@@ -710,6 +721,30 @@ function TradePage() {
             />
           </div>
 
+          <div className={cn(
+            "mt-4 rounded-xl border p-3 text-xs",
+            quoteIsFresh
+              ? "border-success/20 bg-success/5 text-success"
+              : providerStatus === "no_quote"
+                ? "border-warning/20 bg-warning/5 text-warning"
+                : "border-border bg-muted/40 text-muted-foreground",
+          )}>
+            <div className="font-semibold">
+              {quoteIsFresh
+                ? "MT5 LIVE"
+                : providerStatus === "no_quote"
+                  ? "MT5 instrument available · No current quote"
+                  : "MT5 instrument unavailable for this market"}
+            </div>
+            <div className="mt-1 opacity-80">
+              {quoteIsFresh
+                ? "Price, bid and ask are being received from MetaTrader 5."
+                : providerStatus === "no_quote"
+                  ? "Alphentra will not substitute a simulated price."
+                  : "This market needs another supported data provider before it can be traded."}
+            </div>
+          </div>
+
           <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
             {quoteIsFresh && liveQuote?.provider === "mt5" && liveQuote.bid != null && liveQuote.ask != null && (
               <>
@@ -731,7 +766,9 @@ function TradePage() {
             )}
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Est. price</dt>
-              <dd className="num text-foreground">{market.price.toFixed(2)}</dd>
+              <dd className="num text-foreground">
+                {quoteIsFresh && liveQuote ? liveQuote.price.toFixed(market.assetClass === "FX" ? 5 : 2) : "—"}
+              </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Notional</dt>
@@ -751,6 +788,14 @@ function TradePage() {
             </div>
           </dl>
 
+          {!quoteIsFresh && (
+            <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+              {providerStatus === "no_quote"
+                ? "Trading is paused until MT5 provides a current quote for this instrument."
+                : "Trading is unavailable because this market has no supported MT5 quote."}
+            </div>
+          )}
+
           {marketClosed && (
             <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               Forex is closed on weekends in the prototype market calendar.
@@ -765,7 +810,7 @@ function TradePage() {
 
           <Button
             className="mt-4 w-full"
-            disabled={marketClosed || submitting || !user}
+            disabled={marketClosed || !quoteIsFresh || submitting || !user}
             onClick={() => void submitOrder()}
           >
             {submitting ? "Executing…" : `${side} ${market.symbol}`}
