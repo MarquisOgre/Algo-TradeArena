@@ -22,6 +22,10 @@ MT5_SERVER = os.environ["MT5_SERVER"]
 MT5_PATH = os.getenv("MT5_PATH", "")
 POLL_SECONDS = float(os.getenv("POLL_SECONDS", "2"))
 CANDLE_SYNC_SECONDS = float(os.getenv("CANDLE_SYNC_SECONDS", "60"))
+CANDLE_BARS_PER_SYNC = int(os.getenv("CANDLE_BARS_PER_SYNC", "20"))
+CANDLE_BOOTSTRAP = os.getenv("CANDLE_BOOTSTRAP", "false").lower() == "true"
+CANDLE_BOOTSTRAP_BARS = int(os.getenv("CANDLE_BOOTSTRAP_BARS", "120"))
+CANDLE_CHUNK_SIZE = int(os.getenv("CANDLE_CHUNK_SIZE", "500"))
 ALLOW_LIVE = os.getenv("ALLOW_LIVE", "false").lower() == "true"
 
 REST_HEADERS = {"apikey": SUPABASE_PUBLISHABLE_KEY, "Accept": "application/json"}
@@ -90,39 +94,60 @@ def collect_quotes(markets: list[dict[str, Any]], symbol_map: dict[str, str]) ->
         quotes.append({"market_id":market["id"],"symbol":symbol,"bid":float(tick.bid),"ask":float(tick.ask),"price":float((tick.bid+tick.ask)/2),"quote_time":iso_from_seconds(getattr(tick,"time",None)),"volume":None,"metadata":{"asset_class":market["asset_class"],"mt5_time_msc":getattr(tick,"time_msc",None)}})
     return quotes
 
-def collect_candles(markets: list[dict[str, Any]], count: int = 60) -> list[dict[str, Any]]:
+def collect_candles(markets: list[dict[str, Any]], symbol_map: dict[str, str], bars: int) -> list[dict[str, Any]]:
     candles: list[dict[str, Any]] = []
-    for market in markets:
-        symbol = (market.get("broker_symbol") or market["symbol"]).strip()
-        info = mt5.symbol_info(symbol)
-        if info is None:
-            continue
-        if not info.visible and not mt5.symbol_select(symbol, True):
-            continue
-        rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_M1, 0, count)
-        if rates is None:
-            continue
-        for rate in rates:
-            candle_time = iso_from_seconds(rate["time"])
-            if not candle_time:
+    timeframes = (
+        ("1m", mt5.TIMEFRAME_M1),
+        ("5m", mt5.TIMEFRAME_M5),
+        ("15m", mt5.TIMEFRAME_M15),
+        ("1h", mt5.TIMEFRAME_H1),
+        ("4h", mt5.TIMEFRAME_H4),
+        ("1d", mt5.TIMEFRAME_D1),
+    )
+    for timeframe_name, timeframe in timeframes:
+        count = bars if timeframe_name in {"1m", "5m", "15m"} else min(bars, 100)
+        for market in markets:
+            symbol = resolve_mt5_symbol(market, symbol_map)
+            if not symbol:
                 continue
-            candles.append({
-                "market_id": market["id"],
-                "symbol": symbol,
-                "timeframe": "1m",
-                "candle_time": candle_time,
-                "open": float(rate["open"]),
-                "high": float(rate["high"]),
-                "low": float(rate["low"]),
-                "close": float(rate["close"]),
-                "volume": float(rate["tick_volume"]),
-                "trade_count": None,
-                "metadata": {
-                    "asset_class": market["asset_class"],
-                    "source": "mt5",
-                },
-            })
+            info = mt5.symbol_info(symbol)
+            if info is None:
+                continue
+            if not info.visible and not mt5.symbol_select(symbol, True):
+                continue
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
+            if rates is None:
+                continue
+            for rate in rates:
+                candle_time = iso_from_seconds(rate["time"])
+                if not candle_time:
+                    continue
+                candles.append({
+                    "market_id": market["id"],
+                    "symbol": symbol,
+                    "timeframe": timeframe_name,
+                    "candle_time": candle_time,
+                    "open": float(rate["open"]),
+                    "high": float(rate["high"]),
+                    "low": float(rate["low"]),
+                    "close": float(rate["close"]),
+                    "volume": float(rate["tick_volume"]),
+                    "trade_count": None,
+                    "metadata": {"asset_class": market["asset_class"], "source": "mt5"},
+                })
     return candles
+
+def push_candle_chunks(candles: list[dict[str, Any]]) -> None:
+    if not candles:
+        return
+    total = len(candles)
+    for start in range(0, total, CANDLE_CHUNK_SIZE):
+        chunk = candles[start:start + CANDLE_CHUNK_SIZE]
+        push_sync({
+            "broker_account_id": BROKER_ACCOUNT_ID,
+            "mt5_account_id": MT5_ACCOUNT_ID,
+            "candles": chunk,
+        }, label=f"candles {start + 1}-{min(start + len(chunk), total)}/{total}")
 
 def collect_positions() -> list[dict[str, Any]]:
     positions=mt5.positions_get() or []
@@ -138,61 +163,21 @@ def collect_account() -> dict[str, Any]:
     terminal_build=int(version[1]) if version and len(version)>1 else None
     return {"login":str(account.login),"server":account.server,"balance":float(account.balance),"equity":float(account.equity),"margin":float(account.margin),"free_margin":float(account.margin_free),"leverage":int(account.leverage) if account.leverage else None,"currency":account.currency,"terminal_build":terminal_build,"is_hedging_account":int(account.margin_mode)==2}
 
-def push_sync(payload: dict[str, Any]) -> None:
+def push_sync(payload: dict[str, Any], label: str = "sync") -> None:
     response=requests.post(MT5_GATEWAY_URL,headers=GATEWAY_HEADERS,json=payload,timeout=20)
     if not response.ok: raise RuntimeError(f"MT5 gateway returned {response.status_code}: {response.text[:500]}")
     result=response.json()
-    print(f"Synced quotes={result.get('quotes_updated',0)} positions={result.get('positions_updated',0)}")
+    if label == "sync":
+        print(f"Synced quotes={result.get('quotes_updated',0)} positions={result.get('positions_updated',0)}")
+    else:
+        print(f"Synced {label}")
 
-def sync_once(markets: list[dict[str, Any]], symbol_map: dict[str, str], include_candles: bool = False) -> None:
-    candles: list[dict[str, Any]] = []
-
-    if include_candles:
-        for timeframe_name, timeframe in (
-            ("1m", mt5.TIMEFRAME_M1),
-            ("5m", mt5.TIMEFRAME_M5),
-            ("15m", mt5.TIMEFRAME_M15),
-            ("1h", mt5.TIMEFRAME_H1),
-            ("4h", mt5.TIMEFRAME_H4),
-            ("1d", mt5.TIMEFRAME_D1),
-        ):
-            count = 120 if timeframe_name in {"1m", "5m", "15m"} else 100
-            for market in markets:
-                symbol = resolve_mt5_symbol(market, symbol_map)
-                if not symbol:
-                    continue
-                info = mt5.symbol_info(symbol)
-                if info is None:
-                    continue
-                if not info.visible and not mt5.symbol_select(symbol, True):
-                    continue
-                rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
-                if rates is None:
-                    continue
-                for rate in rates:
-                    candle_time = iso_from_seconds(rate["time"])
-                    if not candle_time:
-                        continue
-                    candles.append({
-                        "market_id": market["id"],
-                        "symbol": symbol,
-                        "timeframe": timeframe_name,
-                        "candle_time": candle_time,
-                        "open": float(rate["open"]),
-                        "high": float(rate["high"]),
-                        "low": float(rate["low"]),
-                        "close": float(rate["close"]),
-                        "volume": float(rate["tick_volume"]),
-                        "trade_count": None,
-                        "metadata": {"asset_class": market["asset_class"], "source": "mt5"},
-                    })
-
+def sync_once(markets: list[dict[str, Any]], symbol_map: dict[str, str]) -> None:
     push_sync({
         "broker_account_id": BROKER_ACCOUNT_ID,
         "mt5_account_id": MT5_ACCOUNT_ID,
         "account": collect_account(),
         "quotes": collect_quotes(markets, symbol_map),
-        "candles": candles,
         "positions": collect_positions(),
     })
 
@@ -203,13 +188,24 @@ def main() -> None:
         symbol_map = build_mt5_symbol_map()
         print(f"MT5 symbol resolver: {len(symbol_map)} terminal symbols available")
         last_candle_sync = 0.0
+        bootstrap_pending = CANDLE_BOOTSTRAP
+
+        if bootstrap_pending:
+            print(f"Candle bootstrap enabled: {CANDLE_BOOTSTRAP_BARS} bars/timeframe in chunks of {CANDLE_CHUNK_SIZE}")
+
         while True:
             started = time.monotonic()
             try:
+                sync_once(markets, symbol_map)
                 now = time.monotonic()
-                include_candles = now - last_candle_sync >= CANDLE_SYNC_SECONDS
-                sync_once(markets, symbol_map, include_candles=include_candles)
-                if include_candles:
+                if bootstrap_pending:
+                    candles = collect_candles(markets, symbol_map, CANDLE_BOOTSTRAP_BARS)
+                    push_candle_chunks(candles)
+                    bootstrap_pending = False
+                    last_candle_sync = now
+                elif now - last_candle_sync >= CANDLE_SYNC_SECONDS:
+                    candles = collect_candles(markets, symbol_map, CANDLE_BARS_PER_SYNC)
+                    push_candle_chunks(candles)
                     last_candle_sync = now
             except Exception as exc:
                 print(f"Sync error: {exc}", file=sys.stderr)
@@ -219,4 +215,5 @@ def main() -> None:
     finally:
         mt5.shutdown()
 
-if __name__ == "__main__": main()
+if __name__ == "__main__":
+    main()
