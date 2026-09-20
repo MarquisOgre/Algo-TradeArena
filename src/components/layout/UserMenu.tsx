@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { HelpCircle, LogOut, Settings, UserRound } from "lucide-react";
+import { HelpCircle, LogIn, LogOut, Settings, UserRound } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -30,9 +30,9 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
     metadata.full_name ||
     metadata.name ||
     user?.email?.split("@")[0] ||
-    "Guest";
+    "ALPHENTRA";
   const fallback = initials(displayName);
-  const email = user?.email ?? "Guest account";
+  const email = user?.email ?? "";
 
   async function handleSignOut() {
     const { error } = await signOut();
@@ -51,10 +51,12 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
             className="flex items-center gap-2 rounded-xl border border-border bg-surface px-2 py-1.5 transition-colors hover:border-primary/40 hover:bg-surface-2"
           >
             <span className="hidden text-xs font-semibold text-foreground sm:inline">
-              {loading ? "..." : displayName}
+              {loading ? "..." : user ? displayName : "Login"}
             </span>
             <Avatar className="size-8 border border-border">
-              <AvatarFallback className="bg-surface-2 text-[10px] font-semibold">{fallback}</AvatarFallback>
+              <AvatarFallback className="bg-surface-2 text-[10px] font-semibold">
+                {user ? fallback : "?"}
+              </AvatarFallback>
             </Avatar>
           </button>
         ) : (
@@ -64,12 +66,16 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
             className="flex w-full items-center gap-3 rounded-xl px-0 py-0 text-left transition-colors hover:bg-surface-2/60"
           >
             <Avatar className="size-9 border border-border">
-              <AvatarFallback className="bg-surface-2 text-xs font-semibold">{fallback}</AvatarFallback>
+              <AvatarFallback className="bg-surface-2 text-xs font-semibold">
+                {user ? fallback : "?"}
+              </AvatarFallback>
             </Avatar>
             <span className="min-w-0 flex-1">
-              <span className="block truncate text-sm font-medium text-foreground">{displayName}</span>
+              <span className="block truncate text-sm font-medium text-foreground">
+                {loading ? "Loading..." : user ? displayName : "Login"}
+              </span>
               <span className="block truncate text-xs text-muted-foreground">
-                {user ? email : "Guest account"}
+                {user ? email : "Authentication required"}
               </span>
             </span>
           </button>
@@ -82,30 +88,37 @@ export function UserMenu({ compact = false }: { compact?: boolean }) {
         sideOffset={8}
         className={cn("w-60", !compact && "mb-1")}
       >
-        <div className="px-2 py-1.5">
-          <p className="truncate text-xs font-semibold text-foreground">{displayName}</p>
-          <p className="truncate text-[11px] text-muted-foreground">{email}</p>
-        </div>
-        <DropdownMenuSeparator />
-        {userOptions.map((item) => {
-          const Icon = item.icon;
-          return (
-            <DropdownMenuItem key={item.to} asChild>
-              <Link to={item.to} className="cursor-pointer">
-                <Icon className="size-4" />
-                {item.label}
-              </Link>
-            </DropdownMenuItem>
-          );
-        })}
-        {user && (
+        {user ? (
           <>
+            <div className="px-2 py-1.5">
+              <p className="truncate text-xs font-semibold text-foreground">{displayName}</p>
+              <p className="truncate text-[11px] text-muted-foreground">{email}</p>
+            </div>
+            <DropdownMenuSeparator />
+            {userOptions.map((item) => {
+              const Icon = item.icon;
+              return (
+                <DropdownMenuItem key={item.to} asChild>
+                  <Link to={item.to} className="cursor-pointer">
+                    <Icon className="size-4" />
+                    {item.label}
+                  </Link>
+                </DropdownMenuItem>
+              );
+            })}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={() => void handleSignOut()} className="cursor-pointer">
               <LogOut className="size-4" />
               Sign out
             </DropdownMenuItem>
           </>
+        ) : (
+          <DropdownMenuItem asChild>
+            <Link to="/login" className="cursor-pointer">
+              <LogIn className="size-4" />
+              Login
+            </Link>
+          </DropdownMenuItem>
         )}
       </DropdownMenuContent>
     </DropdownMenu>
