@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { Bot, Flame, Loader2, Medal, Store, Swords } from "lucide-react";
+import { Bot, Flame, Loader2, Store, Swords, Wallet } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
@@ -196,7 +196,7 @@ function ProfilePage() {
           label="Paper equity"
           value={paperEquity === null ? "—" : formatMoney(Number(paperEquity))}
           hint="Main Paper Account"
-          icon={WalletIcon}
+          icon={Wallet}
         />
         <StatCard label="AI strategies" value={String(strategies.length)} hint="Your strategies" icon={Bot} />
         <StatCard label="Arena entries" value="—" icon={Swords} hint="Competition tracking coming next" />
@@ -265,6 +265,3 @@ function ProfilePage() {
   );
 }
 
-function WalletIcon() {
-  return <span className="text-sm font-bold">$</span>;
-}
