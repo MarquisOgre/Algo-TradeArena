@@ -165,6 +165,24 @@ export async function loadMarketBoard(): Promise<Market[]> {
   });
 }
 
+export async function loadMarketHistory(marketId: string, timeframe = "1m", limit = 60): Promise<number[]> {
+  const { data, error } = await supabase
+    .from("market_data")
+    .select("close")
+    .eq("market_id", marketId)
+    .eq("timeframe", timeframe)
+    .eq("source", "mt5")
+    .order("candle_time", { ascending: false })
+    .limit(limit);
+
+  if (error) throw error;
+
+  return (data ?? [])
+    .map((row) => Number(row.close))
+    .filter((value) => Number.isFinite(value) && value > 0)
+    .reverse();
+}
+
 export function isQuoteFresh(quote: LiveMarketQuote | undefined, maxAgeMs = 120_000) {
   if (!quote) return false;
   return Date.now() - new Date(quote.quoteTime).getTime() <= maxAgeMs;
