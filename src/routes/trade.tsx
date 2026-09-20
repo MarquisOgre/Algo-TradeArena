@@ -6,7 +6,6 @@ import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
 import { ChartCard } from "@/components/common/ChartCard";
-import { Sparkline } from "@/components/common/Sparkline";
 import { Delta } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { isQuoteFresh, loadLiveMarketQuotes, loadMarketBoard, loadMarketHistory, subscribeToMarketQuotes } from "@/lib/marketData";
+import { isQuoteFresh, loadLiveMarketQuotes, loadMarketBoard, loadMarketHistory, subscribeToMarketQuotes, type MarketCandle } from "@/lib/marketData";
 
 export const Route = createFileRoute("/trade")({
   head: () => ({
@@ -35,6 +34,102 @@ export const Route = createFileRoute("/trade")({
   component: TradePage,
 });
 
+function CandleChart({
+  candles,
+  currentPrice,
+  onHover,
+}: {
+  candles: MarketCandle[];
+  currentPrice: number;
+  onHover: (candle: MarketCandle | null) => void;
+}) {
+  const visible = candles.slice(-90);
+  const lows = visible.map((candle) => candle.low);
+  const highs = visible.map((candle) => candle.high);
+  const min = Math.min(...lows);
+  const max = Math.max(...highs);
+  const range = Math.max(max - min, Math.abs(max) * 0.00001, 0.0000001);
+  const pad = range * 0.08;
+  const yMin = min - pad;
+  const yMax = max + pad;
+  const chartLeft = 48;
+  const chartRight = 970;
+  const chartTop = 18;
+  const chartBottom = 290;
+  const chartHeight = chartBottom - chartTop;
+  const step = (chartRight - chartLeft) / Math.max(visible.length, 1);
+  const candleWidth = Math.max(3, Math.min(10, step * 0.62));
+  const priceY = (price: number) => chartBottom - ((price - yMin) / (yMax - yMin)) * chartHeight;
+  const currentY = priceY(currentPrice);
+  const gridValues = [0, 0.25, 0.5, 0.75, 1].map((ratio) => yMin + (yMax - yMin) * ratio);
+
+  return (
+    <div className="relative h-[320px] w-full overflow-hidden rounded-xl bg-background/40">
+      <svg
+        viewBox="0 0 1000 320"
+        className="h-full w-full"
+        preserveAspectRatio="none"
+        onMouseLeave={() => onHover(null)}
+        onMouseMove={(event) => {
+          const rect = event.currentTarget.getBoundingClientRect();
+          const x = event.clientX - rect.left;
+          const index = Math.max(0, Math.min(visible.length - 1, Math.floor((x / rect.width) * visible.length)));
+          onHover(visible[index] ?? null);
+        }}
+      >
+        {gridValues.map((value, index) => {
+          const y = priceY(value);
+          return (
+            <g key={value}>
+              <line x1={chartLeft} x2={chartRight} y1={y} y2={y} stroke="currentColor" strokeOpacity="0.08" />
+              <text x="6" y={y + 4} fill="currentColor" opacity="0.45" fontSize="10">
+                {value.toLocaleString("en-US", { maximumFractionDigits: 5 })}
+              </text>
+            </g>
+          );
+        })}
+
+        <line x1={chartLeft} x2={chartRight} y1={currentY} y2={currentY} stroke="currentColor" strokeDasharray="5 5" strokeOpacity="0.35" />
+        <text x={chartRight - 68} y={Math.max(12, currentY - 5)} fill="currentColor" opacity="0.75" fontSize="10">
+          {currentPrice.toLocaleString("en-US", { maximumFractionDigits: 5 })}
+        </text>
+
+        {visible.map((candle, index) => {
+          const x = chartLeft + step * index + step / 2;
+          const openY = priceY(candle.open);
+          const closeY = priceY(candle.close);
+          const highY = priceY(candle.high);
+          const lowY = priceY(candle.low);
+          const up = candle.close >= candle.open;
+          const bodyTop = Math.min(openY, closeY);
+          const bodyHeight = Math.max(1.5, Math.abs(closeY - openY));
+
+          return (
+            <g
+              key={candle.candle_time}
+              onMouseEnter={() => onHover(candle)}
+              className="cursor-crosshair"
+            >
+              <line x1={x} x2={x} y1={highY} y2={lowY} stroke={up ? "currentColor" : "currentColor"} strokeOpacity="0.8" />
+              <rect
+                x={x - candleWidth / 2}
+                y={bodyTop}
+                width={candleWidth}
+                height={bodyHeight}
+                rx="1"
+                fill={up ? "currentColor" : "transparent"}
+                stroke="currentColor"
+                strokeWidth="1"
+                opacity={up ? 0.72 : 0.9}
+              />
+            </g>
+          );
+        })}
+      </svg>
+    </div>
+  );
+}
+
 function TradePage() {
   const { user } = useAuth();
   const [markets, setMarkets] = useState(mockMarkets);
@@ -42,7 +137,9 @@ function TradePage() {
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [liveData, setLiveData] = useState(false);
   const [liveQuotes, setLiveQuotes] = useState<Awaited<ReturnType<typeof loadLiveMarketQuotes>>>(new Map());
-  const [chartPrices, setChartPrices] = useState<number[]>([]);
+  const [chartCandles, setChartCandles] = useState<MarketCandle[]>([]);
+  const [chartTimeframe, setChartTimeframe] = useState<"1m" | "5m" | "15m" | "1h" | "4h" | "1d">("1m");
+  const [hoveredCandle, setHoveredCandle] = useState<MarketCandle | null>(null);
   const [qty, setQty] = useState("100");
   const [cashBalance, setCashBalance] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -82,17 +179,18 @@ function TradePage() {
 
   useEffect(() => {
     let active = true;
-    void loadMarketHistory(market.id, "1m", 60)
+    setHoveredCandle(null);
+    void loadMarketHistory(market.id, chartTimeframe, 120)
       .then((history) => {
-        if (active) setChartPrices(history.length >= 2 ? history : market.spark);
+        if (active) setChartCandles(history);
       })
       .catch(() => {
-        if (active) setChartPrices(market.spark);
+        if (active) setChartCandles([]);
       });
     return () => {
       active = false;
     };
-  }, [market.id, market.spark]);
+  }, [market.id, chartTimeframe]);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * market.price;
   const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
   const marketClosed = market.assetClass === "FX" && !forexOpen;
@@ -442,8 +540,46 @@ function TradePage() {
               </span>
             )}
           </div>
-          <div className="mt-2">
-            <Sparkline data={chartPrices.length ? chartPrices : market.spark} height={180} />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-b border-border/70 pb-2">
+            <div className="flex items-center gap-1">
+              {(["1m", "5m", "15m", "1h", "4h", "1d"] as const).map((timeframe) => (
+                <button
+                  key={timeframe}
+                  type="button"
+                  onClick={() => setChartTimeframe(timeframe)}
+                  className={cn(
+                    "rounded-md px-2 py-1 text-[10px] font-bold uppercase tracking-wide transition",
+                    chartTimeframe === timeframe
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                  )}
+                >
+                  {timeframe}
+                </button>
+              ))}
+            </div>
+            {hoveredCandle && (
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                <span>{new Date(hoveredCandle.candle_time).toLocaleString()}</span>
+                <span>O {hoveredCandle.open.toFixed(5)}</span>
+                <span>H {hoveredCandle.high.toFixed(5)}</span>
+                <span>L {hoveredCandle.low.toFixed(5)}</span>
+                <span>C {hoveredCandle.close.toFixed(5)}</span>
+              </div>
+            )}
+          </div>
+          <div className="mt-1">
+            {chartCandles.length >= 2 ? (
+              <CandleChart
+                candles={chartCandles}
+                currentPrice={liveQuote?.price ?? market.price}
+                onHover={setHoveredCandle}
+              />
+            ) : (
+              <div className="flex h-[320px] items-center justify-center text-xs text-muted-foreground">
+                Waiting for {market.symbol} {chartTimeframe} candle data...
+              </div>
+            )}
           </div>
         </ChartCard>
 
