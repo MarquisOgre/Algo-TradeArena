@@ -39,7 +39,7 @@ type CandleSnapshot = {
   metadata?: Record<string, unknown>;
 };
 
-type MarketStatusSnapshot = {
+type BrokerMarketMappingSnapshot = {\n  market_id: string;\n  symbol: string;\n  status: "live" | "no_quote" | "unsupported";\n  provider_symbol?: string | null;\n  checked_at?: string;\n  metadata?: Record<string, unknown>;\n};\n\ntype MarketStatusSnapshot = {
   market_id: string;
   symbol: string;
   status: "live" | "no_quote" | "unsupported";
@@ -71,7 +71,7 @@ type SyncPayload = {
   quotes?: QuoteSnapshot[];
   candles?: CandleSnapshot[];
   positions?: PositionSnapshot[];
-  market_statuses?: MarketStatusSnapshot[];
+  market_statuses?: MarketStatusSnapshot[];\n  broker_market_mappings?: BrokerMarketMappingSnapshot[];
 };
 
 function corsHeaders() {
@@ -171,7 +171,7 @@ export default {
 
     }
 
-    let marketStatusesUpdated = 0;
+    let brokerMarketMappingsUpdated = 0;\n    if (body.broker_market_mappings?.length) {\n      const mappingRows = body.broker_market_mappings.map((mapping) => ({\n        broker_account_id: body.broker_account_id,\n        market_id: mapping.market_id,\n        provider: "mt5",\n        provider_symbol: mapping.provider_symbol ?? null,\n        status: mapping.status,\n        last_verified_at: mapping.checked_at ?? now,\n        metadata: {\n          ...(mapping.metadata ?? {}),\n          provider: "mt5",\n          synced_at: now,\n        },\n        updated_at: now,\n      }));\n\n      const { error: mappingError } = await ctx.supabaseAdmin\n        .from("broker_market_mappings")\n        .upsert(mappingRows, { onConflict: "broker_account_id,market_id,provider" });\n\n      if (mappingError) {\n        return Response.json({ error: mappingError.message }, { status: 500, headers: corsHeaders() });\n      }\n      brokerMarketMappingsUpdated = mappingRows.length;\n    }\n\n    let marketStatusesUpdated = 0;
     if (body.market_statuses?.length) {
       const statusRows = body.market_statuses.map((status) => ({
         market_id: status.market_id,
@@ -294,7 +294,7 @@ export default {
         broker_account_id: body.broker_account_id,
         mt5_account_id: body.mt5_account_id,
         quotes_updated: quotesUpdated,
-        market_statuses_updated: marketStatusesUpdated,
+        market_statuses_updated: marketStatusesUpdated,\n        broker_market_mappings_updated: brokerMarketMappingsUpdated,
         positions_updated: positionsUpdated,
         synced_at: now,
       },
