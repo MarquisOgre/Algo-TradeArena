@@ -21,6 +21,22 @@ const wallets = [
   { name: "Trust Wallet", description: "Connect Trust Wallet" },
 ];
 
+type Mt5AccountState = {
+  broker_name: string;
+  account_name: string;
+  account_identifier: string;
+  environment: "demo" | "live";
+  status: string;
+  server_name: string;
+  balance: number;
+  equity: number;
+  margin: number;
+  free_margin: number;
+  leverage: number | null;
+  currency: string;
+  last_account_sync_at: string | null;
+};
+
 export function HeaderConnections() {
   const { user } = useAuth();
   const [walletOpen, setWalletOpen] = useState(false);
@@ -39,6 +55,8 @@ export function HeaderConnections() {
     broker_account_id: string;
     mt5_account_id: string;
   } | null>(null);
+  const [mt5Loading, setMt5Loading] = useState(false);
+  const [mt5Account, setMt5Account] = useState<Mt5AccountState | null>(null);
 
   const resetMt5Status = () => {
     setMt5Error("");
