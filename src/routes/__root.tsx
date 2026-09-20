@@ -139,6 +139,12 @@ function AuthenticationGate() {
   const router = useRouter();
   const { user, loading } = useAuth();
 
+  useEffect(() => {
+    if (!loading && !user && pathname !== "/login") {
+      void router.navigate({ to: "/login", replace: true });
+    }
+  }, [loading, pathname, router, user]);
+
   if (pathname === "/login") {
     return <Outlet />;
   }
@@ -150,12 +156,6 @@ function AuthenticationGate() {
       </div>
     );
   }
-
-  useEffect(() => {
-    if (!loading && !user && pathname !== "/login") {
-      void router.navigate({ to: "/login", replace: true });
-    }
-  }, [loading, pathname, router, user]);
 
   if (!user) {
     return null;
