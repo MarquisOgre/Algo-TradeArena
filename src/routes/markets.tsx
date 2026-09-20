@@ -165,6 +165,7 @@ function MarketsPage() {
             {liveData ? "Live quotes" : "Simulated fallback"}
           </span>
         </div>
+      </div>
 
       <div className="mt-6 flex flex-wrap gap-2">
         {filters.map((f) => (
