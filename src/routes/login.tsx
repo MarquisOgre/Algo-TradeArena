@@ -175,10 +175,7 @@ function LoginPage() {
         </div>
 
         <p className="mt-5 text-center text-sm text-muted-foreground">
-          Just looking around?{" "}
-          <Link to="/" className="font-semibold text-primary hover:underline">
-            Continue as guest
-          </Link>
+          ALPHENTRA requires an authenticated account. Guest access is disabled.
         </p>
       </GlassCard>
     </div>
