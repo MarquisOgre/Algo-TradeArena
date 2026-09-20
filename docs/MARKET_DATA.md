@@ -1,52 +1,63 @@
 # ALPHENTRA Market Data Engine
 
-The market-data layer is provider-backed and browser-safe.
+The market-data layer is now **MT5-first** for the trading universe.
 
 ## Flow
 
-`Twelve Data -> Supabase Edge Function -> market_quotes -> Supabase Realtime -> Markets / Trade UI`
+`MetaTrader 5 terminal -> Python MT5 bridge -> Supabase Edge Function -> market_quotes -> Supabase Realtime -> Markets / Trade UI`
 
-The browser never receives the Twelve Data API key. Supabase recommends keeping third-party credentials in Edge Function secrets rather than shipping them to clients.
+The browser never receives MT5 account credentials. The MT5 bridge runs outside the browser and uses a dedicated Supabase secret to publish normalized snapshots.
 
-## Current provider adapter
+## Primary provider: MetaTrader 5
 
-The first adapter is Twelve Data.
+MT5 supplies the quote/account/position state for instruments available through the connected broker.
 
-- `/quote` supplies the latest quote, change, percent change, volume and market-open state.
-- Batch quote requests can contain multiple symbols in one request.
-- The ALPHENTRA adapter normalizes the symbols used by the paper-trading universe, including `EUR/USD`, `BTC/USD`, `ETH/USD`, and `XAU/USD`.
+The bridge normalizes:
 
-Twelve Data documents the quote and time-series endpoints and batch requests here:
+- Bid
+- Ask
+- Mid/mark price
+- Spread
+- Quote timestamp
+- Account balance/equity/margin/free margin
+- Open MT5 positions
 
-- https://twelvedata.com/docs
-- https://support.twelvedata.com/en/articles/5203360-batch-api-requests
+The available symbol universe should ultimately come from the connected MT5 broker rather than a hard-coded third-party data catalog.
 
 ## Supabase setup
 
-1. Apply `supabase/migrations/015_alphentra_market_data.sql` in the Supabase SQL Editor.
-2. In Supabase **Settings -> API Keys**, create a dedicated **secret API key** named:
-   `market-data-sync`
-3. In **Edge Functions -> Secrets**, add:
-   `TWELVE_DATA_API_KEY=<your Twelve Data key>`
-4. Deploy the function:
-   `supabase functions deploy market-data-sync`
-5. Test it with the dedicated secret API key using the `apikey` header.
-6. Configure Supabase Cron to invoke the function on the cadence allowed by the market-data provider and the plan. Supabase Cron can make HTTP requests to Edge Functions.
+1. Apply `supabase/migrations/016_alphentra_mt5_market_data.sql` after migrations 001-015.
+2. In Supabase **Settings -> API Keys**, create a dedicated secret API key named `mt5-gateway`.
+3. Deploy the `mt5-gateway` Edge Function.
+4. In the local MT5 bridge, set the gateway URL and the `mt5-gateway` secret in the ignored local environment file.
+5. Register an MT5 account in Alphentra so the bridge has the `broker_account_id` and `mt5_account_id`.
+6. Run the Windows bridge with a **demo MT5 account first**.
 
-Do not put either the Twelve Data key or the Supabase secret API key in the repository, frontend environment variables, or browser code.
+Do not put MT5 passwords, gateway secrets, or other broker credentials in the repository or browser environment.
 
-## Why the function is protected
+## Current connector milestone
 
-`market-data-sync` is a server-to-server function. It uses the named secret-key auth mode and the privileged Supabase client only inside the Edge Function. The function writes to `market_quotes`, while browser clients have read-only access through RLS.
+This milestone is deliberately **read/synchronization only**:
 
-Supabase documents the `@supabase/server` secret-key pattern for server-to-server functions and recommends disabling the platform JWT check when using the new API-key model, allowing the function middleware to authorize the request. 
+- MT5 -> Alphentra quotes
+- MT5 -> Alphentra account state
+- MT5 -> Alphentra open positions
+- MT5 -> Alphentra connection health
 
-## Next market-data steps
+Live order routing is not enabled yet.
 
-- Historical candle ingestion into `market_data`
-- Provider health / latency monitoring
-- Market session state
-- WebSocket price streaming where the selected provider/plan supports it
-- Multi-provider fallback
-- Data-quality checks
-- Stale-price protection before paper execution
+## Next MT5 steps
+
+- MT5 symbol discovery and contract specifications
+- Historical candle ingestion
+- Market-session state
+- Stale-price protection
+- Pending order queue
+- `order_check` validation
+- `order_send` execution
+- Execution reconciliation
+- SL/TP and close/modify operations
+- Multi-account MT5 support
+- Copy-trading replication and risk controls
+
+MetaTrader's official Python integration provides terminal initialization, tick retrieval, account information, positions and order submission capabilities. The bridge starts with synchronization before enabling order submission.
