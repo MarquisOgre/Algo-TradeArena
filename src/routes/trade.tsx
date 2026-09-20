@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
+import { loadMarketBoard } from "@/lib/marketData";
 
 export const Route = createFileRoute("/trade")({
   head: () => ({
@@ -34,17 +35,37 @@ export const Route = createFileRoute("/trade")({
 
 function TradePage() {
   const { user } = useAuth();
+  const [markets, setMarkets] = useState(mockMarkets);
   const [symbolId, setSymbolId] = useState(mockMarkets[0]!.id);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
+  const [liveData, setLiveData] = useState(false);
   const [qty, setQty] = useState("100");
   const [cashBalance, setCashBalance] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const market = mockMarkets.find((m) => m.id === symbolId)!;
+  const market = markets.find((m) => m.id === symbolId) ?? markets[0]!;
   const quantity = Number(qty);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * market.price;
   const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
   const marketClosed = market.assetClass === "FX" && !forexOpen;
+
+  useEffect(() => {
+    let active = true;
+
+    void loadMarketBoard()
+      .then((nextMarkets) => {
+        if (!active) return;
+        setMarkets(nextMarkets);
+        setLiveData(nextMarkets.some((item, index) => item.price !== mockMarkets[index]?.price));
+      })
+      .catch((error) => {
+        console.error("Failed to load market data:", error);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!user) {
@@ -142,6 +163,9 @@ function TradePage() {
         actions={
           <div className="flex flex-wrap items-center gap-2">
             <span className="hidden text-xs text-muted-foreground sm:inline">{getMarketCalendarLabel()}</span>
+            <span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {liveData ? "Live quotes" : "Simulated fallback"}
+            </span>
             <PaperTradingBadge />
           </div>
         }
@@ -193,7 +217,7 @@ function TradePage() {
               onChange={(e) => setSymbolId(e.target.value)}
               className="h-10 w-full rounded-xl border border-border bg-surface px-3 text-sm text-foreground focus:border-primary/60 focus:outline-none focus:ring-2 focus:ring-ring/25"
             >
-              {mockMarkets.map((m) => (
+              {markets.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.symbol} — {m.name}
                 </option>
