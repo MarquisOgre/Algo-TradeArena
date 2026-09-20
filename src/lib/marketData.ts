@@ -16,6 +16,7 @@ export type LiveMarketQuote = {
   bid: number | null;
   ask: number | null;
   spread: number | null;
+  metadata: Record<string, unknown>;
 };
 
 type MarketRow = {
@@ -39,6 +40,7 @@ type QuoteRow = {
   bid: number | string | null;
   ask: number | string | null;
   spread: number | string | null;
+  metadata: Record<string, unknown> | null;
 };
 
 function numberOrNull(value: number | string | null | undefined) {
@@ -85,8 +87,9 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
       supabase
         .from("market_quotes")
         .select(
-          "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread",
+          "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread, metadata",
         )
+        .eq("provider", "mt5")
         .order("quote_time", { ascending: false })
         .limit(100),
     ]);
@@ -120,6 +123,7 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
       bid: numberOrNull(quote.bid),
       ask: numberOrNull(quote.ask),
       spread: numberOrNull(quote.spread),
+      metadata: quote.metadata ?? {},
     });
   }
 
@@ -201,7 +205,14 @@ export async function loadMarketHistory(marketId: string, timeframe = "1m", limi
 
 export function isQuoteFresh(quote: LiveMarketQuote | undefined, maxAgeMs = 120_000) {
   if (!quote) return false;
-  return Date.now() - new Date(quote.quoteTime).getTime() <= maxAgeMs;
+
+  const syncedAt =
+    typeof quote.metadata?.synced_at === "string"
+      ? quote.metadata.synced_at
+      : quote.quoteTime;
+
+  const age = Date.now() - new Date(syncedAt).getTime();
+  return Number.isFinite(age) && age >= -30_000 && age <= maxAgeMs;
 }
 
 export async function refreshPaperPortfolioMarks() {
