@@ -55,46 +55,193 @@ def build_mt5_symbol_map() -> dict[str, str]:
     symbols = mt5.symbols_get() or []
     return {str(symbol.name).upper(): str(symbol.name) for symbol in symbols if getattr(symbol, "name", None)}
 
-def resolve_mt5_symbol(market: dict[str, Any], symbol_map: dict[str, str]) -> str | None:
-    requested = str(market.get("broker_symbol") or market["symbol"]).strip()
-    candidates = [requested, str(market["symbol"]).strip()]
+def normalize_symbol(value: str) -> str:
+    return "".join(ch for ch in value.upper() if ch.isalnum())
 
-    # Common crypto aliases on MetaQuotes-Demo. The terminal exposes BTC/ETH
-    # rather than the UI's BTCUSD/ETHUSD symbols.
+
+def expected_currencies(market: dict[str, Any]) -> tuple[str | None, str | None]:
+    symbol = normalize_symbol(str(market.get("symbol") or ""))
+    asset_class = str(market.get("asset_class") or "").lower()
+
+    # FX pairs, crypto/USD pairs and metals such as XAUUSD encode their
+    # intended base/profit currencies in the Alphentra symbol.
+    if len(symbol) == 6 and asset_class in {"forex", "crypto", "commodity"}:
+        return symbol[:3], symbol[3:]
+
+    return None, None
+
+
+def symbol_matches_market(market: dict[str, Any], info: Any) -> bool:
+    expected_base, expected_profit = expected_currencies(market)
+    if expected_base is None or expected_profit is None:
+        return True
+
+    base = str(getattr(info, "currency_base", "") or "").upper()
+    profit = str(getattr(info, "currency_profit", "") or "").upper()
+
+    return base == expected_base and profit == expected_profit
+
+
+def symbol_metadata(info: Any) -> dict[str, Any]:
+    return {
+        "broker_symbol": str(getattr(info, "name", "") or ""),
+        "description": str(getattr(info, "description", "") or ""),
+        "path": str(getattr(info, "path", "") or ""),
+        "exchange": str(getattr(info, "exchange", "") or ""),
+        "currency_base": str(getattr(info, "currency_base", "") or ""),
+        "currency_profit": str(getattr(info, "currency_profit", "") or ""),
+        "currency_margin": str(getattr(info, "currency_margin", "") or ""),
+        "digits": int(getattr(info, "digits", 0) or 0),
+        "point": float(getattr(info, "point", 0.0) or 0.0),
+        "trade_tick_size": float(getattr(info, "trade_tick_size", 0.0) or 0.0),
+        "trade_tick_value": float(getattr(info, "trade_tick_value", 0.0) or 0.0),
+        "trade_contract_size": float(getattr(info, "trade_contract_size", 0.0) or 0.0),
+        "volume_min": float(getattr(info, "volume_min", 0.0) or 0.0),
+        "volume_max": float(getattr(info, "volume_max", 0.0) or 0.0),
+        "volume_step": float(getattr(info, "volume_step", 0.0) or 0.0),
+        "trade_mode": int(getattr(info, "trade_mode", 0) or 0),
+        "trade_calc_mode": int(getattr(info, "trade_calc_mode", 0) or 0),
+    }
+
+
+def build_market_symbol_map(
+    markets: list[dict[str, Any]],
+    symbol_map: dict[str, str],
+) -> dict[str, dict[str, Any]]:
     aliases = {
         "BTCUSD": ["BTC", "BTCUSD"],
         "ETHUSD": ["ETH", "ETHUSD"],
         "XAUUSD": ["XAUUSD", "GOLD"],
     }
-    candidates.extend(aliases.get(requested.upper(), []))
+    resolved: dict[str, dict[str, Any]] = {}
 
-    for candidate in candidates:
-        if candidate.upper() in symbol_map:
-            return symbol_map[candidate.upper()]
-
-    normalized = "".join(ch for ch in requested.upper() if ch.isalnum())
-    for name_upper, actual_name in symbol_map.items():
-        normalized_name = "".join(ch for ch in name_upper if ch.isalnum())
-        if normalized_name == normalized:
-            return actual_name
-
-    return None
-
-def collect_quotes(markets: list[dict[str, Any]], symbol_map: dict[str, str]) -> list[dict[str, Any]]:
-    quotes=[]
     for market in markets:
-        symbol = resolve_mt5_symbol(market, symbol_map)
-        if not symbol:
+        requested = str(market.get("broker_symbol") or market["symbol"]).strip()
+        ui_symbol = str(market["symbol"]).strip()
+        candidates = [requested, ui_symbol, *aliases.get(ui_symbol.upper(), [])]
+
+        selected: str | None = None
+        selected_info: Any | None = None
+
+        # First prefer explicit broker symbols, but validate the instrument
+        # specification before accepting them.
+        for candidate in candidates:
+            actual = symbol_map.get(candidate.upper())
+            if not actual:
+                continue
+            info = mt5.symbol_info(actual)
+            if info is None:
+                continue
+            if not info.visible:
+                mt5.symbol_select(actual, True)
+                info = mt5.symbol_info(actual)
+            if info is not None and symbol_matches_market(market, info):
+                selected = actual
+                selected_info = info
+                break
+
+        # If the exact name is not present, search the terminal universe by
+        # the instrument's base/profit currencies and description/name.
+        if selected is None:
+            expected_base, expected_profit = expected_currencies(market)
+            normalized_requested = normalize_symbol(requested)
+            normalized_ui = normalize_symbol(ui_symbol)
+
+            ranked: list[tuple[int, str, Any]] = []
+            for actual in symbol_map.values():
+                info = mt5.symbol_info(actual)
+                if info is None:
+                    continue
+                if not symbol_matches_market(market, info):
+                    continue
+
+                name = normalize_symbol(str(getattr(info, "name", "") or ""))
+                description = str(getattr(info, "description", "") or "").upper()
+                score = 0
+
+                if name == normalized_requested or name == normalized_ui:
+                    score += 100
+                if expected_base and str(getattr(info, "currency_base", "") or "").upper() == expected_base:
+                    score += 40
+                if expected_profit and str(getattr(info, "currency_profit", "") or "").upper() == expected_profit:
+                    score += 40
+                if expected_base and expected_profit and f"{expected_base} VS {expected_profit}" in description:
+                    score += 25
+                if expected_base and expected_profit and f"{expected_base}/{expected_profit}" in description:
+                    score += 25
+                if ui_symbol.upper() in str(getattr(info, "path", "") or "").upper():
+                    score += 10
+
+                if score > 0:
+                    ranked.append((score, actual, info))
+
+            if ranked:
+                ranked.sort(key=lambda item: (-item[0], item[1]))
+                _, selected, selected_info = ranked[0]
+
+        if selected and selected_info is not None:
+            metadata = symbol_metadata(selected_info)
+            metadata["mapping_status"] = "validated"
+            metadata["alphentra_symbol"] = ui_symbol
+            resolved[market["id"]] = {
+                "symbol": selected,
+                "metadata": metadata,
+            }
+
+    return resolved
+
+
+def resolve_mt5_symbol(
+    market: dict[str, Any],
+    market_symbol_map: dict[str, dict[str, Any]],
+) -> str | None:
+    mapping = market_symbol_map.get(market["id"])
+    return mapping["symbol"] if mapping else None
+
+def collect_quotes(
+    markets: list[dict[str, Any]],
+    market_symbol_map: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
+    quotes = []
+    for market in markets:
+        mapping = market_symbol_map.get(market["id"])
+        if not mapping:
             continue
-        info=mt5.symbol_info(symbol)
-        if info is None: continue
-        if not info.visible and not mt5.symbol_select(symbol, True): continue
-        tick=mt5.symbol_info_tick(symbol)
-        if tick is None or tick.bid <= 0 or tick.ask <= 0: continue
-        quotes.append({"market_id":market["id"],"symbol":symbol,"bid":float(tick.bid),"ask":float(tick.ask),"price":float((tick.bid+tick.ask)/2),"quote_time":iso_from_seconds(getattr(tick,"time",None)),"volume":None,"metadata":{"asset_class":market["asset_class"],"mt5_time_msc":getattr(tick,"time_msc",None)}})
+
+        symbol = mapping["symbol"]
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            continue
+        if not info.visible and not mt5.symbol_select(symbol, True):
+            continue
+
+        tick = mt5.symbol_info_tick(symbol)
+        if tick is None or tick.bid <= 0 or tick.ask <= 0:
+            continue
+
+        quotes.append({
+            "market_id": market["id"],
+            "symbol": symbol,
+            "bid": float(tick.bid),
+            "ask": float(tick.ask),
+            "price": float((tick.bid + tick.ask) / 2),
+            "quote_time": iso_from_seconds(getattr(tick, "time", None)),
+            "volume": None,
+            "is_market_open": True,
+            "metadata": {
+                "asset_class": market["asset_class"],
+                "mt5_time_msc": getattr(tick, "time_msc", None),
+                **mapping["metadata"],
+                "synced_at": datetime.now(timezone.utc).isoformat(),
+            },
+        })
     return quotes
 
-def collect_candles(markets: list[dict[str, Any]], symbol_map: dict[str, str], bars: int) -> list[dict[str, Any]]:
+def collect_candles(
+    markets: list[dict[str, Any]],
+    market_symbol_map: dict[str, dict[str, Any]],
+    bars: int,
+) -> list[dict[str, Any]]:
     candles: list[dict[str, Any]] = []
     timeframes = (
         ("1m", mt5.TIMEFRAME_M1),
@@ -107,9 +254,10 @@ def collect_candles(markets: list[dict[str, Any]], symbol_map: dict[str, str], b
     for timeframe_name, timeframe in timeframes:
         count = bars if timeframe_name in {"1m", "5m", "15m"} else min(bars, 100)
         for market in markets:
-            symbol = resolve_mt5_symbol(market, symbol_map)
-            if not symbol:
+            mapping = market_symbol_map.get(market["id"])
+            if not mapping:
                 continue
+            symbol = mapping["symbol"]
             info = mt5.symbol_info(symbol)
             if info is None:
                 continue
@@ -172,12 +320,15 @@ def push_sync(payload: dict[str, Any], label: str = "sync") -> None:
     else:
         print(f"Synced {label}")
 
-def sync_once(markets: list[dict[str, Any]], symbol_map: dict[str, str]) -> None:
+def sync_once(
+    markets: list[dict[str, Any]],
+    market_symbol_map: dict[str, dict[str, Any]],
+) -> None:
     push_sync({
         "broker_account_id": BROKER_ACCOUNT_ID,
         "mt5_account_id": MT5_ACCOUNT_ID,
         "account": collect_account(),
-        "quotes": collect_quotes(markets, symbol_map),
+        "quotes": collect_quotes(markets, market_symbol_map),
         "positions": collect_positions(),
     })
 
@@ -187,6 +338,23 @@ def main() -> None:
         markets = fetch_markets()
         symbol_map = build_mt5_symbol_map()
         print(f"MT5 symbol resolver: {len(symbol_map)} terminal symbols available")
+
+        market_symbol_map = build_market_symbol_map(markets, symbol_map)
+        print(f"Validated market mappings: {len(market_symbol_map)}/{len(markets)}")
+
+        for market in markets:
+            mapping = market_symbol_map.get(market["id"])
+            if mapping:
+                metadata = mapping["metadata"]
+                print(
+                    f"  {market['symbol']} -> {mapping['symbol']} | "
+                    f"{metadata['currency_base']}/{metadata['currency_profit']} | "
+                    f"{metadata['description']} | "
+                    f"contract={metadata['trade_contract_size']} | "
+                    f"digits={metadata['digits']}"
+                )
+            else:
+                print(f"  {market['symbol']} -> NO VALID MT5 INSTRUMENT")
         last_candle_sync = 0.0
         bootstrap_pending = CANDLE_BOOTSTRAP
 
@@ -196,15 +364,15 @@ def main() -> None:
         while True:
             started = time.monotonic()
             try:
-                sync_once(markets, symbol_map)
+                sync_once(markets, market_symbol_map)
                 now = time.monotonic()
                 if bootstrap_pending:
-                    candles = collect_candles(markets, symbol_map, CANDLE_BOOTSTRAP_BARS)
+                    candles = collect_candles(markets, market_symbol_map, CANDLE_BOOTSTRAP_BARS)
                     push_candle_chunks(candles)
                     bootstrap_pending = False
                     last_candle_sync = now
                 elif now - last_candle_sync >= CANDLE_SYNC_SECONDS:
-                    candles = collect_candles(markets, symbol_map, CANDLE_BARS_PER_SYNC)
+                    candles = collect_candles(markets, market_symbol_map, CANDLE_BARS_PER_SYNC)
                     push_candle_chunks(candles)
                     last_candle_sync = now
             except Exception as exc:
