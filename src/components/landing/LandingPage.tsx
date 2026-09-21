@@ -3,6 +3,7 @@ import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   BarChart3,
+  BrainCircuit,
   Bot,
   Check,
   Coins,
@@ -15,6 +16,13 @@ import {
   Zap,
 } from "lucide-react";
 import { loadMarketBoard } from "@/lib/marketData";
+
+const stats = [
+  ["10K+", "Active Traders"],
+  ["1,200+", "Trading Strategies"],
+  ["$50M+", "Simulated Volume"],
+  ["100+", "Countries"],
+];
 
 const ecosystem = [
   { icon: Bot, title: "AI Strategy Lab", copy: "Turn ideas into powerful strategies with AI.", tone: "cyan" },
@@ -94,7 +102,7 @@ function Sparkline({ n = 0 }: { n?: number }) {
   return <svg className="spark" viewBox="0 0 60 20" aria-hidden="true"><polyline points={points[n % points.length]} /></svg>;
 }
 
-function Index() {
+export function LandingPage() {
   const marketQuery = useQuery({
     queryKey: ["landing-market-board"],
     queryFn: loadMarketBoard,
@@ -199,8 +207,6 @@ function Index() {
               <div className="px-3 py-8 text-center text-[10px] font-semibold tracking-[.2em] text-slate-500">WAITING FOR LIVE MARKET QUOTES</div>
             )}
           </div>
-            ))}
-          </div>
           <a className="outline-action panel-action" href="#markets">View All Markets <ArrowRight size={16} /></a>
         </article>
       </section>
@@ -214,7 +220,7 @@ function Index() {
       </section>
 
       <section id="start" className="closing">
-        <img src={worldAsset.url} alt="Alphentra's connected global trading network" />
+        <div className="closing-art" aria-hidden="true" />
         <div><p className="eyebrow">Be part of something bigger</p><h2>Traders. Creators. Innovators.</h2><p>A global movement for a brighter financial future.</p><a className="primary-action" href="#top">Get Started <ArrowRight size={18} /></a></div>
       </section>
 
