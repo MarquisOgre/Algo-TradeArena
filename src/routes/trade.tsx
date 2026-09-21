@@ -193,8 +193,7 @@ function TradePage() {
     };
   }, [market.id, chartTimeframe]);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * (liveQuote?.price ?? 0);
-  const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
-  const marketClosed = market.assetClass === "FX" && !forexOpen;
+  const marketClosed = quoteIsFresh && liveQuote?.isMarketOpen === false;
 
   const liveMarkets = useMemo(
     () =>
@@ -549,7 +548,11 @@ function TradePage() {
                   ? "border-success/30 bg-success/10 text-success"
                   : "border-border bg-muted text-muted-foreground",
               )}>
-                {quoteIsFresh && liveQuote?.provider === "mt5" ? "● MT5 Live" : "No live quote"}
+                {quoteIsFresh && liveQuote?.provider === "mt5"
+                  ? liveQuote.isMarketOpen === false
+                    ? "● MT5 Closed"
+                    : "● MT5 Live"
+                  : "No live quote"}
               </span>
               <Delta value={market.changePct} showIcon={false} size="md" />
             </div>
@@ -824,7 +827,7 @@ function TradePage() {
 
           {marketClosed && (
             <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
-              Forex is closed on weekends in the prototype market calendar.
+              MetaTrader 5 is currently reporting this instrument as closed.
             </div>
           )}
 
