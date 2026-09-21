@@ -403,6 +403,15 @@ function TradePage() {
       return;
     }
 
+    // Keep the order button visually stable, but never execute a paper order
+    // from an expired quote.
+    if (!executionQuoteFresh || !liveQuote || liveQuote.provider !== "mt5") {
+      toast.info("Waiting for a fresh MT5 quote", {
+        description: "The order ticket is ready; execution will resume automatically when the latest MT5 bid/ask arrives.",
+      });
+      return;
+    }
+
     if (side === "BUY" && cashBalance !== null && notional > cashBalance) {
       toast.error("Insufficient paper buying power", {
         description: `Available $${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} · Required $${notional.toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
@@ -846,7 +855,7 @@ function TradePage() {
 
           <Button
             className="mt-4 w-full"
-            disabled={marketClosed || !executionQuoteFresh || submitting || !user}
+            disabled={marketClosed || submitting || !user}
             onClick={() => void submitOrder()}
           >
             {submitting ? "Executing…" : `${side} ${market.symbol}`}
