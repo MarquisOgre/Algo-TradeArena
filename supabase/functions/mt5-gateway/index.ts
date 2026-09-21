@@ -240,36 +240,35 @@ export default {
           .map((market) => [market.broker_symbol!.toUpperCase(), market.id]),
       );
 
-      const marketRows = body.market_universe.map((market) => {
-        const existingId = existingByBrokerSymbol.get(market.broker_symbol.toUpperCase());
-        return {
-          ...(existingId ? { id: existingId } : {}),
-          symbol: market.symbol,
-          name: market.name,
-          asset_class: market.asset_class,
-          exchange: market.exchange ?? "MT5",
-          quote_currency: market.quote_currency ?? "USD",
-          base_currency: market.base_currency ?? null,
-          broker_symbol: market.broker_symbol,
-          price_precision: Math.max(0, Math.min(18, Math.trunc(market.price_precision ?? 8))),
-          quantity_precision: Math.max(0, Math.min(18, Math.trunc(market.quantity_precision ?? 8))),
-          min_quantity: numberOrNull(market.min_quantity),
-          contract_size: Math.max(0.000000000001, Number(market.contract_size ?? 1)),
-          status: "active",
-          is_tradable: market.is_tradable ?? true,
-          metadata: {
-            ...(market.metadata ?? {}),
-            provider: "mt5",
-            synced_at: now,
-          },
-          updated_at: now,
-        };
-      });
+      // Upsert on the actual markets uniqueness constraint so PostgreSQL can
+      // generate a UUID for newly discovered MT5 instruments. Do not send a
+      // null id and do not use id as the universe conflict key.
+      const marketRows = body.market_universe.map((market) => ({
+        symbol: market.symbol,
+        name: market.name,
+        asset_class: market.asset_class,
+        exchange: market.exchange ?? "MT5",
+        quote_currency: market.quote_currency ?? "USD",
+        base_currency: market.base_currency ?? null,
+        broker_symbol: market.broker_symbol,
+        price_precision: Math.max(0, Math.min(18, Math.trunc(market.price_precision ?? 8))),
+        quantity_precision: Math.max(0, Math.min(18, Math.trunc(market.quantity_precision ?? 8))),
+        min_quantity: numberOrNull(market.min_quantity),
+        contract_size: Math.max(0.000000000001, Number(market.contract_size ?? 1)),
+        status: "active",
+        is_tradable: market.is_tradable ?? true,
+        metadata: {
+          ...(market.metadata ?? {}),
+          provider: "mt5",
+          synced_at: now,
+        },
+        updated_at: now,
+      }));
 
       if (marketRows.length) {
         const { data, error } = await ctx.supabaseAdmin
           .from("markets")
-          .upsert(marketRows, { onConflict: "id" })
+          .upsert(marketRows, { onConflict: "symbol,exchange,asset_class" })
           .select("id,broker_symbol");
 
         if (error) {
