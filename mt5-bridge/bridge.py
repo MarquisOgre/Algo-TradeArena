@@ -79,15 +79,15 @@ def symbol_matches_market(market: dict[str, Any], info: Any) -> bool:
     base = str(getattr(info, "currency_base", "") or "").upper()
     profit = str(getattr(info, "currency_profit", "") or "").upper()
 
-    if base != expected_base or profit != expected_profit:
-        return False
-
     asset_class = str(market.get("asset_class") or "").lower()
     description = str(getattr(info, "description", "") or "").upper()
     path = str(getattr(info, "path", "") or "").upper()
 
-    # Crypto markets must be genuine crypto instruments. This prevents
-    # accidental matches to securities/ETFs whose names contain BTC or ETH.
+    # Crypto brokers commonly expose crypto CFDs with USD as both the
+    # settlement/profit and margin currency, even when the instrument itself
+    # is BTC/USD or ETH/USD. For crypto, validate the instrument by its
+    # crypto-specific path/description and intended symbol instead of forcing
+    # currency_base/currency_profit to equal BTC/USD.
     if asset_class == "crypto":
         crypto_markers = (
             "CRYPTO",
@@ -99,6 +99,19 @@ def symbol_matches_market(market: dict[str, Any], info: Any) -> bool:
         )
         if not any(marker in description or marker in path for marker in crypto_markers):
             return False
+
+        crypto_symbol_markers = {
+            "BTCUSD": ("BTCUSD", "BITCOIN"),
+            "ETHUSD": ("ETHUSD", "ETHEREUM"),
+        }
+        markers = crypto_symbol_markers.get(normalize_symbol(str(market.get("symbol") or "")))
+        if markers and not any(marker in str(getattr(info, "name", "") or "").upper()
+                                or marker in description for marker in markers):
+            return False
+        return True
+
+    if base != expected_base or profit != expected_profit:
+        return False
 
     return True
 
