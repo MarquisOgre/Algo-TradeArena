@@ -58,7 +58,7 @@ export function LandingPage() {
     .slice(0, 6);
 
   return (
-    <div className="lovable-landing">
+    <div className="alphentra-landing">
       <main id="top" className="site-shell">
         <header className="topbar">
           <Brand />
