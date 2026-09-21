@@ -33,10 +33,10 @@ const stats = [
 
 function LandingBrand() {
   return <span className="flex items-center gap-2.5">
-    <span className="relative flex size-9 shrink-0 items-center justify-center">
-      <svg viewBox="0 0 48 48" className="size-9" fill="none" aria-hidden>
-        <path d="M5 39L20 7l8 16L38 7l5 32h-8l-2-15-7 15h-7L12 22l-1 17H5Z" fill="url(#alph)" />
-        <defs><linearGradient id="alph" x1="7" y1="7" x2="43" y2="40" gradientUnits="userSpaceOnUse"><stop stopColor="#39F3FF"/><stop offset=".55" stopColor="#168CFF"/><stop offset="1" stopColor="#B35CFF"/></linearGradient></defs>
+    <span className="relative flex size-10 shrink-0 items-center justify-center">
+      <svg viewBox="0 0 48 48" className="size-10" fill="none" aria-hidden>
+        <path d="M5 39L18 8h8l-4 10h8l-4-10h8l13 31h-9l-3.8-9H18.8L15 39H5Zm16.5-16h5L24 16l-2.5 7Z" fill="url(#alphMark)" />
+        <defs><linearGradient id="alphMark" x1="7" y1="8" x2="43" y2="40" gradientUnits="userSpaceOnUse"><stop stopColor="#43F4FF"/><stop offset=".55" stopColor="#168DFF"/><stop offset="1" stopColor="#B35CFF"/></linearGradient></defs>
       </svg>
     </span>
     <span className="flex flex-col leading-none">
@@ -134,35 +134,55 @@ function Hero() {
   );
 }
 
-function HeroVisual() {
-  return (
-    <div className="relative mx-auto aspect-[1.05/1] w-full max-w-[760px]">
-      <div className="absolute inset-[8%] rounded-full bg-[radial-gradient(circle_at_40%_28%,rgba(255,255,255,.95)_0_1px,transparent_1px),radial-gradient(circle_at_60%_65%,rgba(0,229,255,.95)_0_1px,transparent_1px)] [background-size:55px_55px,73px_73px] opacity-70" />
-      <div className="absolute left-[18%] top-[12%] h-[72%] w-[72%] rounded-full border border-cyan-200/30 bg-[radial-gradient(circle_at_35%_30%,rgba(73,220,255,.65),rgba(16,89,220,.35)_36%,rgba(24,17,91,.3)_65%,transparent_70%)] shadow-[0_0_130px_rgba(0,205,255,.34),inset_0_0_70px_rgba(93,118,255,.28)]" />
-      <div className="absolute left-[23%] top-[18%] h-[60%] w-[62%] rounded-full border border-white/10 [transform:rotate(18deg)]" />
-      <div className="absolute left-[30%] top-[27%] h-[46%] w-[46%] rounded-full bg-[radial-gradient(circle_at_45%_35%,rgba(255,255,255,.9),rgba(23,136,255,.5)_22%,rgba(22,33,103,.5)_55%,transparent_70%)] opacity-70" />
-      <div className="absolute bottom-[10%] left-[42%] h-[36%] w-[17%] rounded-[45%_45%_10%_10%] bg-gradient-to-b from-slate-900 via-slate-950 to-black shadow-[0_0_30px_rgba(0,0,0,.8)]">
-        <div className="absolute left-1/2 top-[20%] size-10 -translate-x-1/2 rounded-lg bg-cyan-300/15 text-center text-2xl font-black leading-10 text-cyan-300">A</div>
-      </div>
-      {pillars.map(([title, sub, Icon], i) => {
-        const pos = [
-          "left-[2%] top-[12%]","left-[2%] top-[31%]","left-[2%] top-[50%]",
-          "left-[2%] top-[69%]","left-[24%] bottom-[1%]"
-        ][i];
-        return <div key={title} className={`absolute ${pos} flex w-[132px] items-center gap-3 rounded-2xl border border-cyan-300/25 bg-[#04101d]/85 px-3 py-3 shadow-[0_0_28px_rgba(0,229,255,.12)] backdrop-blur-xl`}>
-          <Icon className="size-6 text-cyan-300" />
-          <div><div className="text-xs font-black">{title}</div><div className="text-[9px] text-slate-400">{sub}</div></div>
-        </div>;
-      })}
-      <div className="absolute right-[1%] top-[34%] rounded-2xl border border-cyan-300/25 bg-[#04101d]/85 px-5 py-3 shadow-[0_0_28px_rgba(0,229,255,.12)] backdrop-blur-xl">
-        <div className="flex items-center gap-2"><Globe2 className="size-5 text-cyan-300" /><div><div className="text-xs font-black">GLOBAL MARKETS</div><div className="text-[9px] text-slate-400">24/7 Opportunities</div></div></div>
-      </div>
-      <div className="absolute right-[-1%] top-[8%] hidden max-w-[125px] -rotate-6 font-serif text-xl italic text-cyan-300 sm:block">Traders<br />Creators<br />Innovators<br /><span className="text-white">A Stronger<br />Tomorrow</span></div>
-      <div className="absolute right-[-1%] bottom-[12%] hidden max-w-[120px] rotate-6 font-serif text-xl italic text-white sm:block">One<br /><span className="text-cyan-300">Global<br />Community</span></div>
-    </div>
-  );
-}
-
+function HeroVisual() { return (<div className="relative mx-auto aspect-[1.08/1] w-full max-w-[800px]">
+  <div className="absolute inset-[2%] rounded-full bg-[radial-gradient(circle_at_52%_45%,rgba(57,225,255,.3),transparent_30%),radial-gradient(circle_at_72%_30%,rgba(44,102,255,.28),transparent_35%)] blur-2xl" />
+  <svg viewBox="0 0 760 680" className="absolute inset-0 h-full w-full" aria-hidden>
+    <defs>
+      <radialGradient id="globeFill" cx="38%" cy="30%" r="72%"><stop offset="0" stopColor="#8BEFFF"/><stop offset=".28" stopColor="#1BA4E8" stopOpacity=".8"/><stop offset=".6" stopColor="#1548B7" stopOpacity=".72"/><stop offset="1" stopColor="#080E3A" stopOpacity=".4"/></radialGradient>
+      <radialGradient id="cityGlow"><stop stopColor="#FFD38A" stopOpacity=".95"/><stop offset="1" stopColor="#FF9A4A" stopOpacity="0"/></radialGradient>
+    </defs>
+    <circle cx="470" cy="305" r="235" fill="url(#globeFill)" stroke="#6EEBFF" strokeOpacity=".45" strokeWidth="1.5"/>
+    <circle cx="470" cy="305" r="220" fill="none" stroke="#B3F6FF" strokeOpacity=".2"/>
+    <ellipse cx="470" cy="305" rx="220" ry="92" fill="none" stroke="#6DEBFF" strokeOpacity=".2"/>
+    <ellipse cx="470" cy="305" rx="220" ry="155" fill="none" stroke="#6DEBFF" strokeOpacity=".18"/>
+    <ellipse cx="470" cy="305" rx="105" ry="225" fill="none" stroke="#6DEBFF" strokeOpacity=".18"/>
+    <g fill="#278FEA" fillOpacity=".7" stroke="#A7F7FF" strokeOpacity=".25">
+      <path d="M338 182l36-25 34 9 13 31-25 21-17 31-28-6-23-30z"/>
+      <path d="M420 155l48-22 55 18 20 35-34 15-17 38-39 5-22-35z"/>
+      <path d="M515 217l43-10 39 22-5 32-31 17-29-17-28-5z"/>
+      <path d="M365 275l31-19 33 16 15 40-18 33-26 35-28-19-11-37z"/>
+      <path d="M457 330l35-18 30 18 12 41-29 32-31-11-21-30z"/>
+      <path d="M551 320l34-12 28 22-11 35-37 11-24-24z"/>
+    </g>
+    <g fill="#A9F8FF">
+      <circle cx="344" cy="225" r="3"/><circle cx="382" cy="195" r="3"/><circle cx="436" cy="177" r="3"/><circle cx="505" cy="195" r="3"/><circle cx="550" cy="236" r="3"/><circle cx="592" cy="285" r="3"/><circle cx="550" cy="347" r="3"/><circle cx="494" cy="378" r="3"/><circle cx="414" cy="357" r="3"/><circle cx="365" cy="318" r="3"/>
+    </g>
+    <g stroke="#8AF3FF" strokeOpacity=".35" strokeWidth="1">
+      <path d="M344 225L382 195L436 177L505 195L550 236L592 285L550 347L494 378L414 357L365 318L344 225"/>
+      <path d="M382 195L414 357M436 177L494 378M505 195L550 347"/>
+    </g>
+    <ellipse cx="470" cy="505" rx="235" ry="55" fill="url(#cityGlow)" opacity=".45"/>
+    <g fill="#08172D" stroke="#3FE9FF" strokeOpacity=".2">
+      <path d="M238 526h16v-44h11v44h8v-69h12v69h8v-31h13v31h10v-89h14v89h9v-52h11v52h8v-73h15v73h12v-39h9v39h13v-105h15v105h10v-60h11v60h12v-84h13v84h11v-49h10v49h12v-71h13v71h12v-96h14v96h11v-55h12v55h11v-76h15v76h10v-46h13v46h10v-63h12v63h10v-37h15v37h8v-56h12v56h16v-30h10v30z"/>
+    </g>
+    <g fill="#FFD58C"><circle cx="327" cy="489" r="2"/><circle cx="405" cy="444" r="2"/><circle cx="468" cy="466" r="2"/><circle cx="527" cy="430" r="2"/><circle cx="610" cy="480" r="2"/></g>
+    <path d="M250 575 Q470 515 690 575 L760 680H0Z" fill="#020816" opacity=".96"/>
+    <path d="M260 570 Q470 525 680 570" fill="none" stroke="#38E8FF" strokeOpacity=".25" strokeWidth="2"/>
+    <circle cx="470" cy="445" r="22" fill="#02050A"/>
+    <path d="M437 470 Q470 449 503 470 L519 565 Q470 592 421 565Z" fill="#03070D" stroke="#15263B"/>
+    <path d="M450 500h40v42h-40z" fill="#071D30"/><path d="M458 509l12-13 12 13-12 19z" fill="#43EFFF" opacity=".85"/>
+    <path d="M421 480l-27 76 18 7 35-64zM519 480l27 76-18 7-35-64z" fill="#03070D"/>
+    <path d="M444 565l-18 74h25l19-74zM496 565l18 74h-25l-19-74z" fill="#02050A"/>
+  </svg>
+  <div className="absolute left-[0%] top-[10%] z-20 flex w-[132px] items-center gap-3 rounded-2xl border border-cyan-300/30 bg-[#03111f]/90 px-3 py-3 shadow-[0_0_30px_rgba(0,229,255,.16)] backdrop-blur-xl"><BrainCircuit className="size-6 text-cyan-300"/><div><div className="text-xs font-black">Build</div><div className="text-[9px] text-slate-400">with AI</div></div></div>
+  <div className="absolute left-[0%] top-[29%] z-20 flex w-[132px] items-center gap-3 rounded-2xl border border-cyan-300/30 bg-[#03111f]/90 px-3 py-3 shadow-[0_0_30px_rgba(0,229,255,.16)] backdrop-blur-xl"><BarChart3 className="size-6 text-cyan-300"/><div><div className="text-xs font-black">Trade</div><div className="text-[9px] text-slate-400">Global Markets</div></div></div>
+  <div className="absolute left-[0%] top-[48%] z-20 flex w-[132px] items-center gap-3 rounded-2xl border border-cyan-300/30 bg-[#03111f]/90 px-3 py-3 shadow-[0_0_30px_rgba(0,229,255,.16)] backdrop-blur-xl"><Users className="size-6 text-cyan-300"/><div><div className="text-xs font-black">Copy</div><div className="text-[9px] text-slate-400">Top Traders</div></div></div>
+  <div className="absolute left-[0%] top-[67%] z-20 flex w-[132px] items-center gap-3 rounded-2xl border border-cyan-300/30 bg-[#03111f]/90 px-3 py-3 shadow-[0_0_30px_rgba(0,229,255,.16)] backdrop-blur-xl"><Trophy className="size-6 text-amber-300"/><div><div className="text-xs font-black">Compete</div><div className="text-[9px] text-slate-400">in Arena</div></div></div>
+  <div className="absolute left-[25%] bottom-[0%] z-20 flex w-[132px] items-center gap-3 rounded-2xl border border-cyan-300/30 bg-[#03111f]/90 px-3 py-3 shadow-[0_0_30px_rgba(0,229,255,.16)] backdrop-blur-xl"><Coins className="size-6 text-emerald-300"/><div><div className="text-xs font-black">Earn</div><div className="text-[9px] text-slate-400">with ALPH</div></div></div>
+  <div className="absolute right-[0%] top-[35%] z-20 rounded-2xl border border-cyan-300/30 bg-[#03111f]/90 px-5 py-3 shadow-[0_0_30px_rgba(0,229,255,.16)] backdrop-blur-xl"><div className="flex items-center gap-2"><Globe2 className="size-5 text-cyan-300"/><div><div className="text-xs font-black">GLOBAL MARKETS</div><div className="text-[9px] text-slate-400">24/7 Opportunities</div></div></div></div>
+  <div className="absolute right-[-1%] top-[5%] z-20 hidden max-w-[145px] -rotate-6 font-serif text-lg italic leading-6 text-cyan-300 sm:block">Traders<br/>Creators<br/>Innovators<br/><span className="text-white">A Stronger<br/>Tomorrow</span></div>
+  <div className="absolute right-[0%] bottom-[9%] z-20 hidden max-w-[120px] rotate-6 font-serif text-lg italic leading-6 text-white sm:block">One<br/><span className="text-cyan-300">Global<br/>Community</span></div>
+</div>); }
 function MarketTicker({ markets, loading }: { markets: any[]; loading: boolean }) {
   return <div className="border-b border-white/10 bg-[#01060d] px-4 py-2.5">
     <div className="mx-auto flex max-w-[1440px] overflow-hidden">
