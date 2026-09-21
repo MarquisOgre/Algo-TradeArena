@@ -360,18 +360,47 @@ def collect_quotes(
         if tick is None or tick.bid <= 0 or tick.ask <= 0:
             continue
 
+        price = float((tick.bid + tick.ask) / 2)
+        previous_close = None
+        change = None
+        change_pct = None
+        session_volume = None
+
+        # Use the latest completed D1 bar as the MT5 reference close.
+        # copy_rates_from_pos indexes bars from present to past, so index 1
+        # is the most recently completed daily bar.
+        daily_rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 1, 1)
+        if daily_rates is not None and len(daily_rates) > 0:
+            previous_close = float(daily_rates[0]["close"])
+            if previous_close > 0:
+                change = price - previous_close
+                change_pct = (change / previous_close) * 100.0
+
+        current_daily = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 1)
+        if current_daily is not None and len(current_daily) > 0:
+            session_volume = float(current_daily[0]["tick_volume"])
+
+        tick_time = float(getattr(tick, "time", 0) or 0)
+        quote_age_seconds = max(0.0, time.time() - tick_time) if tick_time > 0 else float("inf")
+        is_market_open = quote_age_seconds <= max(15.0, POLL_SECONDS * 5.0)
+
         quotes.append({
             "market_id": market["id"],
             "symbol": symbol,
             "bid": float(tick.bid),
             "ask": float(tick.ask),
-            "price": float((tick.bid + tick.ask) / 2),
+            "price": price,
+            "change": change,
+            "percent_change": change_pct,
+            "previous_close": previous_close,
             "quote_time": iso_from_seconds(getattr(tick, "time", None)),
-            "volume": None,
-            "is_market_open": True,
+            "volume": session_volume,
+            "is_market_open": is_market_open,
             "metadata": {
                 "asset_class": market["asset_class"],
                 "mt5_time_msc": getattr(tick, "time_msc", None),
+                "volume_type": "tick_volume",
+                "reference": "previous_completed_d1_close",
                 **mapping["metadata"],
                 "synced_at": datetime.now(timezone.utc).isoformat(),
             },
