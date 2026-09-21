@@ -385,7 +385,7 @@ function TradePage() {
       p_market_symbol: market.symbol,
       p_side: side.toLowerCase(),
       p_quantity: quantity,
-      p_execution_price: market.price,
+      p_execution_price: side === "BUY" ? liveQuote?.ask ?? 0 : liveQuote?.bid ?? 0,
       p_client_order_id: crypto.randomUUID(),
     });
 
@@ -411,7 +411,7 @@ function TradePage() {
     setCashBalance(result.cash_balance == null ? cashBalance : Number(result.cash_balance));
 
     toast.success(`${side} ${market.symbol} filled`, {
-      description: `${quantity} @ ${market.price.toFixed(2)} · Paper account equity $${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
+      description: `${quantity} @ ${(side === "BUY" ? liveQuote?.ask ?? 0 : liveQuote?.bid ?? 0).toFixed(5)} · Paper account equity ${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
     });
   };
 
@@ -515,7 +515,7 @@ function TradePage() {
       <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_380px]">
         <ChartCard
           title={`${market.symbol} · ${market.name}`}
-          subtitle={quoteIsFresh && liveQuote?.provider === "mt5" ? "MetaTrader 5 live quote" : "Simulated last 30 sessions"}
+          subtitle={quoteIsFresh && liveQuote?.provider === "mt5" ? `MetaTrader 5 · ${market.providerSymbol ?? market.symbol}` : providerStatus === "no_quote" ? "MT5 instrument available · waiting for quote" : "MT5 instrument unavailable"}
           actions={
             <div className="flex items-center gap-2">
               <span className={cn(
@@ -532,7 +532,7 @@ function TradePage() {
         >
           <div className="flex flex-wrap items-center gap-2">
             <p className="num text-3xl font-bold text-foreground">
-              {market.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              {quoteIsFresh && liveQuote ? liveQuote.price.toLocaleString("en-US", { minimumFractionDigits: market.assetClass === "FX" ? 4 : 2 }) : "—"}
             </p>
             <span className="rounded-full bg-primary-soft px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">{market.assetClass}</span>
             {liveQuote?.quoteTime && (
@@ -573,7 +573,7 @@ function TradePage() {
             {chartCandles.length >= 2 ? (
               <CandleChart
                 candles={chartCandles}
-                currentPrice={liveQuote?.price ?? market.price}
+                currentPrice={quoteIsFresh && liveQuote ? liveQuote.price : 0}
                 onHover={setHoveredCandle}
               />
             ) : (
@@ -767,13 +767,13 @@ function TradePage() {
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Est. price</dt>
               <dd className="num text-foreground">
-                {quoteIsFresh && liveQuote ? liveQuote.price.toFixed(market.assetClass === "FX" ? 5 : 2) : "—"}
+                {quoteIsFresh && liveQuote ? (side === "BUY" ? liveQuote.ask ?? liveQuote.price : liveQuote.bid ?? liveQuote.price).toFixed(market.assetClass === "FX" ? 5 : 2) : "—"}
               </dd>
             </div>
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Notional</dt>
               <dd className="num font-semibold text-foreground">
-                $${notional.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+                ${notional.toLocaleString("en-US", { maximumFractionDigits: 2 })}
               </dd>
             </div>
             <div className="flex justify-between">
