@@ -210,10 +210,9 @@ export async function loadMarketStatuses(): Promise<Map<string, MarketStatus>> {
 }
 
 export async function loadMarketBoard(): Promise<Market[]> {
-  const [liveQuotes, statuses, brokerMappings] = await Promise.all([
+  const [liveQuotes, statuses] = await Promise.all([
     loadLiveMarketQuotes(),
     loadMarketStatuses(),
-    loadBrokerMarketMappings(),
   ]);
   const { data: marketRows, error } = await supabase
     .from("markets")
@@ -231,9 +230,13 @@ export async function loadMarketBoard(): Promise<Market[]> {
 
   return ((marketRows ?? []) as MarketRow[]).map((row) => {
     const live = bySymbol.get(row.symbol.toUpperCase());
-    const status = brokerMappings.get(row.id) ?? statuses.get(row.id);
+    const status = statuses.get(row.id);
     const fallback = mockBySymbol.get(row.symbol.toUpperCase());
-    const providerStatus = status?.status ?? (live ? "live" : "unsupported");
+    const liveQuoteFresh = isQuoteFresh(live);
+    const providerStatus: MarketProviderStatus =
+      liveQuoteFresh
+        ? "live"
+        : status?.status ?? (live ? "no_quote" : "unsupported");
     const price = providerStatus === "live" && live ? live.price : 0;
 
     return {
@@ -250,7 +253,11 @@ export async function loadMarketBoard(): Promise<Market[]> {
       aiSignal: fallback?.aiSignal ?? "Neutral",
       aiConfidence: fallback?.aiConfidence ?? 50,
       providerStatus,
-      providerSymbol: status?.providerSymbol ?? live?.symbol ?? null,
+      providerSymbol:
+        status?.providerSymbol ??
+        (typeof live?.metadata?.broker_symbol === "string"
+          ? live.metadata.broker_symbol
+          : null),
     };
   });
 }
