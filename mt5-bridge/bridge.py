@@ -382,7 +382,10 @@ def collect_quotes(
 
         tick_time = float(getattr(tick, "time", 0) or 0)
         quote_age_seconds = max(0.0, time.time() - tick_time) if tick_time > 0 else float("inf")
-        is_market_open = quote_age_seconds <= max(15.0, POLL_SECONDS * 5.0)
+        # This is a display/session hint, not an execution guard. A symbol can
+        # legitimately have no new tick for a short period while still being
+        # tradable. Keep it aligned with the UI's 120s quote-retention window.
+        is_market_open = quote_age_seconds <= max(120.0, POLL_SECONDS * 10.0)
 
         quotes.append({
             "market_id": market["id"],
