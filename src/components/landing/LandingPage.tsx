@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { import { Link } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   ArrowRight,
   BarChart3,
@@ -15,26 +15,6 @@ import {
   Zap,
 } from "lucide-react";
 import { loadMarketBoard } from "@/lib/marketData";
-
-export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "Alphentra — Trade Beyond Limits" },
-      {
-        name: "description",
-        content: "A global trading ecosystem for traders, creators, and investors.",
-      },
-      { property: "og:title", content: "Alphentra — Trade Beyond Limits" },
-      {
-        property: "og:description",
-        content: "Build strategies, copy top traders, compete, and trade global markets.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
-  }),
-  component: Index,
-});
 
 const ecosystem = [
   { icon: Bot, title: "AI Strategy Lab", copy: "Turn ideas into powerful strategies with AI.", tone: "cyan" },
