@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import {
   ArrowRight, BarChart3, BrainCircuit, Check, ChevronDown, Globe2,
-  Menu, Play, Trophy, Users, Wallet, X, Coins, Search, Smartphone
+  Menu, Play, Trophy, Users, X, Coins, Search
 } from "lucide-react";
 import { useState } from "react";
 import { Logo } from "@/components/brand/Logo";
@@ -62,7 +62,7 @@ export function LandingPage() {
 function LandingNav({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => void }) {
   const links = [
     ["Product", "#ecosystem"], ["Strategies", "/strategies"], ["Copy Trading", "/copy"],
-    ["Arena", "/battle"], ["Markets", "/markets"], ["ALPH", "/wallet"], ["Pricing", "#footer"],
+    ["Arena", "/battle"], ["Markets", "/markets"], ["ALPH", "/wallet"], ["Pricing", "#footer"], ["Resources", "#footer"],
   ];
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#020812]/80 backdrop-blur-2xl">
@@ -70,7 +70,7 @@ function LandingNav({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => voi
         <Link to="/" className="shrink-0" aria-label="Alphentra home"><Logo /></Link>
         <nav className="hidden items-center gap-6 text-[12px] font-semibold text-slate-200 xl:flex">
           {links.map(([label, href]) => href.startsWith("#")
-            ? <a key={label} href={href} className="hover:text-cyan-300">{label}</a>
+            ? <a key={label} href={href} className="hover:text-cyan-300">{label}{label === "Resources" && <ChevronDown className="ml-1 inline size-3" />}</a>
             : <Link key={label} to={href} className="hover:text-cyan-300">{label}</Link>)}
           <button className="ml-1 rounded-full border border-white/20 p-2 hover:border-cyan-300/60" aria-label="Search"><Search className="size-4" /></button>
         </nav>
