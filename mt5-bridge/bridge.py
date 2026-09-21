@@ -307,6 +307,22 @@ def collect_candles(universe: list[dict[str, Any]], bars: int) -> list[dict[str,
     return candles
 
 
+def push_candle_chunks(candles: list[dict[str, Any]]) -> None:
+    if not candles:
+        return
+    total = len(candles)
+    for start in range(0, total, CANDLE_CHUNK_SIZE):
+        chunk = candles[start:start + CANDLE_CHUNK_SIZE]
+        push_sync(
+            {
+                "broker_account_id": BROKER_ACCOUNT_ID,
+                "mt5_account_id": MT5_ACCOUNT_ID,
+                "candles": chunk,
+            },
+            label=f"candles {start + 1}-{min(start + len(chunk), total)}/{total}",
+        )
+
+
 def collect_positions() -> list[dict[str, Any]]:
     positions=mt5.positions_get() or []
     snapshots=[]
