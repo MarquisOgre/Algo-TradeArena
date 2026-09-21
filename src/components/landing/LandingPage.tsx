@@ -157,7 +157,7 @@ function HeroVisual() { return (<div className="relative mx-auto aspect-[1.08/1]
     <g fill="#A9F8FF">
       <circle cx="344" cy="225" r="3"/><circle cx="382" cy="195" r="3"/><circle cx="436" cy="177" r="3"/><circle cx="505" cy="195" r="3"/><circle cx="550" cy="236" r="3"/><circle cx="592" cy="285" r="3"/><circle cx="550" cy="347" r="3"/><circle cx="494" cy="378" r="3"/><circle cx="414" cy="357" r="3"/><circle cx="365" cy="318" r="3"/>
     </g>
-    <g stroke="#8AF3FF" strokeOpacity=".35" strokeWidth="1">
+    <g fill="none" stroke="#8AF3FF" strokeOpacity=".35" strokeWidth="1">
       <path d="M344 225L382 195L436 177L505 195L550 236L592 285L550 347L494 378L414 357L365 318L344 225"/>
       <path d="M382 195L414 357M436 177L494 378M505 195L550 347"/>
     </g>
