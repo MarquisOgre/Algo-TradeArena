@@ -185,6 +185,7 @@ function HeroVisual() { return (<div className="relative mx-auto aspect-[1.08/1]
 </div>); }
 function MarketTicker({ markets, loading }: { markets: any[]; loading: boolean }) {
   return <div className="border-b border-white/10 bg-[#01060d] px-4 py-2.5">
+    <div className="mx-auto flex max-w-[1440px] items-center gap-2 px-4 pb-1 text-[8px] font-black tracking-[.28em] text-emerald-300"><span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,.9)]" />LIVE MARKET FEED</div>
     <div className="mx-auto flex max-w-[1440px] overflow-hidden">
       {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="min-w-[190px] flex-1 border-r border-white/10 px-4 py-3"><div className="h-3 animate-pulse rounded bg-white/5" /></div>)
       : markets.length ? markets.slice(0,5).map((m:any,i:number) =>
