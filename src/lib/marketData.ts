@@ -367,17 +367,15 @@ export async function refreshPaperPortfolioMarks() {
 
 
 export function subscribeToMarketQuotes(onChange: () => void) {
+  // Quote rows are updated for a large, dynamically discovered MT5 universe.
+  // Listening to every market_quotes row would fan out thousands of realtime
+  // events and cause the browser to repeatedly reload the entire market board.
+  // Poll the latest quote snapshot at a controlled cadence instead, while
+  // retaining realtime for the much smaller provider-status table.
+  const pollTimer = window.setInterval(onChange, 5000);
+
   const channel = supabase
-    .channel("alphentra-market-quotes")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "market_quotes",
-      },
-      () => onChange(),
-    )
+    .channel("alphentra-market-status")
     .on(
       "postgres_changes",
       {
@@ -390,6 +388,7 @@ export function subscribeToMarketQuotes(onChange: () => void) {
     .subscribe();
 
   return () => {
+    window.clearInterval(pollTimer);
     void supabase.removeChannel(channel);
   };
 }
