@@ -137,7 +137,7 @@ function MarketsPage() {
         </div>
       ),
     },
-    { key: "vol", header: "Volume", align: "right", cell: (m) => <span className="num text-muted-foreground">{m.volume}</span> },
+    { key: "vol", header: "Tick Volume", align: "right", cell: (m) => <span className="num text-muted-foreground">{m.volume}</span> },
     {
       key: "signal",
       header: "AI signal",
