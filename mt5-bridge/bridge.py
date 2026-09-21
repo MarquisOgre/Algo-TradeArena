@@ -26,6 +26,8 @@ CANDLE_BARS_PER_SYNC = int(os.getenv("CANDLE_BARS_PER_SYNC", "20"))
 CANDLE_BOOTSTRAP = os.getenv("CANDLE_BOOTSTRAP", "false").lower() == "true"
 CANDLE_BOOTSTRAP_BARS = int(os.getenv("CANDLE_BOOTSTRAP_BARS", "120"))
 CANDLE_CHUNK_SIZE = int(os.getenv("CANDLE_CHUNK_SIZE", "500"))
+UNIVERSE_REFRESH_SECONDS = float(os.getenv("UNIVERSE_REFRESH_SECONDS", "300"))
+LIVE_STATUS_REFRESH_SECONDS = float(os.getenv("LIVE_STATUS_REFRESH_SECONDS", "30"))
 ALLOW_LIVE = os.getenv("ALLOW_LIVE", "false").lower() == "true"
 
 REST_HEADERS = {"apikey": SUPABASE_PUBLISHABLE_KEY, "Accept": "application/json"}
@@ -46,183 +48,263 @@ def initialize_mt5() -> None:
     if environment == "live" and not ALLOW_LIVE: raise RuntimeError("MT5_ENVIRONMENT=live but ALLOW_LIVE is not true. Validate with demo first.")
     print(f"Connected to MT5 login={account.login} server={account.server} balance={account.balance:.2f} equity={account.equity:.2f}")
 
-def fetch_markets() -> list[dict[str, Any]]:
-    response = requests.get(f"{SUPABASE_URL}/rest/v1/markets", headers=REST_HEADERS, params={"select":"id,symbol,broker_symbol,asset_class","status":"eq.active","is_tradable":"eq.true","order":"symbol.asc"}, timeout=15)
-    response.raise_for_status()
-    return response.json()
-
-def build_mt5_symbol_map() -> dict[str, str]:
-    symbols = mt5.symbols_get() or []
-    return {str(symbol.name).upper(): str(symbol.name) for symbol in symbols if getattr(symbol, "name", None)}
-
 def normalize_symbol(value: str) -> str:
     return "".join(ch for ch in value.upper() if ch.isalnum())
 
 
-def expected_currencies(market: dict[str, Any]) -> tuple[str | None, str | None]:
-    symbol = normalize_symbol(str(market.get("symbol") or ""))
-    asset_class = str(market.get("asset_class") or "").lower()
-
-    # FX pairs, crypto/USD pairs and metals such as XAUUSD encode their
-    # intended base/profit currencies in the Alphentra symbol.
-    if len(symbol) == 6 and asset_class in {"forex", "crypto", "commodity"}:
-        return symbol[:3], symbol[3:]
-
-    return None, None
-
-
-def symbol_matches_market(market: dict[str, Any], info: Any) -> bool:
-    expected_base, expected_profit = expected_currencies(market)
-    if expected_base is None or expected_profit is None:
-        return True
-
-    base = str(getattr(info, "currency_base", "") or "").upper()
-    profit = str(getattr(info, "currency_profit", "") or "").upper()
-
-    asset_class = str(market.get("asset_class") or "").lower()
+def classify_mt5_asset(info: Any) -> str | None:
+    name = str(getattr(info, "name", "") or "").upper()
     description = str(getattr(info, "description", "") or "").upper()
     path = str(getattr(info, "path", "") or "").upper()
+    haystack = f"{name} {description} {path}"
 
-    # Crypto brokers commonly expose crypto CFDs with USD as both the
-    # settlement/profit and margin currency, even when the instrument itself
-    # is BTC/USD or ETH/USD. For crypto, validate the instrument by its
-    # crypto-specific path/description and intended symbol instead of forcing
-    # currency_base/currency_profit to equal BTC/USD.
-    if asset_class == "crypto":
-        crypto_markers = (
-            "CRYPTO",
-            "DIGITAL",
-            "BITCOIN",
-            "ETHEREUM",
-            "\\CRYPTO",
-            "\\DIGITAL",
-        )
-        if not any(marker in description or marker in path for marker in crypto_markers):
-            return False
+    if "CRYPTOCURRENCIES" in path or "CRYPTO" in path or "DIGITAL ASSETS" in path:
+        return "crypto"
 
-        crypto_symbol_markers = {
-            "BTCUSD": ("BTCUSD", "BITCOIN"),
-            "ETHUSD": ("ETHUSD", "ETHEREUM"),
-        }
-        markers = crypto_symbol_markers.get(normalize_symbol(str(market.get("symbol") or "")))
-        if markers and not any(marker in str(getattr(info, "name", "") or "").upper()
-                                or marker in description for marker in markers):
-            return False
-        return True
+    if "FOREX" in path or "\\CURRENCIES\\" in path:
+        return "forex"
 
-    if base != expected_base or profit != expected_profit:
-        return False
+    if any(token in path for token in ("\\STOCKS\\", "\\SHARES\\", "\\EQUITIES\\")):
+        if "ETF" in path or "ETF" in description:
+            return "etf"
+        return "stocks"
 
-    return True
+    if any(token in path for token in ("\\ETF\\", "\\ETFS\\")) or " ETF" in description:
+        return "etf"
+
+    if any(token in path for token in (
+        "\\COMMODITIES\\",
+        "\\METALS\\",
+        "\\ENERGY\\",
+        "\\GOLD\\",
+        "\\SILVER\\",
+        "\\OIL\\",
+        "\\NATURAL GAS\\",
+    )):
+        return "commodity"
+
+    return None
 
 
-def symbol_metadata(info: Any) -> dict[str, Any]:
-    return {
-        "broker_symbol": str(getattr(info, "name", "") or ""),
-        "description": str(getattr(info, "description", "") or ""),
-        "path": str(getattr(info, "path", "") or ""),
-        "exchange": str(getattr(info, "exchange", "") or ""),
-        "currency_base": str(getattr(info, "currency_base", "") or ""),
-        "currency_profit": str(getattr(info, "currency_profit", "") or ""),
-        "currency_margin": str(getattr(info, "currency_margin", "") or ""),
-        "digits": int(getattr(info, "digits", 0) or 0),
-        "point": float(getattr(info, "point", 0.0) or 0.0),
-        "trade_tick_size": float(getattr(info, "trade_tick_size", 0.0) or 0.0),
-        "trade_tick_value": float(getattr(info, "trade_tick_value", 0.0) or 0.0),
-        "trade_contract_size": float(getattr(info, "trade_contract_size", 0.0) or 0.0),
-        "volume_min": float(getattr(info, "volume_min", 0.0) or 0.0),
-        "volume_max": float(getattr(info, "volume_max", 0.0) or 0.0),
-        "volume_step": float(getattr(info, "volume_step", 0.0) or 0.0),
-        "trade_mode": int(getattr(info, "trade_mode", 0) or 0),
-        "trade_calc_mode": int(getattr(info, "trade_calc_mode", 0) or 0),
-    }
+def is_tradable_mt5(info: Any) -> bool:
+    # MT5 trade_mode: 0 disabled, 1 long-only, 2 short-only, 3 full,
+    # 4 close-only. For Alphentra's instrument catalog, close-only and
+    # disabled instruments are not available for new paper orders.
+    trade_mode = int(getattr(info, "trade_mode", 0) or 0)
+    return trade_mode in {1, 2, 3}
 
 
-def build_market_symbol_map(
-    markets: list[dict[str, Any]],
-    symbol_map: dict[str, str],
-) -> dict[str, dict[str, Any]]:
-    aliases = {
-        "BTCUSD": ["BTC", "BTCUSD"],
-        "ETHUSD": ["ETH", "ETHUSD"],
-        "XAUUSD": ["XAUUSD", "GOLD"],
-    }
-    resolved: dict[str, dict[str, Any]] = {}
+def build_dynamic_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
+    universe: list[dict[str, Any]] = []
 
-    for market in markets:
-        requested = str(market.get("broker_symbol") or market["symbol"]).strip()
-        ui_symbol = str(market["symbol"]).strip()
-        candidates = [requested, ui_symbol, *aliases.get(ui_symbol.upper(), [])]
+    for info in symbols:
+        broker_symbol = str(getattr(info, "name", "") or "").strip()
+        if not broker_symbol:
+            continue
 
-        selected: str | None = None
-        selected_info: Any | None = None
+        asset_class = classify_mt5_asset(info)
+        if asset_class is None:
+            continue
 
-        # First prefer explicit broker symbols, but validate the instrument
-        # specification before accepting them.
-        for candidate in candidates:
-            actual = symbol_map.get(candidate.upper())
-            if not actual:
-                continue
-            info = mt5.symbol_info(actual)
+        description = str(getattr(info, "description", "") or broker_symbol).strip()
+        path = str(getattr(info, "path", "") or "").strip()
+        exchange = str(getattr(info, "exchange", "") or "").strip() or "MT5"
+        base_currency = str(getattr(info, "currency_base", "") or "").strip().upper() or None
+        quote_currency = str(getattr(info, "currency_profit", "") or "").strip().upper() or "USD"
+
+        universe.append({
+            "symbol": broker_symbol,
+            "name": description or broker_symbol,
+            "asset_class": asset_class,
+            "exchange": exchange,
+            "quote_currency": quote_currency,
+            "base_currency": base_currency,
+            "broker_symbol": broker_symbol,
+            "price_precision": int(getattr(info, "digits", 8) or 8),
+            "quantity_precision": max(0, min(18, int(getattr(info, "volume_step", 1) and 8))),
+            "min_quantity": float(getattr(info, "volume_min", 0) or 0) or None,
+            "contract_size": float(getattr(info, "trade_contract_size", 1) or 1),
+            "is_tradable": is_tradable_mt5(info),
+            "metadata": {
+                "provider": "mt5",
+                "path": path,
+                "description": description,
+                "currency_base": base_currency,
+                "currency_profit": quote_currency,
+                "currency_margin": str(getattr(info, "currency_margin", "") or "").strip().upper() or None,
+                "digits": int(getattr(info, "digits", 0) or 0),
+                "point": float(getattr(info, "point", 0) or 0),
+                "trade_tick_size": float(getattr(info, "trade_tick_size", 0) or 0),
+                "trade_tick_value": float(getattr(info, "trade_tick_value", 0) or 0),
+                "trade_contract_size": float(getattr(info, "trade_contract_size", 0) or 0),
+                "volume_min": float(getattr(info, "volume_min", 0) or 0),
+                "volume_max": float(getattr(info, "volume_max", 0) or 0),
+                "volume_step": float(getattr(info, "volume_step", 0) or 0),
+                "trade_mode": int(getattr(info, "trade_mode", 0) or 0),
+                "trade_calc_mode": int(getattr(info, "trade_calc_mode", 0) or 0),
+            },
+        })
+
+    return universe
+
+
+def universe_by_symbol(universe: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    return {str(row["broker_symbol"]).upper(): row for row in universe}
+
+
+def collect_market_statuses(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    statuses: list[dict[str, Any]] = []
+
+    for market in universe:
+        symbol = market["broker_symbol"]
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            statuses.append({
+                "symbol": market["symbol"],
+                "status": "unsupported",
+                "provider_symbol": symbol,
+                "checked_at": datetime.now(timezone.utc).isoformat(),
+                "metadata": {**market["metadata"], "reason": "MT5 symbol_info unavailable."},
+            })
+            continue
+
+        if not info.visible:
+            mt5.symbol_select(symbol, True)
+            info = mt5.symbol_info(symbol) or info
+
+        tick = mt5.symbol_info_tick(symbol)
+        has_quote = tick is not None and tick.bid > 0 and tick.ask > 0
+
+        statuses.append({
+            "symbol": market["symbol"],
+            "status": "live" if has_quote else "no_quote",
+            "provider_symbol": symbol,
+            "checked_at": datetime.now(timezone.utc).isoformat(),
+            "metadata": {
+                **market["metadata"],
+                "bid": float(tick.bid) if tick and tick.bid > 0 else None,
+                "ask": float(tick.ask) if tick and tick.ask > 0 else None,
+                "reason": "Usable bid/ask received." if has_quote else "Valid MT5 instrument without a usable bid/ask right now.",
+            },
+        })
+
+    return statuses
+
+
+def collect_quotes(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    quotes: list[dict[str, Any]] = []
+
+    for market in universe:
+        symbol = market["broker_symbol"]
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            continue
+
+        if not info.visible and not mt5.symbol_select(symbol, True):
+            continue
+
+        tick = mt5.symbol_info_tick(symbol)
+        if tick is None or tick.bid <= 0 or tick.ask <= 0:
+            continue
+
+        price = float((tick.bid + tick.ask) / 2)
+        previous_close = None
+        change = None
+        change_pct = None
+        session_volume = None
+
+        daily_rates = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 1, 1)
+        if daily_rates is not None and len(daily_rates) > 0:
+            previous_close = float(daily_rates[0]["close"])
+            if previous_close > 0:
+                change = price - previous_close
+                change_pct = (change / previous_close) * 100.0
+
+        current_daily = mt5.copy_rates_from_pos(symbol, mt5.TIMEFRAME_D1, 0, 1)
+        if current_daily is not None and len(current_daily) > 0:
+            session_volume = float(current_daily[0]["tick_volume"])
+
+        tick_time = float(getattr(tick, "time", 0) or 0)
+        quote_age_seconds = max(0.0, time.time() - tick_time) if tick_time > 0 else float("inf")
+        is_market_open = quote_age_seconds <= max(120.0, POLL_SECONDS * 10.0)
+
+        quotes.append({
+            "symbol": market["symbol"],
+            "provider_symbol": symbol,
+            "bid": float(tick.bid),
+            "ask": float(tick.ask),
+            "price": price,
+            "change": change,
+            "percent_change": change_pct,
+            "previous_close": previous_close,
+            "quote_time": iso_from_seconds(getattr(tick, "time", None)),
+            "volume": session_volume,
+            "is_market_open": is_market_open,
+            "metadata": {
+                **market["metadata"],
+                "mt5_time_msc": getattr(tick, "time_msc", None),
+                "volume_type": "tick_volume",
+                "reference": "previous_completed_d1_close",
+                "synced_at": datetime.now(timezone.utc).isoformat(),
+            },
+        })
+
+    return quotes
+
+
+def collect_candles(universe: list[dict[str, Any]], bars: int) -> list[dict[str, Any]]:
+    candles: list[dict[str, Any]] = []
+    timeframes = (
+        ("1m", mt5.TIMEFRAME_M1),
+        ("5m", mt5.TIMEFRAME_M5),
+        ("15m", mt5.TIMEFRAME_M15),
+        ("1h", mt5.TIMEFRAME_H1),
+        ("4h", mt5.TIMEFRAME_H4),
+        ("1d", mt5.TIMEFRAME_D1),
+    )
+
+    # History is intentionally collected only for instruments that currently
+    # have a usable quote. This keeps the development feed focused on the
+    # live MT5 universe instead of creating huge historical backfill costs.
+    live_universe = []
+    for market in universe:
+        tick = mt5.symbol_info_tick(market["broker_symbol"])
+        if tick is not None and tick.bid > 0 and tick.ask > 0:
+            live_universe.append(market)
+
+    for timeframe_name, timeframe in timeframes:
+        count = bars if timeframe_name in {"1m", "5m", "15m"} else min(bars, 100)
+        for market in live_universe:
+            symbol = market["broker_symbol"]
+            info = mt5.symbol_info(symbol)
             if info is None:
                 continue
-            if not info.visible:
-                mt5.symbol_select(actual, True)
-                info = mt5.symbol_info(actual)
-            if info is not None and symbol_matches_market(market, info):
-                selected = actual
-                selected_info = info
-                break
+            if not info.visible and not mt5.symbol_select(symbol, True):
+                continue
 
-        # If the exact name is not present, search the terminal universe by
-        # the instrument's base/profit currencies and description/name.
-        if selected is None:
-            expected_base, expected_profit = expected_currencies(market)
-            normalized_requested = normalize_symbol(requested)
-            normalized_ui = normalize_symbol(ui_symbol)
+            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
+            if rates is None:
+                continue
 
-            ranked: list[tuple[int, str, Any]] = []
-            for actual in symbol_map.values():
-                info = mt5.symbol_info(actual)
-                if info is None:
-                    continue
-                if not symbol_matches_market(market, info):
+            for rate in rates:
+                candle_time = iso_from_seconds(rate["time"])
+                if not candle_time:
                     continue
 
-                name = normalize_symbol(str(getattr(info, "name", "") or ""))
-                description = str(getattr(info, "description", "") or "").upper()
-                score = 0
+                candles.append({
+                    "symbol": market["symbol"],
+                    "timeframe": timeframe_name,
+                    "candle_time": candle_time,
+                    "open": float(rate["open"]),
+                    "high": float(rate["high"]),
+                    "low": float(rate["low"]),
+                    "close": float(rate["close"]),
+                    "volume": float(rate["tick_volume"]),
+                    "trade_count": None,
+                    "metadata": {"asset_class": market["asset_class"], "source": "mt5"},
+                })
 
-                if name == normalized_requested or name == normalized_ui:
-                    score += 100
-                if expected_base and str(getattr(info, "currency_base", "") or "").upper() == expected_base:
-                    score += 40
-                if expected_profit and str(getattr(info, "currency_profit", "") or "").upper() == expected_profit:
-                    score += 40
-                if expected_base and expected_profit and f"{expected_base} VS {expected_profit}" in description:
-                    score += 25
-                if expected_base and expected_profit and f"{expected_base}/{expected_profit}" in description:
-                    score += 25
-                if ui_symbol.upper() in str(getattr(info, "path", "") or "").upper():
-                    score += 10
-
-                if score > 0:
-                    ranked.append((score, actual, info))
-
-            if ranked:
-                ranked.sort(key=lambda item: (-item[0], item[1]))
-                _, selected, selected_info = ranked[0]
-
-        if selected and selected_info is not None:
-            metadata = symbol_metadata(selected_info)
-            metadata["mapping_status"] = "validated"
-            metadata["alphentra_symbol"] = ui_symbol
-            resolved[market["id"]] = {
-                "symbol": selected,
-                "metadata": metadata,
-            }
-
-    return resolved
+    return candles
 
 
 def print_unresolved_candidates(
@@ -524,50 +606,81 @@ def sync_once(
 def main() -> None:
     initialize_mt5()
     try:
-        markets = fetch_markets()
-        symbol_map = build_mt5_symbol_map()
-        print(f"MT5 symbol resolver: {len(symbol_map)} terminal symbols available")
+        symbols = list(mt5.symbols_get() or [])
+        print(f"MT5 symbol resolver: {len(symbols)} terminal symbols available")
 
-        market_symbol_map = build_market_symbol_map(markets, symbol_map)
-        print(f"Validated market mappings: {len(market_symbol_map)}/{len(markets)}")
+        universe = build_dynamic_market_universe(symbols)
+        print(f"Dynamic MT5 universe: {len(universe)} qualified instruments")
 
-        for market in markets:
-            mapping = market_symbol_map.get(market["id"])
-            if mapping:
-                metadata = mapping["metadata"]
-                print(
-                    f"  {market['symbol']} -> {mapping['symbol']} | "
-                    f"{metadata['currency_base']}/{metadata['currency_profit']} | "
-                    f"{metadata['description']} | "
-                    f"contract={metadata['trade_contract_size']} | "
-                    f"digits={metadata['digits']}"
-                )
-            else:
-                print(f"  {market['symbol']} -> NO VALID MT5 INSTRUMENT")
-        print_unresolved_candidates(markets, symbol_map, market_symbol_map)
+        by_class: dict[str, int] = {}
+        for market in universe:
+            by_class[market["asset_class"]] = by_class.get(market["asset_class"], 0) + 1
+        print("  " + " | ".join(f"{key}={value}" for key, value in sorted(by_class.items())))
+
+        last_universe_refresh = 0.0
+        last_status_refresh = 0.0
         last_candle_sync = 0.0
         bootstrap_pending = CANDLE_BOOTSTRAP
-
-        if bootstrap_pending:
-            print(f"Candle bootstrap enabled: {CANDLE_BOOTSTRAP_BARS} bars/timeframe in chunks of {CANDLE_CHUNK_SIZE}")
 
         while True:
             started = time.monotonic()
             try:
-                sync_once(markets, market_symbol_map)
                 now = time.monotonic()
+
+                # The instrument universe is discovered from the connected
+                # Pepperstone MT5 terminal. No Alphentra instrument symbols
+                # are hardcoded or used as a source of truth.
+                refresh_universe = now - last_universe_refresh >= UNIVERSE_REFRESH_SECONDS
+                refresh_status = now - last_status_refresh >= LIVE_STATUS_REFRESH_SECONDS
+
+                if refresh_universe:
+                    universe = build_dynamic_market_universe(list(mt5.symbols_get() or []))
+                    market_statuses = collect_market_statuses(universe)
+                    push_sync({
+                        "broker_account_id": BROKER_ACCOUNT_ID,
+                        "mt5_account_id": MT5_ACCOUNT_ID,
+                        "market_universe": universe,
+                        "market_statuses": market_statuses,
+                        "broker_market_mappings": market_statuses,
+                        "account": collect_account(),
+                    })
+                    last_universe_refresh = now
+                    last_status_refresh = now
+                    print(f"MT5 universe synced: {len(universe)} instruments")
+
+                elif refresh_status:
+                    market_statuses = collect_market_statuses(universe)
+                    push_sync({
+                        "broker_account_id": BROKER_ACCOUNT_ID,
+                        "mt5_account_id": MT5_ACCOUNT_ID,
+                        "market_statuses": market_statuses,
+                        "broker_market_mappings": market_statuses,
+                    })
+                    last_status_refresh = now
+
+                push_sync({
+                    "broker_account_id": BROKER_ACCOUNT_ID,
+                    "mt5_account_id": MT5_ACCOUNT_ID,
+                    "account": collect_account(),
+                    "quotes": collect_quotes(universe),
+                    "positions": collect_positions(),
+                })
+
                 if bootstrap_pending:
-                    candles = collect_candles(markets, market_symbol_map, CANDLE_BOOTSTRAP_BARS)
+                    candles = collect_candles(universe, CANDLE_BOOTSTRAP_BARS)
                     push_candle_chunks(candles)
                     bootstrap_pending = False
                     last_candle_sync = now
                 elif now - last_candle_sync >= CANDLE_SYNC_SECONDS:
-                    candles = collect_candles(markets, market_symbol_map, CANDLE_BARS_PER_SYNC)
+                    candles = collect_candles(universe, CANDLE_BARS_PER_SYNC)
                     push_candle_chunks(candles)
                     last_candle_sync = now
+
             except Exception as exc:
                 print(f"Sync error: {exc}", file=sys.stderr)
+
             time.sleep(max(0.25, POLL_SECONDS - (time.monotonic() - started)))
+
     except KeyboardInterrupt:
         print("Stopping MT5 bridge.")
     finally:
