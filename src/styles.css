@@ -218,7 +218,7 @@ a { color: inherit; text-decoration: none; }
 .site-shell { min-height: 100vh; overflow: hidden; background: linear-gradient(180deg, var(--deep), var(--background) 44%, var(--deep)); }
 .topbar { height: 72px; padding: 0 3.5vw; display: flex; align-items: center; gap: 34px; border-bottom: 1px solid var(--border); background: color-mix(in oklab, var(--deep) 88%, transparent); position: relative; z-index: 20; }
 .brand { display: flex; align-items: center; gap: 9px; min-width: 205px; }
-.topbar .brand img { width: 33%; max-width: 180px; height: auto; }
+.topbar .brand img { width: 50%; max-width: 200px; height: auto; }
 footer .brand img { width: 50%; max-width: 200px; height: auto; }
 .brand-mark { font: 800 35px/1 var(--font-display); color: var(--primary); text-shadow: 0 0 18px color-mix(in oklab, var(--primary) 65%, transparent); transform: skew(-10deg); }
 .brand strong { display: block; font: 700 17px/1.1 var(--font-display); }
