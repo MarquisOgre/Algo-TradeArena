@@ -21,10 +21,9 @@ MT5_PASSWORD = os.environ["MT5_PASSWORD"]
 MT5_SERVER = os.environ["MT5_SERVER"]
 MT5_PATH = os.getenv("MT5_PATH", "")
 POLL_SECONDS = float(os.getenv("POLL_SECONDS", "2"))
-CANDLE_SYNC_SECONDS = float(os.getenv("CANDLE_SYNC_SECONDS", "60"))
-CANDLE_BARS_PER_SYNC = int(os.getenv("CANDLE_BARS_PER_SYNC", "20"))
-CANDLE_BOOTSTRAP = os.getenv("CANDLE_BOOTSTRAP", "false").lower() == "true"
-CANDLE_BOOTSTRAP_BARS = int(os.getenv("CANDLE_BOOTSTRAP_BARS", "120"))
+CANDLE_REQUEST_POLL_SECONDS = float(os.getenv("CANDLE_REQUEST_POLL_SECONDS", "2"))
+CANDLE_REQUEST_LIMIT = int(os.getenv("CANDLE_REQUEST_LIMIT", "25"))
+CANDLE_REQUEST_MAX_BARS = int(os.getenv("CANDLE_REQUEST_MAX_BARS", "240"))
 CANDLE_CHUNK_SIZE = int(os.getenv("CANDLE_CHUNK_SIZE", "500"))
 UNIVERSE_REFRESH_SECONDS = float(os.getenv("UNIVERSE_REFRESH_SECONDS", "300"))
 LIVE_STATUS_REFRESH_SECONDS = float(os.getenv("LIVE_STATUS_REFRESH_SECONDS", "30"))
@@ -252,76 +251,188 @@ def collect_quotes(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return quotes
 
 
-def collect_candles(universe: list[dict[str, Any]], bars: int) -> list[dict[str, Any]]:
-    candles: list[dict[str, Any]] = []
-    timeframes = (
-        ("1m", mt5.TIMEFRAME_M1),
-        ("5m", mt5.TIMEFRAME_M5),
-        ("15m", mt5.TIMEFRAME_M15),
-        ("1h", mt5.TIMEFRAME_H1),
-        ("4h", mt5.TIMEFRAME_H4),
-        ("1d", mt5.TIMEFRAME_D1),
+def fetch_candle_requests() -> list[dict[str, Any]]:
+    params = {
+        "select": "id,market_id,timeframe,requested_bars",
+        "status": "eq.pending",
+        "expires_at": f"gt.{datetime.now(timezone.utc).isoformat()}",
+        "order": "requested_at.asc",
+        "limit": str(max(1, CANDLE_REQUEST_LIMIT)),
+    }
+    response = requests.get(
+        f"{SUPABASE_URL}/rest/v1/market_data_requests",
+        headers=REST_HEADERS,
+        params=params,
+        timeout=10,
     )
+    if not response.ok:
+        raise RuntimeError(
+            f"Supabase candle request query returned {response.status_code}: {response.text[:500]}"
+        )
+    data = response.json()
+    return data if isinstance(data, list) else []
 
-    # History is intentionally collected only for instruments that currently
-    # have a usable quote. This keeps the development feed focused on the
-    # live MT5 universe instead of creating huge historical backfill costs.
-    live_universe = []
-    for market in universe:
-        tick = mt5.symbol_info_tick(market["broker_symbol"])
-        if tick is not None and tick.bid > 0 and tick.ask > 0:
-            live_universe.append(market)
 
-    for timeframe_name, timeframe in timeframes:
-        count = bars if timeframe_name in {"1m", "5m", "15m"} else min(bars, 100)
-        for market in live_universe:
-            symbol = market["broker_symbol"]
-            info = mt5.symbol_info(symbol)
-            if info is None:
+def fetch_requested_market_symbols(requests_to_process: list[dict[str, Any]]) -> dict[str, str]:
+    market_ids = [
+        str(row.get("market_id"))
+        for row in requests_to_process
+        if row.get("market_id")
+    ]
+    if not market_ids:
+        return {}
+
+    response = requests.get(
+        f"{SUPABASE_URL}/rest/v1/markets",
+        headers=REST_HEADERS,
+        params={
+            "select": "id,broker_symbol",
+            "status": "eq.active",
+            "id": f"in.({','.join(market_ids)})",
+        },
+        timeout=10,
+    )
+    if not response.ok:
+        raise RuntimeError(
+            f"Supabase market lookup returned {response.status_code}: {response.text[:500]}"
+        )
+
+    rows = response.json()
+    return {
+        str(row["id"]): str(row["broker_symbol"])
+        for row in rows
+        if row.get("id") and row.get("broker_symbol")
+    }
+
+
+def collect_requested_candles(
+    requests_to_process: list[dict[str, Any]],
+    market_symbols: dict[str, str],
+) -> tuple[list[dict[str, Any]], list[str]]:
+    timeframe_map = {
+        "1m": mt5.TIMEFRAME_M1,
+        "5m": mt5.TIMEFRAME_M5,
+        "15m": mt5.TIMEFRAME_M15,
+        "1h": mt5.TIMEFRAME_H1,
+        "4h": mt5.TIMEFRAME_H4,
+        "1d": mt5.TIMEFRAME_D1,
+    }
+
+    candles: list[dict[str, Any]] = []
+    fulfilled_request_ids: list[str] = []
+
+    for request in requests_to_process:
+        request_id = str(request.get("id") or "")
+        market_id = str(request.get("market_id") or "")
+        timeframe_name = str(request.get("timeframe") or "")
+        symbol = market_symbols.get(market_id)
+
+        if not request_id or not symbol or timeframe_name not in timeframe_map:
+            continue
+
+        try:
+            requested_bars = int(request.get("requested_bars") or 120)
+        except (TypeError, ValueError):
+            requested_bars = 120
+        count = max(30, min(CANDLE_REQUEST_MAX_BARS, requested_bars))
+
+        info = mt5.symbol_info(symbol)
+        if info is None:
+            print(f"Candle request skipped: {symbol} is not available in the connected MT5 terminal.")
+            continue
+
+        if not info.visible and not mt5.symbol_select(symbol, True):
+            print(f"Candle request skipped: could not select MT5 symbol {symbol}.")
+            continue
+
+        rates = mt5.copy_rates_from_pos(symbol, timeframe_map[timeframe_name], 0, count)
+        if rates is None:
+            print(
+                f"Candle request waiting: {symbol} {timeframe_name} returned no MT5 history "
+                f"({mt5.last_error()})."
+            )
+            continue
+
+        for rate in rates:
+            candle_time = iso_from_seconds(rate["time"])
+            if not candle_time:
                 continue
-            if not info.visible and not mt5.symbol_select(symbol, True):
-                continue
 
-            rates = mt5.copy_rates_from_pos(symbol, timeframe, 0, count)
-            if rates is None:
-                continue
+            candles.append({
+                "symbol": symbol,
+                "timeframe": timeframe_name,
+                "candle_time": candle_time,
+                "open": float(rate["open"]),
+                "high": float(rate["high"]),
+                "low": float(rate["low"]),
+                "close": float(rate["close"]),
+                "volume": float(rate["tick_volume"]),
+                "trade_count": None,
+                "metadata": {
+                    "source": "mt5",
+                    "request_id": request_id,
+                    "market_id": market_id,
+                },
+            })
 
-            for rate in rates:
-                candle_time = iso_from_seconds(rate["time"])
-                if not candle_time:
-                    continue
+        # A valid MT5 history response, including an empty array, means the
+        # request was actually serviced by the terminal. The gateway will mark
+        # it fulfilled only after the candle payload has been accepted.
+        fulfilled_request_ids.append(request_id)
 
-                candles.append({
-                    "symbol": market["symbol"],
-                    "timeframe": timeframe_name,
-                    "candle_time": candle_time,
-                    "open": float(rate["open"]),
-                    "high": float(rate["high"]),
-                    "low": float(rate["low"]),
-                    "close": float(rate["close"]),
-                    "volume": float(rate["tick_volume"]),
-                    "trade_count": None,
-                    "metadata": {"asset_class": market["asset_class"], "source": "mt5"},
-                })
-
-    return candles
+    return candles, fulfilled_request_ids
 
 
-def push_candle_chunks(candles: list[dict[str, Any]]) -> None:
+def push_candle_chunks(
+    candles: list[dict[str, Any]],
+    request_ids: list[str] | None = None,
+) -> None:
+    unique_request_ids = list(dict.fromkeys(request_ids or []))
+
     if not candles:
+        if unique_request_ids:
+            push_sync(
+                {
+                    "broker_account_id": BROKER_ACCOUNT_ID,
+                    "mt5_account_id": MT5_ACCOUNT_ID,
+                    "candle_request_ids": unique_request_ids,
+                },
+                label=f"candle requests fulfilled={len(unique_request_ids)}",
+            )
         return
+
     total = len(candles)
     for start in range(0, total, CANDLE_CHUNK_SIZE):
         chunk = candles[start:start + CANDLE_CHUNK_SIZE]
+        is_final_chunk = start + len(chunk) >= total
         push_sync(
             {
                 "broker_account_id": BROKER_ACCOUNT_ID,
                 "mt5_account_id": MT5_ACCOUNT_ID,
                 "candles": chunk,
+                "candle_request_ids": unique_request_ids if is_final_chunk else [],
             },
             label=f"candles {start + 1}-{min(start + len(chunk), total)}/{total}",
         )
 
+
+def sync_candle_requests() -> None:
+    requests_to_process = fetch_candle_requests()
+    if not requests_to_process:
+        return
+
+    market_symbols = fetch_requested_market_symbols(requests_to_process)
+    candles, fulfilled_request_ids = collect_requested_candles(
+        requests_to_process,
+        market_symbols,
+    )
+
+    if fulfilled_request_ids:
+        print(
+            f"Processing MT5 candle requests={len(fulfilled_request_ids)} "
+            f"candles={len(candles)}"
+        )
+        push_candle_chunks(candles, fulfilled_request_ids)
 
 def collect_positions() -> list[dict[str, Any]]:
     positions=mt5.positions_get() or []
@@ -377,8 +488,7 @@ def main() -> None:
 
         last_universe_refresh = 0.0
         last_status_refresh = 0.0
-        last_candle_sync = 0.0
-        bootstrap_pending = CANDLE_BOOTSTRAP
+        last_candle_request_poll = 0.0
 
         while True:
             started = time.monotonic()
@@ -424,15 +534,9 @@ def main() -> None:
                     "positions": collect_positions(),
                 })
 
-                if bootstrap_pending:
-                    candles = collect_candles(universe, CANDLE_BOOTSTRAP_BARS)
-                    push_candle_chunks(candles)
-                    bootstrap_pending = False
-                    last_candle_sync = now
-                elif now - last_candle_sync >= CANDLE_SYNC_SECONDS:
-                    candles = collect_candles(universe, CANDLE_BARS_PER_SYNC)
-                    push_candle_chunks(candles)
-                    last_candle_sync = now
+                if now - last_candle_request_poll >= CANDLE_REQUEST_POLL_SECONDS:
+                    sync_candle_requests()
+                    last_candle_request_poll = now
 
             except Exception as exc:
                 print(f"Sync error: {exc}", file=sys.stderr)
