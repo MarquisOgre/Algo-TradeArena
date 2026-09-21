@@ -96,18 +96,48 @@ def is_tradable_mt5(info: Any) -> bool:
     return trade_mode in {1, 2, 3}
 
 
-def build_dynamic_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
+# Alphentra's initial MT5 trading universe is intentionally limited.
+# These are the only canonical instruments Alphentra will synchronize.
+# The terminal must expose the exact symbol; unavailable instruments are
+# skipped rather than replaced with another provider or synthetic price.
+ALPHENTRA_INSTRUMENTS: tuple[tuple[str, str], ...] = (
+    ("EURUSD", "forex"), ("GBPUSD", "forex"), ("USDJPY", "forex"),
+    ("USDCHF", "forex"), ("USDCAD", "forex"), ("AUDUSD", "forex"),
+    ("NZDUSD", "forex"), ("EURGBP", "forex"), ("EURJPY", "forex"),
+    ("GBPJPY", "forex"),
+    ("BTCUSD", "crypto"), ("ETHUSD", "crypto"), ("LTCUSD", "crypto"),
+    ("XRPUSD", "crypto"),
+    ("XAUUSD", "commodity"), ("XAGUSD", "commodity"), ("XBRUSD", "commodity"),
+    ("XTIUSD", "commodity"), ("NATGAS", "commodity"), ("COPPER", "commodity"),
+    ("US30", "index"), ("US500", "index"), ("NAS100", "index"),
+    ("GER40", "index"), ("UK100", "index"), ("JP225", "index"),
+    ("AAPL", "stocks"), ("AMZN", "stocks"), ("GOOGL", "stocks"),
+    ("META", "stocks"), ("MSFT", "stocks"), ("NVDA", "stocks"),
+    ("TSLA", "stocks"), ("AMD", "stocks"), ("NFLX", "stocks"),
+    ("INTC", "stocks"), ("AVGO", "stocks"), ("JPM", "stocks"),
+    ("BAC", "stocks"), ("COIN", "stocks"), ("UBER", "stocks"),
+    ("SPY", "etf"), ("QQQ", "etf"), ("IWM", "etf"), ("DIA", "etf"),
+    ("GLD", "etf"),
+)
+
+
+def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
+    available_by_name = {
+        str(getattr(info, "name", "") or "").strip().upper(): info
+        for info in symbols
+        if str(getattr(info, "name", "") or "").strip()
+    }
+
     universe: list[dict[str, Any]] = []
+    missing: list[str] = []
 
-    for info in symbols:
+    for canonical_symbol, asset_class in ALPHENTRA_INSTRUMENTS:
+        info = available_by_name.get(canonical_symbol)
+        if info is None:
+            missing.append(canonical_symbol)
+            continue
+
         broker_symbol = str(getattr(info, "name", "") or "").strip()
-        if not broker_symbol:
-            continue
-
-        asset_class = classify_mt5_asset(info)
-        if asset_class is None:
-            continue
-
         description = str(getattr(info, "description", "") or broker_symbol).strip()
         path = str(getattr(info, "path", "") or "").strip()
         exchange = str(getattr(info, "exchange", "") or "").strip() or "MT5"
@@ -115,20 +145,21 @@ def build_dynamic_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
         quote_currency = str(getattr(info, "currency_profit", "") or "").strip().upper() or "USD"
 
         universe.append({
-            "symbol": broker_symbol,
-            "name": description or broker_symbol,
+            "symbol": canonical_symbol,
+            "name": description or canonical_symbol,
             "asset_class": asset_class,
             "exchange": exchange,
             "quote_currency": quote_currency,
             "base_currency": base_currency,
             "broker_symbol": broker_symbol,
             "price_precision": int(getattr(info, "digits", 8) or 8),
-            "quantity_precision": max(0, min(18, int(getattr(info, "volume_step", 1) and 8))),
+            "quantity_precision": 8,
             "min_quantity": float(getattr(info, "volume_min", 0) or 0) or None,
             "contract_size": float(getattr(info, "trade_contract_size", 1) or 1),
             "is_tradable": is_tradable_mt5(info),
             "metadata": {
                 "provider": "mt5",
+                "canonical_symbol": canonical_symbol,
                 "path": path,
                 "description": description,
                 "currency_base": base_currency,
@@ -147,8 +178,11 @@ def build_dynamic_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
             },
         })
 
-    return universe
+    print(f"Alphentra fixed MT5 universe: {len(universe)}/{len(ALPHENTRA_INSTRUMENTS)} available")
+    if missing:
+        print("Unavailable configured instruments: " + ", ".join(missing))
 
+    return universe
 
 def universe_by_symbol(universe: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {str(row["broker_symbol"]).upper(): row for row in universe}
@@ -564,9 +598,9 @@ def main() -> None:
     initialize_mt5()
     try:
         symbols = list(mt5.symbols_get() or [])
-        print(f"MT5 symbol resolver: {len(symbols)} terminal symbols available")
+        print(f"MT5 terminal: {len(symbols)} terminal symbols available")
 
-        universe = build_dynamic_market_universe(symbols)
+        universe = build_limited_market_universe(symbols)
         print(f"Dynamic MT5 universe: {len(universe)} qualified instruments")
 
         by_class: dict[str, int] = {}
@@ -592,7 +626,7 @@ def main() -> None:
                 refresh_status = now - last_status_refresh >= LIVE_STATUS_REFRESH_SECONDS
 
                 if refresh_universe:
-                    universe = build_dynamic_market_universe(list(mt5.symbols_get() or []))
+                    universe = build_limited_market_universe(list(mt5.symbols_get() or []))
                     push_market_universe_batches(universe)
 
                     market_statuses = collect_market_statuses(universe)
