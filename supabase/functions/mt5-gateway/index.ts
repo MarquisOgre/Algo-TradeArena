@@ -99,6 +99,7 @@ type SyncPayload = {
   account?: AccountSnapshot;
   quotes?: QuoteSnapshot[];
   candles?: CandleSnapshot[];
+  candle_request_ids?: string[];
   positions?: PositionSnapshot[];
   market_statuses?: MarketStatusSnapshot[];
   broker_market_mappings?: BrokerMarketMappingSnapshot[];
@@ -207,18 +208,46 @@ export default {
       // The MT5 bridge is the source of truth for the development universe.
       // Deactivate the old prototype/simulated catalog before applying the
       // currently discovered MT5 instruments.
-      const { error: deactivateError } = await ctx.supabaseAdmin
-        .from("markets")
-        .update({ status: "inactive", is_tradable: false, updated_at: now })
-        .eq("exchange", "ALPHENTRA-SIM");
-
-      if (deactivateError) {
-        return Response.json({ error: deactivateError.message }, { status: 500, headers: corsHeaders() });
-      }
-
       const providerSymbols = body.market_universe
         .map((market) => market.broker_symbol)
         .filter(Boolean);
+
+      // The fixed Alphentra universe is the source of truth for MT5 markets.
+      // Deactivate previously synchronized MT5 instruments that are no longer
+      // in the configured list, while leaving other future provider records
+      // untouched.
+      const { data: existingMt5Markets, error: existingMt5Error } = await ctx.supabaseAdmin
+        .from("markets")
+        .select("id,broker_symbol,metadata")
+        .eq("status", "active");
+
+      if (existingMt5Error) {
+        return Response.json({ error: existingMt5Error.message }, { status: 500, headers: corsHeaders() });
+      }
+
+      const allowedProviderSymbols = new Set(
+        providerSymbols.map((symbol) => String(symbol).toUpperCase()),
+      );
+
+      const staleMt5Ids = (existingMt5Markets ?? [])
+        .filter((market) =>
+          (market.metadata as Record<string, unknown> | null)?.provider === "mt5"
+          && market.broker_symbol
+          && !allowedProviderSymbols.has(String(market.broker_symbol).toUpperCase())
+        )
+        .map((market) => market.id);
+
+      for (let start = 0; start < staleMt5Ids.length; start += 100) {
+        const chunk = staleMt5Ids.slice(start, start + 100);
+        const { error: deactivateError } = await ctx.supabaseAdmin
+          .from("markets")
+          .update({ status: "inactive", is_tradable: false, updated_at: now })
+          .in("id", chunk);
+
+        if (deactivateError) {
+          return Response.json({ error: deactivateError.message }, { status: 500, headers: corsHeaders() });
+        }
+      }
 
       const existingMarkets: Array<{ id: string; broker_symbol: string | null }> = [];
       for (let start = 0; start < providerSymbols.length; start += 100) {
@@ -279,6 +308,41 @@ export default {
           if (row.broker_symbol) {
             marketIdByProviderSymbol.set(row.broker_symbol.toUpperCase(), row.id);
           }
+        }
+      }
+    }
+
+    // Resolve MT5 provider symbols on every request. The bridge sends
+    // symbols, not database UUIDs, so quote/status/candle syncs remain
+    // stateless and continue working between universe refreshes.
+    const symbolsToResolve = new Set<string>();
+    for (const quote of body.quotes ?? []) symbolsToResolve.add(quote.symbol);
+    for (const status of body.market_statuses ?? []) {
+      symbolsToResolve.add(status.provider_symbol ?? status.symbol);
+    }
+    for (const mapping of body.broker_market_mappings ?? []) {
+      symbolsToResolve.add(mapping.provider_symbol ?? mapping.symbol);
+    }
+    for (const candle of body.candles ?? []) symbolsToResolve.add(candle.symbol);
+
+    const unresolvedSymbols = [...symbolsToResolve].filter(
+      (symbol) => !marketIdByProviderSymbol.has(symbol.toUpperCase()),
+    );
+
+    for (let start = 0; start < unresolvedSymbols.length; start += 100) {
+      const chunk = unresolvedSymbols.slice(start, start + 100);
+      const { data, error } = await ctx.supabaseAdmin
+        .from("markets")
+        .select("id,broker_symbol")
+        .in("broker_symbol", chunk);
+
+      if (error) {
+        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders() });
+      }
+
+      for (const row of data ?? []) {
+        if (row.broker_symbol) {
+          marketIdByProviderSymbol.set(row.broker_symbol.toUpperCase(), row.id);
         }
       }
     }
@@ -344,7 +408,7 @@ export default {
     let quotesUpdated = 0;
     if (body.quotes?.length) {
       const quoteRows = body.quotes
-        .filter((quote) => quote.market_id && quote.bid > 0 && quote.ask > 0)
+        .filter((quote) => quote.bid > 0 && quote.ask > 0)
         .map((quote) => ({
           market_id: quote.market_id ?? marketIdByProviderSymbol.get(quote.symbol.toUpperCase()),
           provider: "mt5",
@@ -379,6 +443,7 @@ export default {
       }
     }
 
+    let candlesUpdated = 0;
     if (body.candles?.length) {
       const candleRows = body.candles.map((candle) => ({
         market_id: candle.market_id ?? marketIdByProviderSymbol.get(candle.symbol.toUpperCase()),
@@ -394,12 +459,35 @@ export default {
       }));
 
       const validCandleRows = candleRows.filter((row) => row.market_id);
-      const { error: candleError } = await ctx.supabaseAdmin
-        .from("market_data")
-        .upsert(validCandleRows, { onConflict: "market_id,timeframe,candle_time,source" });
+      if (validCandleRows.length) {
+        const { error: candleError } = await ctx.supabaseAdmin
+          .from("market_data")
+          .upsert(validCandleRows, { onConflict: "market_id,timeframe,candle_time,source" });
 
-      if (candleError) {
-        return Response.json({ error: candleError.message }, { status: 500, headers: corsHeaders() });
+        if (candleError) {
+          return Response.json({ error: candleError.message }, { status: 500, headers: corsHeaders() });
+        }
+        candlesUpdated = validCandleRows.length;
+      }
+    }
+
+    let candleRequestsFulfilled = 0;
+    if (body.candle_request_ids?.length) {
+      const requestIds = [...new Set(body.candle_request_ids)].filter(Boolean);
+      if (requestIds.length) {
+        const { error: requestError } = await ctx.supabaseAdmin
+          .from("market_data_requests")
+          .update({
+            status: "fulfilled",
+            last_synced_at: now,
+            updated_at: now,
+          })
+          .in("id", requestIds);
+
+        if (requestError) {
+          return Response.json({ error: requestError.message }, { status: 500, headers: corsHeaders() });
+        }
+        candleRequestsFulfilled = requestIds.length;
       }
     }
 
@@ -444,6 +532,8 @@ export default {
         broker_account_id: body.broker_account_id,
         mt5_account_id: body.mt5_account_id,
         quotes_updated: quotesUpdated,
+        candles_updated: candlesUpdated,
+        candle_requests_fulfilled: candleRequestsFulfilled,
         market_statuses_updated: marketStatusesUpdated,
         broker_market_mappings_updated: brokerMarketMappingsUpdated,
         positions_updated: positionsUpdated,

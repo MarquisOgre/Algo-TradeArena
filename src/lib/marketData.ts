@@ -95,33 +95,75 @@ function formatVolume(value: number | null) {
   return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
-export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuote>> {
-  const [{ data: markets, error: marketError }, { data: quotes, error: quoteError }] =
-    await Promise.all([
-      supabase
-        .from("markets")
-        .select("id, symbol, name, asset_class, exchange")
-        .eq("status", "active")
-        .order("symbol"),
-      supabase
-        .from("market_quotes")
-        .select(
-          "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread, metadata",
-        )
-        .eq("provider", "mt5")
-        .order("quote_time", { ascending: false })
-        .limit(100),
-    ]);
+async function loadAllActiveMarkets(tradableOnly = false): Promise<MarketRow[]> {
+  const rows: MarketRow[] = [];
+  const pageSize = 1000;
+  let from = 0;
 
-  if (marketError) throw marketError;
-  if (quoteError) throw quoteError;
+  while (true) {
+    let query = supabase
+      .from("markets")
+      .select("id, symbol, name, asset_class, exchange")
+      .eq("status", "active")
+      .order("symbol")
+      .range(from, from + pageSize - 1);
+
+    if (tradableOnly) {
+      query = query.eq("is_tradable", true);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const page = (data ?? []) as MarketRow[];
+    rows.push(...page);
+
+    if (page.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+}
+
+async function loadAllMt5Quotes(): Promise<QuoteRow[]> {
+  const rows: QuoteRow[] = [];
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    const { data, error } = await supabase
+      .from("market_quotes")
+      .select(
+        "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread, metadata",
+      )
+      .eq("provider", "mt5")
+      .order("quote_time", { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    const page = (data ?? []) as QuoteRow[];
+    rows.push(...page);
+
+    if (page.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+}
+
+export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuote>> {
+  const [markets, quotes] = await Promise.all([
+    loadAllActiveMarkets(),
+    loadAllMt5Quotes(),
+  ]);
 
   const marketById = new Map(
-    ((markets ?? []) as MarketRow[]).map((market) => [market.id, market]),
+    markets.map((market) => [market.id, market]),
   );
   const latestByMarket = new Map<string, LiveMarketQuote>();
 
-  for (const quote of (quotes ?? []) as QuoteRow[]) {
+  for (const quote of quotes) {
     if (latestByMarket.has(quote.market_id)) continue;
 
     const market = marketById.get(quote.market_id);
@@ -214,14 +256,7 @@ export async function loadMarketBoard(): Promise<Market[]> {
     loadLiveMarketQuotes(),
     loadMarketStatuses(),
   ]);
-  const { data: marketRows, error } = await supabase
-    .from("markets")
-    .select("id, symbol, name, asset_class, exchange")
-    .eq("status", "active")
-    .eq("is_tradable", true)
-    .order("symbol");
-
-  if (error) throw error;
+  const marketRows = await loadAllActiveMarkets(true);
 
   const mockBySymbol = new Map(mockMarkets.map((market) => [market.symbol.toUpperCase(), market]));
   const bySymbol = new Map(
@@ -275,6 +310,32 @@ export type MarketCandle = {
   volume: number | null;
 };
 
+export async function requestMarketHistory(
+  marketId: string,
+  timeframe: "1m" | "5m" | "15m" | "1h" | "4h" | "1d",
+  requestedBars = 120,
+) {
+  const now = Date.now();
+  const bars = Math.max(30, Math.min(240, Math.trunc(requestedBars)));
+
+  const { error } = await supabase
+    .from("market_data_requests")
+    .upsert(
+      {
+        market_id: marketId,
+        timeframe,
+        requested_bars: bars,
+        status: "pending",
+        requested_at: new Date(now).toISOString(),
+        expires_at: new Date(now + 2 * 60_000).toISOString(),
+        last_synced_at: null,
+      },
+      { onConflict: "market_id,timeframe" },
+    );
+
+  if (error) throw error;
+}
+
 export async function loadMarketHistory(marketId: string, timeframe = "1m", limit = 120): Promise<MarketCandle[]> {
   const { data, error } = await supabase
     .from("market_data")
@@ -323,17 +384,15 @@ export async function refreshPaperPortfolioMarks() {
 
 
 export function subscribeToMarketQuotes(onChange: () => void) {
+  // Quote rows are updated for a large, dynamically discovered MT5 universe.
+  // Listening to every market_quotes row would fan out thousands of realtime
+  // events and cause the browser to repeatedly reload the entire market board.
+  // Poll the latest quote snapshot at a controlled cadence instead, while
+  // retaining realtime for the much smaller provider-status table.
+  const pollTimer = window.setInterval(onChange, 5000);
+
   const channel = supabase
-    .channel("alphentra-market-quotes")
-    .on(
-      "postgres_changes",
-      {
-        event: "*",
-        schema: "public",
-        table: "market_quotes",
-      },
-      () => onChange(),
-    )
+    .channel("alphentra-market-status")
     .on(
       "postgres_changes",
       {
@@ -346,6 +405,7 @@ export function subscribeToMarketQuotes(onChange: () => void) {
     .subscribe();
 
   return () => {
+    window.clearInterval(pollTimer);
     void supabase.removeChannel(channel);
   };
 }

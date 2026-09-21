@@ -38,3 +38,11 @@ Security:
 - The browser never receives MT5 credentials.
 
 Live order routing is intentionally not enabled in this first connector milestone. After quote/account/position synchronization is validated, we will add order_check/order_send, reconciliation, SL/TP, close/modify and copy-trading execution.
+
+
+Candle history:
+- Live quotes are synchronized across the dynamically discovered MT5 universe.
+- Historical candles are fetched only when Alphentra requests a market/timeframe.
+- Supported chart timeframes are 1m, 5m, 15m, 1h, 4h and 1d.
+- The bridge polls the short-lived `market_data_requests` queue and marks requests fulfilled through the gateway after MT5 history is accepted.
+- There is no bulk candle bootstrap across the full MT5 universe.

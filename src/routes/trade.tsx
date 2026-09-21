@@ -17,7 +17,7 @@ import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
-import { isQuoteFresh, loadLiveMarketQuotes, loadMarketBoard, loadMarketHistory, subscribeToMarketQuotes, type MarketCandle } from "@/lib/marketData";
+import { isQuoteFresh, loadLiveMarketQuotes, loadMarketBoard, loadMarketHistory, requestMarketHistory, subscribeToMarketQuotes, type MarketCandle } from "@/lib/marketData";
 
 export const Route = createFileRoute("/trade")({
   head: () => ({
@@ -187,18 +187,58 @@ function TradePage() {
 
   useEffect(() => {
     let active = true;
+    let pollTimer: number | null = null;
+    let attempts = 0;
+
     setHoveredCandle(null);
-    void loadMarketHistory(market.id, chartTimeframe, 120)
-      .then((history) => {
-        if (active) setChartCandles(history);
-      })
-      .catch(() => {
-        if (active) setChartCandles([]);
-      });
+    setChartCandles([]);
+
+    const loadHistory = async () => {
+      try {
+        const history = await loadMarketHistory(market.id, chartTimeframe, 120);
+        if (!active) return;
+
+        setChartCandles(history);
+
+        // The MT5 bridge services candle requests asynchronously. Poll briefly
+        // after requesting history so the chart fills without a page refresh.
+        attempts += 1;
+        if (history.length < 2 && attempts < 8) {
+          pollTimer = window.setTimeout(() => {
+            void loadHistory();
+          }, 2000);
+        }
+      } catch {
+        if (!active) return;
+        setChartCandles([]);
+        attempts += 1;
+        if (attempts < 4) {
+          pollTimer = window.setTimeout(() => {
+            void loadHistory();
+          }, 2000);
+        }
+      }
+    };
+
+    const requestAndLoad = async () => {
+      if (market.providerStatus === "live") {
+        try {
+          await requestMarketHistory(market.id, chartTimeframe, 120);
+        } catch {
+          // Existing history can still render if the request queue is not yet
+          // available in the current Supabase environment.
+        }
+      }
+      if (active) void loadHistory();
+    };
+
+    void requestAndLoad();
+
     return () => {
       active = false;
+      if (pollTimer !== null) window.clearTimeout(pollTimer);
     };
-  }, [market.id, chartTimeframe]);
+  }, [market.id, market.providerStatus, chartTimeframe]);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * (liveQuote?.price ?? 0);
   const marketClosed = quoteAvailable && liveQuote?.isMarketOpen === false;
 

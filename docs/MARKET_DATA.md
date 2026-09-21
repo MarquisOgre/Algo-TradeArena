@@ -4,7 +4,10 @@ The market-data layer is now **MT5-first** for the trading universe.
 
 ## Flow
 
-`MetaTrader 5 terminal -> Python MT5 bridge -> Supabase Edge Function -> market_quotes -> Supabase Realtime -> Markets / Trade UI`
+`MetaTrader 5 terminal -> Python MT5 bridge -> Supabase Edge Function -> market_quotes -> Supabase Realtime -> Markets / Trade UI
+
+On-demand history:
+Alphentra chart -> market_data_requests -> MT5 bridge -> market_data -> Trade chart`
 
 The browser never receives MT5 account credentials. The MT5 bridge runs outside the browser and uses a dedicated Supabase secret to publish normalized snapshots.
 
@@ -21,6 +24,9 @@ The bridge normalizes:
 - Quote timestamp
 - Account balance/equity/margin/free margin
 - Open MT5 positions
+- Dynamically discovered MT5 instruments
+
+Historical candles are **request-driven**, not bulk-synchronized. Alphentra asks for a specific market/timeframe, the bridge reads that request and fetches only the requested MT5 bars. This prevents the 1,600+ instrument universe from generating a massive historical backfill on every cycle.
 
 The available symbol universe should ultimately come from the connected MT5 broker rather than a hard-coded third-party data catalog.
 
@@ -46,11 +52,21 @@ This milestone is deliberately **read/synchronization only**:
 
 Live order routing is not enabled yet.
 
+## Current connector milestone
+
+The development bridge now supports:
+
+- Dynamic MT5 universe discovery
+- Broad live quote synchronization
+- Account and open-position synchronization
+- On-demand historical candle requests for `1m`, `5m`, `15m`, `1h`, `4h`, and `1d`
+- No hard-coded instrument source of truth
+- MT5-only market data, including crypto
+
 ## Next MT5 steps
 
-- MT5 symbol discovery and contract specifications
-- Historical candle ingestion
 - Market-session state
+- Stale-price protection
 - Stale-price protection
 - Pending order queue
 - `order_check` validation
