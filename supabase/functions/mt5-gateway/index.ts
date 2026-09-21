@@ -283,6 +283,41 @@ export default {
       }
     }
 
+    // Resolve MT5 provider symbols on every request. The bridge sends
+    // symbols, not database UUIDs, so quote/status/candle syncs remain
+    // stateless and continue working between universe refreshes.
+    const symbolsToResolve = new Set<string>();
+    for (const quote of body.quotes ?? []) symbolsToResolve.add(quote.symbol);
+    for (const status of body.market_statuses ?? []) {
+      symbolsToResolve.add(status.provider_symbol ?? status.symbol);
+    }
+    for (const mapping of body.broker_market_mappings ?? []) {
+      symbolsToResolve.add(mapping.provider_symbol ?? mapping.symbol);
+    }
+    for (const candle of body.candles ?? []) symbolsToResolve.add(candle.symbol);
+
+    const unresolvedSymbols = [...symbolsToResolve].filter(
+      (symbol) => !marketIdByProviderSymbol.has(symbol.toUpperCase()),
+    );
+
+    for (let start = 0; start < unresolvedSymbols.length; start += 100) {
+      const chunk = unresolvedSymbols.slice(start, start + 100);
+      const { data, error } = await ctx.supabaseAdmin
+        .from("markets")
+        .select("id,broker_symbol")
+        .in("broker_symbol", chunk);
+
+      if (error) {
+        return Response.json({ error: error.message }, { status: 500, headers: corsHeaders() });
+      }
+
+      for (const row of data ?? []) {
+        if (row.broker_symbol) {
+          marketIdByProviderSymbol.set(row.broker_symbol.toUpperCase(), row.id);
+        }
+      }
+    }
+
     let brokerMarketMappingsUpdated = 0;
     if (body.broker_market_mappings?.length) {
       const mappingRows = body.broker_market_mappings.map((mapping) => ({
@@ -344,7 +379,7 @@ export default {
     let quotesUpdated = 0;
     if (body.quotes?.length) {
       const quoteRows = body.quotes
-        .filter((quote) => quote.market_id && quote.bid > 0 && quote.ask > 0)
+        .filter((quote) => quote.bid > 0 && quote.ask > 0)
         .map((quote) => ({
           market_id: quote.market_id ?? marketIdByProviderSymbol.get(quote.symbol.toUpperCase()),
           provider: "mt5",
