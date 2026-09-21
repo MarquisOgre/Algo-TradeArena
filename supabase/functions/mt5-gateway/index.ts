@@ -447,7 +447,7 @@ export default {
     if (body.candle_request_ids?.length) {
       const requestIds = [...new Set(body.candle_request_ids)].filter(Boolean);
       if (requestIds.length) {
-        const { error: requestError, data: fulfilledRequests } = await ctx.supabaseAdmin
+        const { error: requestError } = await ctx.supabaseAdmin
           .from("market_data_requests")
           .update({
             status: "fulfilled",
@@ -459,7 +459,7 @@ export default {
         if (requestError) {
           return Response.json({ error: requestError.message }, { status: 500, headers: corsHeaders() });
         }
-        candleRequestsFulfilled = fulfilledRequests?.length ?? requestIds.length;
+        candleRequestsFulfilled = requestIds.length;
       }
     }
 
