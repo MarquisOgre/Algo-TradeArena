@@ -855,7 +855,7 @@ function TradePage() {
 
           <Button
             className="mt-4 w-full"
-            disabled={marketClosed || submitting || !user}
+            disabled={submitting || !user}
             onClick={() => void submitOrder()}
           >
             {submitting ? "Executing…" : `${side} ${market.symbol}`}
