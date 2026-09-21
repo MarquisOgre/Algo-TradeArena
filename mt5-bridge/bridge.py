@@ -22,6 +22,7 @@ MT5_SERVER = os.environ["MT5_SERVER"]
 MT5_PATH = os.getenv("MT5_PATH", "")
 POLL_SECONDS = float(os.getenv("POLL_SECONDS", "2"))
 QUOTE_BATCH_SIZE = int(os.getenv("QUOTE_BATCH_SIZE", "400"))
+UNIVERSE_BATCH_SIZE = int(os.getenv("UNIVERSE_BATCH_SIZE", "300"))
 ACCOUNT_SYNC_SECONDS = float(os.getenv("ACCOUNT_SYNC_SECONDS", "10"))
 CANDLE_REQUEST_POLL_SECONDS = float(os.getenv("CANDLE_REQUEST_POLL_SECONDS", "2"))
 CANDLE_REQUEST_LIMIT = int(os.getenv("CANDLE_REQUEST_LIMIT", "25"))
@@ -507,6 +508,43 @@ def push_quote_batches(
             label=f"quotes {start + 1}-{min(start + len(chunk), total)}/{total}",
         )
 
+def push_market_universe_batches(
+    universe: list[dict[str, Any]],
+) -> None:
+    batch_size = max(1, UNIVERSE_BATCH_SIZE)
+    total = len(universe)
+
+    for start in range(0, total, batch_size):
+        chunk = universe[start:start + batch_size]
+        push_sync(
+            {
+                "broker_account_id": BROKER_ACCOUNT_ID,
+                "mt5_account_id": MT5_ACCOUNT_ID,
+                "market_universe": chunk,
+            },
+            label=f"universe {start + 1}-{min(start + len(chunk), total)}/{total}",
+        )
+
+
+def push_market_status_batches(
+    market_statuses: list[dict[str, Any]],
+) -> None:
+    batch_size = max(1, UNIVERSE_BATCH_SIZE)
+    total = len(market_statuses)
+
+    for start in range(0, total, batch_size):
+        chunk = market_statuses[start:start + batch_size]
+        push_sync(
+            {
+                "broker_account_id": BROKER_ACCOUNT_ID,
+                "mt5_account_id": MT5_ACCOUNT_ID,
+                "market_statuses": chunk,
+                "broker_market_mappings": chunk,
+            },
+            label=f"market status {start + 1}-{min(start + len(chunk), total)}/{total}",
+        )
+
+
 def sync_once(
     markets: list[dict[str, Any]],
     market_symbol_map: dict[str, dict[str, Any]],
@@ -555,27 +593,27 @@ def main() -> None:
 
                 if refresh_universe:
                     universe = build_dynamic_market_universe(list(mt5.symbols_get() or []))
+                    push_market_universe_batches(universe)
+
                     market_statuses = collect_market_statuses(universe)
-                    push_sync({
-                        "broker_account_id": BROKER_ACCOUNT_ID,
-                        "mt5_account_id": MT5_ACCOUNT_ID,
-                        "market_universe": universe,
-                        "market_statuses": market_statuses,
-                        "broker_market_mappings": market_statuses,
-                        "account": collect_account(),
-                    })
+                    push_market_status_batches(market_statuses)
+
+                    push_sync(
+                        {
+                            "broker_account_id": BROKER_ACCOUNT_ID,
+                            "mt5_account_id": MT5_ACCOUNT_ID,
+                            "account": collect_account(),
+                        },
+                        label="MT5 account state",
+                    )
+
                     last_universe_refresh = now
                     last_status_refresh = now
                     print(f"MT5 universe synced: {len(universe)} instruments")
 
                 elif refresh_status:
                     market_statuses = collect_market_statuses(universe)
-                    push_sync({
-                        "broker_account_id": BROKER_ACCOUNT_ID,
-                        "mt5_account_id": MT5_ACCOUNT_ID,
-                        "market_statuses": market_statuses,
-                        "broker_market_mappings": market_statuses,
-                    })
+                    push_market_status_batches(market_statuses)
                     last_status_refresh = now
 
                 quotes = collect_quotes(universe)
