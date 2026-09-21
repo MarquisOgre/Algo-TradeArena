@@ -99,6 +99,7 @@ type SyncPayload = {
   account?: AccountSnapshot;
   quotes?: QuoteSnapshot[];
   candles?: CandleSnapshot[];
+  candle_request_ids?: string[];
   positions?: PositionSnapshot[];
   market_statuses?: MarketStatusSnapshot[];
   broker_market_mappings?: BrokerMarketMappingSnapshot[];
@@ -414,6 +415,7 @@ export default {
       }
     }
 
+    let candlesUpdated = 0;
     if (body.candles?.length) {
       const candleRows = body.candles.map((candle) => ({
         market_id: candle.market_id ?? marketIdByProviderSymbol.get(candle.symbol.toUpperCase()),
@@ -429,12 +431,35 @@ export default {
       }));
 
       const validCandleRows = candleRows.filter((row) => row.market_id);
-      const { error: candleError } = await ctx.supabaseAdmin
-        .from("market_data")
-        .upsert(validCandleRows, { onConflict: "market_id,timeframe,candle_time,source" });
+      if (validCandleRows.length) {
+        const { error: candleError } = await ctx.supabaseAdmin
+          .from("market_data")
+          .upsert(validCandleRows, { onConflict: "market_id,timeframe,candle_time,source" });
 
-      if (candleError) {
-        return Response.json({ error: candleError.message }, { status: 500, headers: corsHeaders() });
+        if (candleError) {
+          return Response.json({ error: candleError.message }, { status: 500, headers: corsHeaders() });
+        }
+        candlesUpdated = validCandleRows.length;
+      }
+    }
+
+    let candleRequestsFulfilled = 0;
+    if (body.candle_request_ids?.length) {
+      const requestIds = [...new Set(body.candle_request_ids)].filter(Boolean);
+      if (requestIds.length) {
+        const { error: requestError, data: fulfilledRequests } = await ctx.supabaseAdmin
+          .from("market_data_requests")
+          .update({
+            status: "fulfilled",
+            last_synced_at: now,
+            updated_at: now,
+          })
+          .in("id", requestIds);
+
+        if (requestError) {
+          return Response.json({ error: requestError.message }, { status: 500, headers: corsHeaders() });
+        }
+        candleRequestsFulfilled = fulfilledRequests?.length ?? requestIds.length;
       }
     }
 
@@ -479,6 +504,8 @@ export default {
         broker_account_id: body.broker_account_id,
         mt5_account_id: body.mt5_account_id,
         quotes_updated: quotesUpdated,
+        candles_updated: candlesUpdated,
+        candle_requests_fulfilled: candleRequestsFulfilled,
         market_statuses_updated: marketStatusesUpdated,
         broker_market_mappings_updated: brokerMarketMappingsUpdated,
         positions_updated: positionsUpdated,
