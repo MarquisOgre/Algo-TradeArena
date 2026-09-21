@@ -74,6 +74,10 @@ export interface Market {
   change: number;
   changePct: number;
   volume: string;
+  bid?: number | null;
+  ask?: number | null;
+  spread?: number | null;
+  isMarketOpen?: boolean | null;
   marketCap: string;
   spark: number[];
   aiSignal: "Bullish" | "Bearish" | "Neutral";
