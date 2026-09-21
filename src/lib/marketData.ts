@@ -149,6 +149,42 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
   return latestByMarket;
 }
 
+export async function loadBrokerMarketMappings(): Promise<Map<string, MarketStatus>> {
+  const { data: broker, error: brokerError } = await supabase
+    .from("broker_accounts")
+    .select("id")
+    .order("updated_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (brokerError) throw brokerError;
+  if (!broker) return new Map();
+
+  const { data, error } = await supabase
+    .from("broker_market_mappings")
+    .select("market_id, provider, status, provider_symbol, last_verified_at")
+    .eq("broker_account_id", broker.id)
+    .eq("provider", "mt5")
+    .order("last_verified_at", { ascending: false });
+
+  if (error) throw error;
+
+  const latestByMarket = new Map<string, MarketStatus>();
+  for (const row of data ?? []) {
+    if (latestByMarket.has(row.market_id)) continue;
+    latestByMarket.set(row.market_id, {
+      marketId: row.market_id,
+      symbol: "",
+      status: row.status as MarketProviderStatus,
+      provider: row.provider,
+      providerSymbol: row.provider_symbol,
+      checkedAt: row.last_verified_at,
+    });
+  }
+
+  return latestByMarket;
+}
+
 export async function loadMarketStatuses(): Promise<Map<string, MarketStatus>> {
   const { data, error } = await supabase
     .from("market_provider_status")
@@ -194,7 +230,7 @@ export async function loadMarketBoard(): Promise<Market[]> {
 
   return ((marketRows ?? []) as MarketRow[]).map((row) => {
     const live = bySymbol.get(row.symbol.toUpperCase());
-    const status = statuses.get(row.id);
+    const status = brokerMappings.get(row.id) ?? statuses.get(row.id);
     const fallback = mockBySymbol.get(row.symbol.toUpperCase());
     const providerStatus = status?.status ?? (live ? "live" : "unsupported");
     const price = providerStatus === "live" && live ? live.price : 0;
