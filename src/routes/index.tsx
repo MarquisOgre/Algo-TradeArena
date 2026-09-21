@@ -7,15 +7,15 @@ export const Route = createFileRoute("/")({
       { title: "ALPHENTRA — Trade Beyond Limits" },
       {
         name: "description",
-        content:
-          "Alphentra is a global AI-powered trading ecosystem for traders, creators and investors.",
+        content: "The all-in-one trading ecosystem for traders, creators and investors.",
       },
       { property: "og:title", content: "ALPHENTRA — Trade Beyond Limits" },
       {
         property: "og:description",
-        content:
-          "Build strategies, test ideas, trade global markets, copy top traders and compete in the Arena.",
+        content: "Build strategies, trade global markets, copy top traders, compete and earn.",
       },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: LandingPage,
