@@ -196,9 +196,22 @@ function TradePage() {
   const forexOpen = getMarketSessions().find((session) => session.group === "forex")?.open ?? true;
   const marketClosed = market.assetClass === "FX" && !forexOpen;
 
+  const liveMarkets = useMemo(
+    () =>
+      markets.filter((item) => {
+        const quote = liveQuotes.get(item.id);
+        return (
+          item.providerStatus === "live" &&
+          quote?.provider === "mt5" &&
+          isQuoteFresh(quote, 15_000)
+        );
+      }),
+    [markets, liveQuotes],
+  );
+
   const filteredMarkets = useMemo(() => {
     const query = marketSearch.trim().toLowerCase();
-    return markets.filter((item) => {
+    return liveMarkets.filter((item) => {
       const categoryMatch = marketCategory === "All" || item.assetClass === marketCategory;
       const searchMatch =
         !query ||
@@ -206,7 +219,7 @@ function TradePage() {
         item.name.toLowerCase().includes(query);
       return categoryMatch && searchMatch;
     });
-  }, [marketSearch, marketCategory, markets]);
+  }, [marketSearch, marketCategory, liveMarkets]);
 
   useEffect(() => {
     if (!marketPickerOpen) return;
@@ -229,8 +242,20 @@ function TradePage() {
           setMarkets(nextMarkets);
           setLiveQuotes(nextQuotes);
           setLiveData([...nextQuotes.values()].some((quote) => quote.provider === "mt5" && isQuoteFresh(quote, 15_000)));
+          const nextLiveMarketIds = new Set(
+            nextMarkets
+              .filter((item) => {
+                const quote = nextQuotes.get(item.id);
+                return (
+                  item.providerStatus === "live" &&
+                  quote?.provider === "mt5" &&
+                  isQuoteFresh(quote, 15_000)
+                );
+              })
+              .map((item) => item.id),
+          );
           setSymbolId((current) =>
-            nextMarkets.some((item) => item.id === current) ? current : nextMarkets[0]?.id ?? current,
+            nextLiveMarketIds.has(current) ? current : nextLiveMarketIds.values().next().value ?? current,
           );
         })
         .catch((error) => {
@@ -656,13 +681,14 @@ function TradePage() {
                   <div className="max-h-72 overflow-y-auto p-2">
                     {filteredMarkets.length === 0 ? (
                       <div className="px-3 py-8 text-center text-xs text-muted-foreground">
-                        No markets match your search.
+                        No live MT5 markets match your search.
                       </div>
                     ) : (
                       filteredMarkets.map((item) => {
                         const quote = liveQuotes.get(item.id);
-                        const status = item.providerStatus ?? "unsupported";
-                        const live = status === "live" && quote?.provider === "mt5" && isQuoteFresh(quote, 15_000);
+                        const live = Boolean(
+                          quote?.provider === "mt5" && isQuoteFresh(quote, 15_000),
+                        );
                         return (
                           <button
                             key={item.id}
@@ -686,7 +712,7 @@ function TradePage() {
                                     live ? "text-success" : status === "no_quote" ? "text-warning" : "text-muted-foreground",
                                   )}
                                 >
-                                  {live ? "Live" : status === "no_quote" ? "No quote" : "Unavailable"}
+                                  Live
                                 </span>
                               </div>
                               <p className="truncate text-[11px] text-muted-foreground">{item.name}</p>
