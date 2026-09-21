@@ -19,6 +19,9 @@ type QuoteSnapshot = {
   bid: number;
   ask: number;
   price?: number;
+  change?: number | null;
+  percent_change?: number | null;
+  previous_close?: number | null;
   quote_time?: string;
   volume?: number | null;
   is_market_open?: boolean | null;
@@ -205,6 +208,9 @@ export default {
           provider: "mt5",
           quote_time: quote.quote_time ?? now,
           price: numberOrNull(quote.price) ?? (quote.bid + quote.ask) / 2,
+          change: numberOrNull(quote.change),
+          percent_change: numberOrNull(quote.percent_change),
+          previous_close: numberOrNull(quote.previous_close),
           bid: quote.bid,
           ask: quote.ask,
           spread: Math.max(0, quote.ask - quote.bid),
