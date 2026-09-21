@@ -175,7 +175,14 @@ function TradePage() {
   const market = markets.find((m) => m.id === symbolId) ?? markets[0]!;
   const liveQuote = liveQuotes.get(market.id);
   const providerStatus = market.providerStatus ?? "unsupported";
-  const quoteIsFresh = providerStatus === "live" && isQuoteFresh(liveQuote, 15_000);
+  // Keep the Trade UI stable through short MT5 tick gaps. A quote is usable
+  // for display for up to 2 minutes, while actual paper execution still
+  // requires a very recent quote.
+  const quoteAvailable =
+    providerStatus === "live" &&
+    liveQuote?.provider === "mt5" &&
+    isQuoteFresh(liveQuote, 120_000);
+  const executionQuoteFresh = quoteAvailable && isQuoteFresh(liveQuote, 15_000);
   const quantity = Number(qty);
 
   useEffect(() => {
@@ -193,7 +200,7 @@ function TradePage() {
     };
   }, [market.id, chartTimeframe]);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * (liveQuote?.price ?? 0);
-  const marketClosed = quoteIsFresh && liveQuote?.isMarketOpen === false;
+  const marketClosed = quoteAvailable && liveQuote?.isMarketOpen === false;
 
   const liveMarkets = useMemo(
     () =>
@@ -202,7 +209,7 @@ function TradePage() {
         return (
           item.providerStatus === "live" &&
           quote?.provider === "mt5" &&
-          isQuoteFresh(quote, 15_000)
+          isQuoteFresh(quote, 120_000)
         );
       }),
     [markets, liveQuotes],
@@ -240,7 +247,7 @@ function TradePage() {
           if (!active) return;
           setMarkets(nextMarkets);
           setLiveQuotes(nextQuotes);
-          setLiveData([...nextQuotes.values()].some((quote) => quote.provider === "mt5" && isQuoteFresh(quote, 15_000)));
+          setLiveData([...nextQuotes.values()].some((quote) => quote.provider === "mt5" && isQuoteFresh(quote, 120_000)));
           const nextLiveMarketIds = new Set(
             nextMarkets
               .filter((item) => {
@@ -248,7 +255,7 @@ function TradePage() {
                 return (
                   item.providerStatus === "live" &&
                   quote?.provider === "mt5" &&
-                  isQuoteFresh(quote, 15_000)
+                  isQuoteFresh(quote, 120_000)
                 );
               })
               .map((item) => item.id),
@@ -539,16 +546,16 @@ function TradePage() {
       <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_380px]">
         <ChartCard
           title={`${market.symbol} · ${market.name}`}
-          subtitle={quoteIsFresh && liveQuote?.provider === "mt5" ? `MetaTrader 5 · ${market.providerSymbol ?? market.symbol}` : providerStatus === "no_quote" ? "MT5 instrument available · waiting for quote" : "MT5 instrument unavailable"}
+          subtitle={quoteAvailable && liveQuote?.provider === "mt5" ? `MetaTrader 5 · ${market.providerSymbol ?? market.symbol}` : providerStatus === "no_quote" ? "MT5 instrument available · waiting for quote" : "MT5 instrument unavailable"}
           actions={
             <div className="flex items-center gap-2">
               <span className={cn(
                 "rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-wide",
-                quoteIsFresh && liveQuote?.provider === "mt5"
+                quoteAvailable && liveQuote?.provider === "mt5"
                   ? "border-success/30 bg-success/10 text-success"
                   : "border-border bg-muted text-muted-foreground",
               )}>
-                {quoteIsFresh && liveQuote?.provider === "mt5"
+                {quoteAvailable && liveQuote?.provider === "mt5"
                   ? liveQuote.isMarketOpen === false
                     ? "● MT5 Closed"
                     : "● MT5 Live"
@@ -560,12 +567,12 @@ function TradePage() {
         >
           <div className="flex flex-wrap items-center gap-2">
             <p className="num text-3xl font-bold text-foreground">
-              {quoteIsFresh && liveQuote ? liveQuote.price.toLocaleString("en-US", { minimumFractionDigits: market.assetClass === "FX" ? 4 : 2 }) : "—"}
+              {quoteAvailable && liveQuote ? liveQuote.price.toLocaleString("en-US", { minimumFractionDigits: market.assetClass === "FX" ? 4 : 2 }) : "—"}
             </p>
             <span className="rounded-full bg-primary-soft px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-primary">{market.assetClass}</span>
             {liveQuote?.quoteTime && (
               <span className="text-[10px] text-muted-foreground">
-                {quoteIsFresh ? "Updated " : "Last quote "}{new Date(liveQuote.quoteTime).toLocaleTimeString()}
+                {quoteAvailable ? "Updated " : "Last quote "}{new Date(liveQuote.quoteTime).toLocaleTimeString()}
               </span>
             )}
           </div>
@@ -601,7 +608,7 @@ function TradePage() {
             {chartCandles.length >= 2 ? (
               <CandleChart
                 candles={chartCandles}
-                currentPrice={quoteIsFresh && liveQuote ? liveQuote.price : 0}
+                currentPrice={quoteAvailable && liveQuote ? liveQuote.price : 0}
                 onHover={setHoveredCandle}
               />
             ) : (
@@ -690,7 +697,7 @@ function TradePage() {
                       filteredMarkets.map((item) => {
                         const quote = liveQuotes.get(item.id);
                         const live = Boolean(
-                          quote?.provider === "mt5" && isQuoteFresh(quote, 15_000),
+                          quote?.provider === "mt5" && isQuoteFresh(quote, 120_000),
                         );
                         return (
                           <button
@@ -752,21 +759,21 @@ function TradePage() {
 
           <div className={cn(
             "mt-4 rounded-xl border p-3 text-xs",
-            quoteIsFresh
+            quoteAvailable
               ? "border-success/20 bg-success/5 text-success"
               : providerStatus === "no_quote"
                 ? "border-warning/20 bg-warning/5 text-warning"
                 : "border-border bg-muted/40 text-muted-foreground",
           )}>
             <div className="font-semibold">
-              {quoteIsFresh
+              {quoteAvailable
                 ? "MT5 LIVE"
                 : providerStatus === "no_quote"
                   ? "MT5 instrument available · No current quote"
                   : "MT5 instrument unavailable for this market"}
             </div>
             <div className="mt-1 opacity-80">
-              {quoteIsFresh
+              {quoteAvailable
                 ? "Price, bid and ask are being received from MetaTrader 5."
                 : providerStatus === "no_quote"
                   ? "Alphentra will not substitute a simulated price."
@@ -775,7 +782,7 @@ function TradePage() {
           </div>
 
           <dl className="mt-4 space-y-2 border-t border-border pt-4 text-sm">
-            {quoteIsFresh && liveQuote?.provider === "mt5" && liveQuote.bid != null && liveQuote.ask != null && (
+            {quoteAvailable && liveQuote?.provider === "mt5" && liveQuote.bid != null && liveQuote.ask != null && (
               <>
                 <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted/40 p-2">
                   <div>
@@ -796,7 +803,7 @@ function TradePage() {
             <div className="flex justify-between">
               <dt className="text-muted-foreground">Est. price</dt>
               <dd className="num text-foreground">
-                {quoteIsFresh && liveQuote ? (side === "BUY" ? liveQuote.ask ?? liveQuote.price : liveQuote.bid ?? liveQuote.price).toFixed(market.assetClass === "FX" ? 5 : 2) : "—"}
+                {quoteAvailable && liveQuote ? (side === "BUY" ? liveQuote.ask ?? liveQuote.price : liveQuote.bid ?? liveQuote.price).toFixed(market.assetClass === "FX" ? 5 : 2) : "—"}
               </dd>
             </div>
             <div className="flex justify-between">
@@ -817,7 +824,7 @@ function TradePage() {
             </div>
           </dl>
 
-          {!quoteIsFresh && (
+          {!quoteAvailable && (
             <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
               {providerStatus === "no_quote"
                 ? "Trading is paused until MT5 provides a current quote for this instrument."
@@ -839,7 +846,7 @@ function TradePage() {
 
           <Button
             className="mt-4 w-full"
-            disabled={marketClosed || !quoteIsFresh || submitting || !user}
+            disabled={marketClosed || !executionQuoteFresh || submitting || !user}
             onClick={() => void submitOrder()}
           >
             {submitting ? "Executing…" : `${side} ${market.symbol}`}
