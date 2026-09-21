@@ -126,7 +126,7 @@ function Index() {
     .slice(0, 6);
 
   return (
-    <main id="top" className="site-shell">
+    <div className="lovable-landing"><main id="top" className="site-shell">
       <header className="topbar">
         <Brand />
         <nav aria-label="Main navigation">
@@ -246,6 +246,6 @@ function Index() {
         <div><b>Legal</b><a href="#top">Risk Disclosure</a><a href="#top">Terms of Service</a><a href="#top">Privacy Policy</a></div>
         <p>© 2026 Alphentra. All rights reserved.</p>
       </footer>
-    </main>
+    </main></div>
   );
 }
