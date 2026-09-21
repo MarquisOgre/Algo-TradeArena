@@ -303,12 +303,9 @@ export async function loadMarketHistory(marketId: string, timeframe = "1m", limi
 export function isQuoteFresh(quote: LiveMarketQuote | undefined, maxAgeMs = 120_000) {
   if (!quote) return false;
 
-  const syncedAt =
-    typeof quote.metadata?.synced_at === "string"
-      ? quote.metadata.synced_at
-      : quote.quoteTime;
-
-  const age = Date.now() - new Date(syncedAt).getTime();
+  // Freshness must follow the MT5 tick itself. The bridge can sync the same
+  // last tick repeatedly, so metadata.synced_at is not a market-data freshness signal.
+  const age = Date.now() - new Date(quote.quoteTime).getTime();
   return Number.isFinite(age) && age >= -30_000 && age <= maxAgeMs;
 }
 
