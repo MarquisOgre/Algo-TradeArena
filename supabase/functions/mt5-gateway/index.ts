@@ -14,7 +14,7 @@ type AccountSnapshot = {
 };
 
 type QuoteSnapshot = {
-  market_id: string;
+  market_id?: string;
   symbol: string;
   bid: number;
   ask: number;
@@ -29,7 +29,7 @@ type QuoteSnapshot = {
 };
 
 type CandleSnapshot = {
-  market_id: string;
+  market_id?: string;
   symbol: string;
   timeframe: string;
   candle_time: string;
