@@ -21,6 +21,8 @@ MT5_PASSWORD = os.environ["MT5_PASSWORD"]
 MT5_SERVER = os.environ["MT5_SERVER"]
 MT5_PATH = os.getenv("MT5_PATH", "")
 POLL_SECONDS = float(os.getenv("POLL_SECONDS", "2"))
+QUOTE_BATCH_SIZE = int(os.getenv("QUOTE_BATCH_SIZE", "400"))
+ACCOUNT_SYNC_SECONDS = float(os.getenv("ACCOUNT_SYNC_SECONDS", "10"))
 CANDLE_REQUEST_POLL_SECONDS = float(os.getenv("CANDLE_REQUEST_POLL_SECONDS", "2"))
 CANDLE_REQUEST_LIMIT = int(os.getenv("CANDLE_REQUEST_LIMIT", "25"))
 CANDLE_REQUEST_MAX_BARS = int(os.getenv("CANDLE_REQUEST_MAX_BARS", "240"))
@@ -449,13 +451,61 @@ def collect_account() -> dict[str, Any]:
     return {"login":str(account.login),"server":account.server,"balance":float(account.balance),"equity":float(account.equity),"margin":float(account.margin),"free_margin":float(account.margin_free),"leverage":int(account.leverage) if account.leverage else None,"currency":account.currency,"terminal_build":terminal_build,"is_hedging_account":int(account.margin_mode)==2}
 
 def push_sync(payload: dict[str, Any], label: str = "sync") -> None:
-    response=requests.post(MT5_GATEWAY_URL,headers=GATEWAY_HEADERS,json=payload,timeout=20)
-    if not response.ok: raise RuntimeError(f"MT5 gateway returned {response.status_code}: {response.text[:500]}")
-    result=response.json()
+    response = requests.post(
+        MT5_GATEWAY_URL,
+        headers=GATEWAY_HEADERS,
+        json=payload,
+        timeout=60,
+    )
+    if not response.ok:
+        raise RuntimeError(
+            f"MT5 gateway returned {response.status_code}: {response.text[:500]}"
+        )
+    result = response.json()
     if label == "sync":
-        print(f"Synced quotes={result.get('quotes_updated',0)} positions={result.get('positions_updated',0)}")
+        print(
+            f"Synced quotes={result.get('quotes_updated', 0)} "
+            f"positions={result.get('positions_updated', 0)}"
+        )
     else:
         print(f"Synced {label}")
+
+
+def push_quote_batches(
+    quotes: list[dict[str, Any]],
+    account: dict[str, Any] | None = None,
+    positions: list[dict[str, Any]] | None = None,
+) -> None:
+    if not quotes and account is None and positions is None:
+        return
+
+    total = len(quotes)
+    batch_size = max(1, QUOTE_BATCH_SIZE)
+
+    if total == 0:
+        push_sync({
+            "broker_account_id": BROKER_ACCOUNT_ID,
+            "mt5_account_id": MT5_ACCOUNT_ID,
+            "account": account,
+            "positions": positions or [],
+        })
+        return
+
+    for start in range(0, total, batch_size):
+        chunk = quotes[start:start + batch_size]
+        payload: dict[str, Any] = {
+            "broker_account_id": BROKER_ACCOUNT_ID,
+            "mt5_account_id": MT5_ACCOUNT_ID,
+            "quotes": chunk,
+        }
+        if start == 0:
+            payload["account"] = account
+            payload["positions"] = positions or []
+
+        push_sync(
+            payload,
+            label=f"quotes {start + 1}-{min(start + len(chunk), total)}/{total}",
+        )
 
 def sync_once(
     markets: list[dict[str, Any]],
@@ -488,7 +538,9 @@ def main() -> None:
 
         last_universe_refresh = 0.0
         last_status_refresh = 0.0
+        last_account_sync = 0.0
         last_candle_request_poll = 0.0
+        last_quote_times: dict[str, int] = {}
 
         while True:
             started = time.monotonic()
@@ -526,13 +578,33 @@ def main() -> None:
                     })
                     last_status_refresh = now
 
-                push_sync({
-                    "broker_account_id": BROKER_ACCOUNT_ID,
-                    "mt5_account_id": MT5_ACCOUNT_ID,
-                    "account": collect_account(),
-                    "quotes": collect_quotes(universe),
-                    "positions": collect_positions(),
-                })
+                quotes = collect_quotes(universe)
+
+                # Only write MT5 quotes whose terminal tick timestamp changed.
+                # Closed instruments therefore stop generating redundant
+                # database writes while actively moving instruments remain live.
+                changed_quotes: list[dict[str, Any]] = []
+                for quote in quotes:
+                    provider_symbol = str(quote.get("provider_symbol") or quote["symbol"])
+                    tick_msc = quote.get("metadata", {}).get("mt5_time_msc")
+                    try:
+                        tick_key = int(tick_msc or 0)
+                    except (TypeError, ValueError):
+                        tick_key = 0
+
+                    if tick_key <= 0 or last_quote_times.get(provider_symbol) != tick_key:
+                        changed_quotes.append(quote)
+                        if tick_key > 0:
+                            last_quote_times[provider_symbol] = tick_key
+
+                should_sync_account = now - last_account_sync >= ACCOUNT_SYNC_SECONDS
+                account = collect_account() if should_sync_account else None
+                positions = collect_positions() if should_sync_account else None
+
+                if changed_quotes or should_sync_account:
+                    push_quote_batches(changed_quotes, account, positions)
+                    if should_sync_account:
+                        last_account_sync = now
 
                 if now - last_candle_request_poll >= CANDLE_REQUEST_POLL_SECONDS:
                     sync_candle_requests()
