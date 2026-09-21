@@ -5,7 +5,6 @@ import {
   Menu, Play, Trophy, Users, X, Coins, Search
 } from "lucide-react";
 import { useState } from "react";
-import { Logo } from "@/components/brand/Logo";
 import { loadMarketBoard } from "@/lib/marketData";
 
 const pillars = [
