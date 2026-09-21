@@ -40,7 +40,7 @@ export function LandingPage() {
     staleTime: 30_000,
     retry: 1,
   });
-  const markets = (marketQuery.data ?? []).filter((m) => m.providerStatus === "live").slice(0, 6);
+  const markets = (marketQuery.data ?? []).filter((m) => m.providerStatus === "live" && Number(m.price) > 0).slice(0, 6);
 
   return (
     <div className="min-h-screen overflow-x-hidden bg-[#020812] text-white">
@@ -104,8 +104,8 @@ function Hero() {
       <div className="relative mx-auto grid max-w-[1440px] items-center gap-4 px-5 pb-20 pt-28 lg:grid-cols-[.82fr_1.18fr] lg:px-10 lg:pt-32">
         <div className="z-10 max-w-[650px]">
           <p className="text-[11px] font-bold uppercase tracking-[.35em] text-cyan-300">DISCIPLINE TODAY. <span className="text-cyan-200">FREEDOM TOMORROW.</span></p>
-          <h1 className="mt-5 text-6xl font-black leading-[.88] tracking-[-.055em] sm:text-7xl lg:text-[88px]">TRADE<br />BEYOND <span className="bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">LIMITS</span></h1>
-          <p className="mt-7 max-w-xl text-[15px] leading-6 text-slate-200">A global trading ecosystem for traders, creators and investors.<br />Build strategies. Copy top traders. Compete. Earn.<br />Be part of a brighter financial future.</p>
+          <h1 className="mt-5 text-6xl font-black leading-[.88] tracking-[-.055em] sm:text-7xl lg:text-[82px]">TRADE<br />BEYOND <span className="bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">LIMITS</span></h1>
+          <p className="mt-7 max-w-xl text-[15px] leading-6 text-slate-300">A global trading ecosystem for traders, creators and investors.<br />Build strategies. Copy top traders. Compete. Earn.<br />Be part of a brighter financial future.</p>
           <div className="mt-7 flex flex-wrap gap-3">
             <Link to="/login" className="rounded-full bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-300 px-7 py-3.5 text-xs font-black text-slate-950 shadow-[0_0_40px_rgba(0,229,255,.25)]">Get Started <ArrowRight className="ml-1 inline size-4" /></Link>
             <Link to="/app" className="rounded-full border border-cyan-300/70 px-6 py-3.5 text-xs font-bold"><Play className="mr-2 inline size-4 fill-current" />Watch Demo</Link>
@@ -124,7 +124,7 @@ function HeroVisual() {
   return (
     <div className="relative mx-auto aspect-[1.05/1] w-full max-w-[760px]">
       <div className="absolute inset-[8%] rounded-full bg-[radial-gradient(circle_at_40%_28%,rgba(255,255,255,.95)_0_1px,transparent_1px),radial-gradient(circle_at_60%_65%,rgba(0,229,255,.95)_0_1px,transparent_1px)] [background-size:55px_55px,73px_73px] opacity-70" />
-      <div className="absolute left-[18%] top-[12%] h-[72%] w-[72%] rounded-full border border-cyan-200/30 bg-[radial-gradient(circle_at_35%_30%,rgba(73,220,255,.65),rgba(16,89,220,.35)_36%,rgba(24,17,91,.3)_65%,transparent_70%)] shadow-[0_0_100px_rgba(0,205,255,.28)]" />
+      <div className="absolute left-[18%] top-[12%] h-[72%] w-[72%] rounded-full border border-cyan-200/30 bg-[radial-gradient(circle_at_35%_30%,rgba(73,220,255,.65),rgba(16,89,220,.35)_36%,rgba(24,17,91,.3)_65%,transparent_70%)] shadow-[0_0_130px_rgba(0,205,255,.34),inset_0_0_70px_rgba(93,118,255,.28)]" />
       <div className="absolute left-[23%] top-[18%] h-[60%] w-[62%] rounded-full border border-white/10 [transform:rotate(18deg)]" />
       <div className="absolute left-[30%] top-[27%] h-[46%] w-[46%] rounded-full bg-[radial-gradient(circle_at_45%_35%,rgba(255,255,255,.9),rgba(23,136,255,.5)_22%,rgba(22,33,103,.5)_55%,transparent_70%)] opacity-70" />
       <div className="absolute bottom-[10%] left-[42%] h-[36%] w-[17%] rounded-[45%_45%_10%_10%] bg-gradient-to-b from-slate-900 via-slate-950 to-black shadow-[0_0_30px_rgba(0,0,0,.8)]">
@@ -150,12 +150,18 @@ function HeroVisual() {
 }
 
 function MarketTicker({ markets, loading }: { markets: any[]; loading: boolean }) {
-  const fallback = ["BTC/USDT","ETH/USDT","XAU/USD","EUR/USD","AAPL"];
-  return <div className="border-b border-white/10 bg-[#01060d] px-4 py-2.5"><div className="mx-auto flex max-w-[1440px] overflow-hidden">{(loading || !markets.length ? fallback.map((symbol) => ({symbol, price:0, changePct:0, assetClass:""})) : markets.slice(0,5)).map((m:any,i:number) =>
-    <div key={m.symbol+i} className="flex min-w-[190px] flex-1 items-center justify-between border-r border-white/10 px-4 text-[10px]"><div className="font-bold">{m.symbol}</div><div className="text-slate-300">{m.price ? Number(m.price).toLocaleString() : "—"}</div><div className={m.changePct >= 0 ? "font-bold text-emerald-300" : "font-bold text-rose-300"}>{m.price ? (m.changePct >= 0 ? "+" : "") + Number(m.changePct).toFixed(2) + "%" : "LIVE"}</div><span className="text-cyan-300">⌁⌁</span></div>
-  )}</div></div>;
+  return <div className="border-b border-white/10 bg-[#01060d] px-4 py-2.5">
+    <div className="mx-auto flex max-w-[1440px] overflow-hidden">
+      {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="min-w-[190px] flex-1 border-r border-white/10 px-4 py-3"><div className="h-3 animate-pulse rounded bg-white/5" /></div>)
+      : markets.length ? markets.slice(0,5).map((m:any,i:number) =>
+        <div key={m.id ?? m.symbol+i} className="flex min-w-[190px] flex-1 items-center justify-between border-r border-white/10 px-4 text-[10px]">
+          <div className="font-bold">{m.symbol}</div><div className="text-slate-300">{Number(m.price).toLocaleString()}</div>
+          <div className={m.changePct >= 0 ? "font-bold text-emerald-300" : "font-bold text-rose-300"}>{m.changePct >= 0 ? "+" : ""}{Number(m.changePct).toFixed(2)}%</div><span className="text-cyan-300">⌁</span>
+        </div>)
+      : <div className="w-full py-2 text-center text-[10px] font-semibold tracking-[.2em] text-slate-500">WAITING FOR LIVE MARKET QUOTES</div>}
+    </div>
+  </div>;
 }
-
 function Ecosystem() {
   return <section id="ecosystem" className="border-b border-white/10 bg-[#03101d] px-5 py-14 lg:px-8 lg:py-16">
     <SectionIntro eyebrow="THE ALPHENTRA ECOSYSTEM" title="Everything You Need. In One Place." text="From strategy creation to real trading and global opportunities — Alphentra brings it all together." />
