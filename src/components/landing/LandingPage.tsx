@@ -32,6 +32,21 @@ const stats = [
   ["100+", "Countries"],
 ];
 
+function LandingBrand() {
+  return <span className="flex items-center gap-2.5">
+    <span className="relative flex size-9 shrink-0 items-center justify-center">
+      <svg viewBox="0 0 48 48" className="size-9" fill="none" aria-hidden>
+        <path d="M5 39L20 7l8 16L38 7l5 32h-8l-2-15-7 15h-7L12 22l-1 17H5Z" fill="url(#alph)" />
+        <defs><linearGradient id="alph" x1="7" y1="7" x2="43" y2="40" gradientUnits="userSpaceOnUse"><stop stopColor="#39F3FF"/><stop offset=".55" stopColor="#168CFF"/><stop offset="1" stopColor="#B35CFF"/></linearGradient></defs>
+      </svg>
+    </span>
+    <span className="flex flex-col leading-none">
+      <span className="text-[16px] font-black tracking-[.12em] text-white">ALPHENTRA</span>
+      <span className="mt-1 text-[9px] font-medium tracking-[.16em] text-slate-400">TRADE BEYOND LIMITS</span>
+    </span>
+  </span>;
+}
+
 export function LandingPage() {
   const [menuOpen, setMenuOpen] = useState(false);
   const marketQuery = useQuery({
@@ -67,7 +82,7 @@ function LandingNav({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => voi
   return (
     <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#020812]/80 backdrop-blur-2xl">
       <div className="mx-auto flex h-[68px] max-w-[1440px] items-center justify-between px-5 lg:px-8">
-        <Link to="/" className="shrink-0" aria-label="Alphentra home"><Logo /></Link>
+        <Link to="/" className="shrink-0" aria-label="Alphentra home"><LandingBrand /></Link>
         <nav className="hidden items-center gap-6 text-[12px] font-semibold text-slate-200 xl:flex">
           {links.map(([label, href]) => href.startsWith("#")
             ? <a key={label} href={href} className="hover:text-cyan-300">{label}{label === "Resources" && <ChevronDown className="ml-1 inline size-3" />}</a>
@@ -94,14 +109,14 @@ function LandingNav({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => voi
 
 function Hero() {
   return (
-    <section className="relative min-h-[760px] overflow-hidden border-b border-white/10">
+    <section className="relative min-h-[720px] overflow-hidden border-b border-white/10">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_38%,rgba(0,194,255,.22),transparent_27%),radial-gradient(circle_at_88%_70%,rgba(117,54,255,.18),transparent_28%),linear-gradient(110deg,#020812_0%,#04182a_54%,#020812_100%)]" />
       <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(0,229,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(0,229,255,.12)_1px,transparent_1px)] [background-size:70px_70px]" />
       <div className="absolute right-[-12%] top-[4%] h-[680px] w-[680px] rounded-full border border-cyan-300/20 shadow-[0_0_140px_rgba(0,190,255,.18),inset_0_0_100px_rgba(39,91,255,.2)]" />
       <div className="absolute right-[2%] top-[13%] h-[520px] w-[520px] rounded-full border border-cyan-300/15" />
       <div className="absolute right-[14%] top-[23%] h-[360px] w-[360px] rounded-full bg-[radial-gradient(circle_at_35%_28%,#5eeaff,#1682ff_32%,#28106f_68%,transparent_70%)] opacity-80 blur-[1px]" />
 
-      <div className="relative mx-auto grid max-w-[1440px] items-center gap-4 px-5 pb-20 pt-28 lg:grid-cols-[.82fr_1.18fr] lg:px-10 lg:pt-32">
+      <div className="relative mx-auto grid max-w-[1440px] items-center gap-4 px-5 pb-20 pt-28 lg:grid-cols-[.78fr_1.22fr] lg:px-10 lg:pt-32">
         <div className="z-10 max-w-[650px]">
           <p className="text-[11px] font-bold uppercase tracking-[.35em] text-cyan-300">DISCIPLINE TODAY. <span className="text-cyan-200">FREEDOM TOMORROW.</span></p>
           <h1 className="mt-5 text-6xl font-black leading-[.88] tracking-[-.055em] sm:text-7xl lg:text-[82px]">TRADE<br />BEYOND <span className="bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">LIMITS</span></h1>
@@ -231,5 +246,5 @@ function LandingFooter() {
     ["Company", [["About","#footer"],["Careers","#footer"],["Contact","/help"]]],
     ["Legal", [["Risk Disclosure","/help"],["Terms of Service","/help"],["Privacy Policy","/help"]]],
   ];
-  return <footer id="footer" className="bg-[#01060c] px-5 py-10 lg:px-8"><div className="mx-auto grid max-w-[1440px] gap-8 md:grid-cols-[1.5fr_repeat(5,1fr)]"><div><Logo /><p className="mt-4 text-xs text-slate-500">Trade Beyond Limits.</p><div className="mt-6 flex gap-2"><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">X</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">◉</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">▶</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">in</span></div></div>{cols.map(([h,links])=><div key={h}><h4 className="text-xs font-black">{h}</h4><div className="mt-4 grid gap-2">{(links as string[][]).map(([label,href])=>href.startsWith("#")?<a key={label} href={href} className="text-[10px] text-slate-500 hover:text-white">{label}</a>:<Link key={label} to={href} className="text-[10px] text-slate-500 hover:text-white">{label}</Link>)}</div></div>)}</div><div className="mx-auto mt-8 flex max-w-[1440px] justify-between border-t border-white/10 pt-5 text-[10px] text-slate-600"><span>© 2026 Alphentra. All rights reserved.</span><span>Trade Smarter. Live Freer.</span></div></footer>;
+  return <footer id="footer" className="bg-[#01060c] px-5 py-10 lg:px-8"><div className="mx-auto grid max-w-[1440px] gap-8 md:grid-cols-[1.5fr_repeat(5,1fr)]"><div><LandingBrand /><p className="mt-4 text-xs text-slate-500">Trade Beyond Limits.</p><div className="mt-6 flex gap-2"><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">X</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">◉</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">▶</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">in</span></div></div>{cols.map(([h,links])=><div key={h}><h4 className="text-xs font-black">{h}</h4><div className="mt-4 grid gap-2">{(links as string[][]).map(([label,href])=>href.startsWith("#")?<a key={label} href={href} className="text-[10px] text-slate-500 hover:text-white">{label}</a>:<Link key={label} to={href} className="text-[10px] text-slate-500 hover:text-white">{label}</Link>)}</div></div>)}</div><div className="mx-auto mt-8 flex max-w-[1440px] justify-between border-t border-white/10 pt-5 text-[10px] text-slate-600"><span>© 2026 Alphentra. All rights reserved.</span><span>Trade Smarter. Live Freer.</span></div></footer>;
 }
