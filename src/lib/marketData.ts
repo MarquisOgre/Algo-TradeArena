@@ -95,6 +95,36 @@ function formatVolume(value: number | null) {
   return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
 }
 
+async function loadAllActiveMarkets(tradableOnly = false): Promise<MarketRow[]> {
+  const rows: MarketRow[] = [];
+  const pageSize = 1000;
+  let from = 0;
+
+  while (true) {
+    let query = supabase
+      .from("markets")
+      .select("id, symbol, name, asset_class, exchange")
+      .eq("status", "active")
+      .order("symbol")
+      .range(from, from + pageSize - 1);
+
+    if (tradableOnly) {
+      query = query.eq("is_tradable", true);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    const page = (data ?? []) as MarketRow[];
+    rows.push(...page);
+
+    if (page.length < pageSize) break;
+    from += pageSize;
+  }
+
+  return rows;
+}
+
 async function loadAllMt5Quotes(): Promise<QuoteRow[]> {
   const rows: QuoteRow[] = [];
   const pageSize = 1000;
@@ -123,19 +153,13 @@ async function loadAllMt5Quotes(): Promise<QuoteRow[]> {
 }
 
 export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuote>> {
-  const [{ data: markets, error: marketError }, quotes] = await Promise.all([
-    supabase
-      .from("markets")
-      .select("id, symbol, name, asset_class, exchange")
-      .eq("status", "active")
-      .order("symbol"),
+  const [markets, quotes] = await Promise.all([
+    loadAllActiveMarkets(),
     loadAllMt5Quotes(),
   ]);
 
-  if (marketError) throw marketError;
-
   const marketById = new Map(
-    ((markets ?? []) as MarketRow[]).map((market) => [market.id, market]),
+    markets.map((market) => [market.id, market]),
   );
   const latestByMarket = new Map<string, LiveMarketQuote>();
 
@@ -232,14 +256,7 @@ export async function loadMarketBoard(): Promise<Market[]> {
     loadLiveMarketQuotes(),
     loadMarketStatuses(),
   ]);
-  const { data: marketRows, error } = await supabase
-    .from("markets")
-    .select("id, symbol, name, asset_class, exchange")
-    .eq("status", "active")
-    .eq("is_tradable", true)
-    .order("symbol");
-
-  if (error) throw error;
+  const marketRows = await loadAllActiveMarkets(true);
 
   const mockBySymbol = new Map(mockMarkets.map((market) => [market.symbol.toUpperCase(), market]));
   const bySymbol = new Map(
