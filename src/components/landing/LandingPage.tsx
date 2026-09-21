@@ -184,7 +184,7 @@ export function LandingPage() {
             {["Quantum Trend", "Alpha Scalper", "Macro Master", "Gold Runner"].map((name, i) => <div className="trader" key={name}><span>{i + 1}</span><div className="avatar">{name[0]}</div><b>{name}</b><em>+{[42.8, 28.1, 35.4, 24.6][i]}%</em><Sparkline n={i} /><a href="/app">Follow</a></div>)}
           </article>
           <article id="community" className="community"><h3>Global Community</h3><p>Join 10K+ traders worldwide.</p><div className="people"><span>A</span><span>M</span><span>R</span><b>10K+</b></div><h4>Traders. Creators. Innovators.<br />A stronger tomorrow.</h4><a className="primary-action" href="/app">Join the Community <ArrowRight size={17} /></a></article>
-          <article id="wallet" className="devices"><div className="trade-anywhere-art"><img src={TRADE_ANYWHERE_ASSET} alt="Trade Anywhere across web, iOS, Android, wallet and MT5" /></div></article>
+          <article id="wallet" className="devices"><h3>Trade Anywhere</h3><p>Seamless access on all your devices.</p><div className="device-art"><img src={TRADE_ANYWHERE_ASSET} alt="Trading across web, iOS and Android devices" /></div><ul>{["Web Platform", "iOS App", "Android App", "Connect Wallet", "Connect MT5"].map(x => <li key={x}><Check size={14} />{x}</li>)}</ul><a className="outline-action" href="/app">Start Trading Anywhere <ArrowRight size={16} /></a></article>
         </section>
 
         <section id="start" className="closing">
