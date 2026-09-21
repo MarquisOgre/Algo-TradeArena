@@ -184,6 +184,12 @@
 
 
 
+/* Keep the trading application on the same near-black foundation as the landing page. */
+.app-shell {
+  background: oklch(0.105 0.036 239);
+}
+
+
 /* Alphentra landing visual system — scoped to the homepage only. */
 .alphentra-landing {
   --background: oklch(0.105 0.036 239);
