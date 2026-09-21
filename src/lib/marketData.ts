@@ -210,9 +210,10 @@ export async function loadMarketStatuses(): Promise<Map<string, MarketStatus>> {
 }
 
 export async function loadMarketBoard(): Promise<Market[]> {
-  const [liveQuotes, statuses] = await Promise.all([
+  const [liveQuotes, statuses, brokerMappings] = await Promise.all([
     loadLiveMarketQuotes(),
     loadMarketStatuses(),
+    loadBrokerMarketMappings(),
   ]);
   const { data: marketRows, error } = await supabase
     .from("markets")
