@@ -185,8 +185,8 @@
 
 
 
-/* Lovable landing visual system — scoped to the homepage only. */
-.lovable-landing {
+/* Alphentra landing visual system — scoped to the homepage only. */
+.alphentra-landing {
   --background: oklch(0.105 0.036 239);
   --foreground: oklch(0.96 0.014 216);
   --card: oklch(0.145 0.044 235);
@@ -211,7 +211,7 @@
   --font-display: "Orbitron", sans-serif;
 }
 
-@scope (.lovable-landing) {
+@scope (.alphentra-landing) {
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
 body { margin: 0; background: var(--background); color: var(--foreground); font-family: var(--font-sans); font-size: 16px; }
