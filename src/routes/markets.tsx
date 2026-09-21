@@ -82,6 +82,14 @@ function MarketsPage() {
             >
               {m.providerStatus === "live" ? "Live" : m.providerStatus === "no_quote" ? "No quote" : "Unavailable"}
             </span>
+            {m.providerStatus === "live" && (
+              <span className={cn(
+                "text-[9px] font-bold uppercase tracking-wide",
+                m.isMarketOpen ? "text-success" : "text-muted-foreground",
+              )}>
+                {m.isMarketOpen ? "Open" : "Closed"}
+              </span>
+            )}
           </div>
           <p className="text-xs text-muted-foreground">{m.name}</p>
         </div>
@@ -96,10 +104,29 @@ function MarketsPage() {
           {m.providerStatus === "live"
             ? m.price.toLocaleString("en-US", { minimumFractionDigits: m.assetClass === "FX" ? 4 : 2 })
             : "—"}
+          {m.providerStatus === "live" && m.bid != null && m.ask != null && (
+            <span className="mt-1 block text-[10px] font-normal text-muted-foreground">
+              B {m.bid.toLocaleString("en-US", { maximumFractionDigits: 8 })} · A {m.ask.toLocaleString("en-US", { maximumFractionDigits: 8 })}
+            </span>
+          )}
         </span>
       ),
     },
-    { key: "chg", header: "Change", align: "right", cell: (m) => <Delta value={m.changePct} showIcon={false} /> },
+    {
+      key: "chg",
+      header: "Change",
+      align: "right",
+      cell: (m) => (
+        <div className="inline-flex flex-col items-end">
+          <Delta value={m.changePct} showIcon={false} />
+          {m.spread != null && (
+            <span className="mt-1 text-[10px] text-muted-foreground">
+              Spread {m.spread.toLocaleString("en-US", { maximumFractionDigits: 8 })}
+            </span>
+          )}
+        </div>
+      ),
+    },
     {
       key: "spark",
       header: "30 sessions",
@@ -140,7 +167,7 @@ function MarketsPage() {
       <PageHeader
         eyebrow="Market board"
         title="Markets"
-        description="Provider-backed market data with explicit live, no-quote and unavailable states."
+        description="Live market data powered by MetaTrader 5 with bid, ask, spread, change and quote activity."
       />
 
       <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
