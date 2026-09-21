@@ -1,138 +1,50 @@
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { import { Link } from "@tanstack/react-router";
 import {
-  ArrowRight, BarChart3, BrainCircuit, Check, ChevronDown, Globe2,
-  Menu, Play, Trophy, Users, X, Coins, Search
+  ArrowRight,
+  BarChart3,
+  Bot,
+  Check,
+  Coins,
+  Globe2,
+  Play,
+  Search,
+  Trophy,
+  Users,
+  Wallet,
+  Zap,
 } from "lucide-react";
-import { useState } from "react";
 import { loadMarketBoard } from "@/lib/marketData";
 
-const pillars = [
-  ["Build", "with AI", BrainCircuit],
-  ["Trade", "Global Markets", BarChart3],
-  ["Copy", "Top Traders", Users],
-  ["Compete", "in Arena", Trophy],
-  ["Earn", "with ALPH", Coins],
-] as const;
+export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { title: "Alphentra — Trade Beyond Limits" },
+      {
+        name: "description",
+        content: "A global trading ecosystem for traders, creators, and investors.",
+      },
+      { property: "og:title", content: "Alphentra — Trade Beyond Limits" },
+      {
+        property: "og:description",
+        content: "Build strategies, copy top traders, compete, and trade global markets.",
+      },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
+  component: Index,
+});
 
 const ecosystem = [
-  ["AI Strategy Lab", "Turn ideas into powerful strategies with AI.", BrainCircuit, "/lab", "cyan"],
-  ["Strategy Marketplace", "Discover & subscribe to top strategies.", BarChart3, "/strategies", "blue"],
-  ["Copy Trading", "Follow top traders with flexible controls.", Users, "/copy", "violet"],
-  ["Arena", "Compete, climb leaderboards and win rewards.", Trophy, "/battle", "gold"],
-  ["Global Markets", "Trade Forex, Crypto, Metals, Equities, ETFs and more.", Globe2, "/markets", "cyan"],
-  ["ALPH Economy", "Real utility. Real value. A growing ecosystem.", Coins, "/wallet", "green"],
-] as const;
-
-const stats = [
-  ["10K+", "Active Traders"],
-  ["1,200+", "Trading Strategies"],
-  ["$50M+", "Simulated Volume"],
-  ["100+", "Countries"],
+  { icon: Bot, title: "AI Strategy Lab", copy: "Turn ideas into powerful strategies with AI.", tone: "cyan" },
+  { icon: BarChart3, title: "Strategy Marketplace", copy: "Discover & subscribe to top strategies.", tone: "blue" },
+  { icon: Users, title: "Copy Trading", copy: "Follow top traders with flexible controls.", tone: "violet" },
+  { icon: Trophy, title: "Arena", copy: "Compete, climb leaderboards and win rewards.", tone: "gold" },
+  { icon: Globe2, title: "Global Markets", copy: "Trade Forex, Crypto, Metals, Equities and more.", tone: "cyan" },
+  { icon: Coins, title: "ALPH Economy", copy: "Real utility. Real value. A growing ecosystem.", tone: "gold" },
 ];
 
-function LandingBrand() {
-  return <span className="flex items-center gap-2.5">
-    <span className="relative flex size-10 shrink-0 items-center justify-center">
-      <svg viewBox="0 0 48 48" className="size-10" fill="none" aria-hidden>
-        <path d="M5 39L18 8h8l-4 10h8l-4-10h8l13 31h-9l-3.8-9H18.8L15 39H5Zm16.5-16h5L24 16l-2.5 7Z" fill="url(#alphMark)" />
-        <defs><linearGradient id="alphMark" x1="7" y1="8" x2="43" y2="40" gradientUnits="userSpaceOnUse"><stop stopColor="#43F4FF"/><stop offset=".55" stopColor="#168DFF"/><stop offset="1" stopColor="#B35CFF"/></linearGradient></defs>
-      </svg>
-    </span>
-    <span className="flex flex-col leading-none">
-      <span className="text-[16px] font-black tracking-[.12em] text-white">ALPHENTRA</span>
-      <span className="mt-1 text-[9px] font-medium tracking-[.16em] text-slate-400">TRADE BEYOND LIMITS</span>
-    </span>
-  </span>;
-}
-
-export function LandingPage() {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const marketQuery = useQuery({
-    queryKey: ["landing-market-board"],
-    queryFn: loadMarketBoard,
-    staleTime: 30_000,
-    retry: 1,
-  });
-  const markets = (marketQuery.data ?? []).filter((m) => m.providerStatus === "live" && Number(m.price) > 0).slice(0, 6);
-
-  return (
-    <div className="min-h-screen overflow-x-hidden bg-[#020812] text-white">
-      <LandingNav menuOpen={menuOpen} onMenu={() => setMenuOpen((v) => !v)} />
-      <main>
-        <Hero />
-        <MarketTicker markets={markets} loading={marketQuery.isLoading} />
-        <Ecosystem />
-        <AIAndMarkets markets={markets} loading={marketQuery.isLoading} />
-        <SocialProof />
-        <ConnectedEcosystem />
-        <GlobalCTA />
-      </main>
-      <LandingFooter />
-    </div>
-  );
-}
-
-function LandingNav({ menuOpen, onMenu }: { menuOpen: boolean; onMenu: () => void }) {
-  const links = [
-    ["Product", "#ecosystem"], ["Strategies", "/strategies"], ["Copy Trading", "/copy"],
-    ["Arena", "/battle"], ["Markets", "/markets"], ["ALPH", "/wallet"], ["Pricing", "#footer"], ["Resources", "#footer"],
-  ];
-  return (
-    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/10 bg-[#020812]/80 backdrop-blur-2xl">
-      <div className="mx-auto flex h-[68px] max-w-[1440px] items-center justify-between px-5 lg:px-8">
-        <Link to="/" className="shrink-0" aria-label="Alphentra home"><LandingBrand /></Link>
-        <nav className="hidden items-center gap-6 text-[12px] font-semibold text-slate-200 xl:flex">
-          {links.map(([label, href]) => href.startsWith("#")
-            ? <a key={label} href={href} className="hover:text-cyan-300">{label}{label === "Resources" && <ChevronDown className="ml-1 inline size-3" />}</a>
-            : <Link key={label} to={href} className="hover:text-cyan-300">{label}</Link>)}
-          <button className="ml-1 rounded-full border border-white/20 p-2 hover:border-cyan-300/60" aria-label="Search"><Search className="size-4" /></button>
-        </nav>
-        <div className="hidden items-center gap-2 lg:flex">
-          <Link to="/login" className="rounded-full border border-white/25 px-4 py-2 text-[11px] font-bold hover:border-cyan-300/60">Connect Wallet</Link>
-          <Link to="/login" className="rounded-full border border-white/25 px-4 py-2 text-[11px] font-bold hover:border-cyan-300/60">Connect MT5</Link>
-          <Link to="/login" className="rounded-full bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-300 px-5 py-2 text-[11px] font-black text-slate-950 shadow-[0_0_30px_rgba(0,229,255,.22)]">Get Started <ArrowRight className="ml-1 inline size-3.5" /></Link>
-        </div>
-        <button onClick={onMenu} className="rounded-xl border border-white/10 p-2 lg:hidden" aria-label="Toggle navigation">
-          {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-        </button>
-      </div>
-      {menuOpen && <div className="border-t border-white/10 bg-[#020812] p-5 lg:hidden">
-        <div className="grid gap-1 text-sm">{links.slice(0, 6).map(([label, href]) =>
-          href.startsWith("#") ? <a key={label} href={href} onClick={onMenu} className="rounded-lg px-3 py-3">{label}</a>
-          : <Link key={label} to={href} onClick={onMenu} className="rounded-lg px-3 py-3">{label}</Link>)}</div>
-      </div>}
-    </header>
-  );
-}
-
-function Hero() {
-  return (
-    <section className="relative min-h-[720px] overflow-hidden border-b border-white/10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_38%,rgba(0,194,255,.22),transparent_27%),radial-gradient(circle_at_88%_70%,rgba(117,54,255,.18),transparent_28%),linear-gradient(110deg,#020812_0%,#04182a_54%,#020812_100%)]" />
-      <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(0,229,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(0,229,255,.12)_1px,transparent_1px)] [background-size:70px_70px]" />
-      <div className="absolute right-[-12%] top-[4%] h-[680px] w-[680px] rounded-full border border-cyan-300/20 shadow-[0_0_140px_rgba(0,190,255,.18),inset_0_0_100px_rgba(39,91,255,.2)]" />
-      <div className="absolute right-[2%] top-[13%] h-[520px] w-[520px] rounded-full border border-cyan-300/15" />
-      <div className="absolute right-[14%] top-[23%] h-[360px] w-[360px] rounded-full bg-[radial-gradient(circle_at_35%_28%,#5eeaff,#1682ff_32%,#28106f_68%,transparent_70%)] opacity-80 blur-[1px]" />
-
-      <div className="relative mx-auto grid max-w-[1440px] items-center gap-4 px-5 pb-20 pt-28 lg:grid-cols-[.78fr_1.22fr] lg:px-10 lg:pt-32">
-        <div className="z-10 max-w-[650px]">
-          <p className="text-[11px] font-bold uppercase tracking-[.35em] text-cyan-300">DISCIPLINE TODAY. <span className="text-cyan-200">FREEDOM TOMORROW.</span></p>
-          <h1 className="mt-5 text-6xl font-black leading-[.88] tracking-[-.055em] sm:text-7xl lg:text-[82px]">TRADE<br />BEYOND <span className="bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">LIMITS</span></h1>
-          <p className="mt-7 max-w-xl text-[15px] leading-6 text-slate-300">A global trading ecosystem for traders, creators and investors.<br />Build strategies. Copy top traders. Compete. Earn.<br />Be part of a brighter financial future.</p>
-          <div className="mt-7 flex flex-wrap gap-3">
-            <Link to="/login" className="rounded-full bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-300 px-7 py-3.5 text-xs font-black text-slate-950 shadow-[0_0_40px_rgba(0,229,255,.25)]">Get Started <ArrowRight className="ml-1 inline size-4" /></Link>
-            <Link to="/app" className="rounded-full border border-cyan-300/70 px-6 py-3.5 text-xs font-bold"><Play className="mr-2 inline size-4 fill-current" />Watch Demo</Link>
-          </div>
-          <div className="mt-10 grid grid-cols-2 gap-y-5 sm:grid-cols-4">
-            {stats.map(([value, label]) => <div key={label} className="border-l border-white/15 pl-4 first:border-l-0 first:pl-0"><div className="text-2xl font-black">{value}</div><div className="mt-1 text-[10px] text-slate-400">{label}</div></div>)}
-          </div>
-        </div>
-        <HeroVisual />
-      </div>
-    </section>
-  );
-}
 
 function HeroVisual() { return (<div className="relative mx-auto aspect-[1.08/1] w-full max-w-[800px]">
   <div className="absolute inset-[2%] rounded-full bg-[radial-gradient(circle_at_52%_45%,rgba(57,225,255,.3),transparent_30%),radial-gradient(circle_at_72%_30%,rgba(44,102,255,.28),transparent_35%)] blur-2xl" />
@@ -183,88 +95,157 @@ function HeroVisual() { return (<div className="relative mx-auto aspect-[1.08/1]
   <div className="absolute right-[-1%] top-[5%] z-20 hidden max-w-[145px] -rotate-6 font-serif text-lg italic leading-6 text-cyan-300 sm:block">Traders<br/>Creators<br/>Innovators<br/><span className="text-white">A Stronger<br/>Tomorrow</span></div>
   <div className="absolute right-[0%] bottom-[9%] z-20 hidden max-w-[120px] rotate-6 font-serif text-lg italic leading-6 text-white sm:block">One<br/><span className="text-cyan-300">Global<br/>Community</span></div>
 </div>); }
-function MarketTicker({ markets, loading }: { markets: any[]; loading: boolean }) {
-  return <div className="border-b border-white/10 bg-[#01060d] px-4 py-2.5">
-    <div className="mx-auto flex max-w-[1440px] items-center gap-2 px-4 pb-1 text-[8px] font-black tracking-[.28em] text-emerald-300"><span className="size-1.5 rounded-full bg-emerald-300 shadow-[0_0_8px_rgba(110,231,183,.9)]" />LIVE MARKET FEED</div>
-    <div className="mx-auto flex max-w-[1440px] overflow-hidden">
-      {loading ? Array.from({ length: 5 }).map((_, i) => <div key={i} className="min-w-[190px] flex-1 border-r border-white/10 px-4 py-3"><div className="h-3 animate-pulse rounded bg-white/5" /></div>)
-      : markets.length ? markets.slice(0,5).map((m:any,i:number) =>
-        <div key={m.id ?? m.symbol+i} className="flex min-w-[190px] flex-1 items-center justify-between border-r border-white/10 px-4 text-[10px]">
-          <div className="font-bold">{m.symbol}</div><div className="text-slate-300">{Number(m.price).toLocaleString()}</div>
-          <div className={m.changePct >= 0 ? "font-bold text-emerald-300" : "font-bold text-rose-300"}>{m.changePct >= 0 ? "+" : ""}{Number(m.changePct).toFixed(2)}%</div><span className="text-cyan-300">⌁</span>
-        </div>)
-      : <div className="w-full py-2 text-center text-[10px] font-semibold tracking-[.2em] text-slate-500">WAITING FOR LIVE MARKET QUOTES</div>}
-    </div>
-  </div>;
-}
-function Ecosystem() {
-  return <section id="ecosystem" className="border-b border-white/10 bg-[#03101d] px-5 py-14 lg:px-8 lg:py-16">
-    <SectionIntro eyebrow="THE ALPHENTRA ECOSYSTEM" title="Everything You Need. In One Place." text="From strategy creation to real trading and global opportunities — Alphentra brings it all together." />
-    <div className="mx-auto mt-9 grid max-w-[1440px] grid-cols-2 gap-2.5 md:grid-cols-3 lg:grid-cols-6">
-      {ecosystem.map(([title, description, Icon, href, tone]) => <Link key={title} to={href} className={`group rounded-2xl border p-5 text-center transition hover:-translate-y-1 ${tone === "gold" ? "border-amber-300/25 bg-amber-300/[.04] hover:border-amber-300/60" : tone === "violet" ? "border-violet-300/25 bg-violet-300/[.05] hover:border-violet-300/60" : "border-cyan-300/20 bg-cyan-300/[.025] hover:border-cyan-300/50"}`}>
-        <Icon className={`mx-auto size-9 ${tone === "gold" ? "text-amber-300" : tone === "violet" ? "text-violet-300" : tone === "green" ? "text-emerald-300" : "text-cyan-300"}`} />
-        <h3 className="mt-4 text-sm font-black">{title}</h3><p className="mt-2 min-h-10 text-[11px] leading-4 text-slate-400">{description}</p>
-        <span className="mx-auto mt-4 flex size-7 items-center justify-center rounded-full border border-current text-cyan-300"><ArrowRight className="size-3.5" /></span>
-      </Link>)}
-    </div>
-  </section>;
+
+function Brand() {
+  return (
+    <a href="#top" className="brand" aria-label="Alphentra home">
+      <span className="brand-mark">A</span>
+      <span><strong>ALPHENTRA</strong><small>Trade Beyond Limits</small></span>
+    </a>
+  );
 }
 
-function AIAndMarkets({ markets, loading }: { markets: any[]; loading: boolean }) {
-  return <section className="border-b border-white/10 bg-[#020812] px-5 py-4 lg:px-8 lg:py-5">
-    <div className="mx-auto grid max-w-[1440px] gap-3 lg:grid-cols-[1.05fr_.95fr]">
-      <AIShowcase />
-      <LiveMarkets markets={markets} loading={loading} />
-    </div>
-  </section>;
-}
-
-function AIShowcase() {
-  return <div className="relative min-h-[430px] overflow-hidden rounded-2xl border border-cyan-300/20 bg-[radial-gradient(circle_at_70%_50%,rgba(0,229,255,.2),transparent_30%),linear-gradient(135deg,#061936,#03101d)] p-7">
-    <p className="text-[10px] font-bold tracking-[.3em] text-cyan-300">AI POWERED TRADING</p><h2 className="mt-3 text-3xl font-black leading-tight sm:text-4xl">Smarter Strategies.<br />Real Results.</h2>
-    <ul className="mt-6 space-y-2 text-xs text-slate-200">{["Strategy Builder","Backtesting","Risk Analysis","Optimisation","Publish to Marketplace"].map(x => <li key={x}><Check className="mr-2 inline size-4 rounded-full bg-cyan-300 text-slate-950" />{x}</li>)}</ul>
-    <Link to="/lab" className="mt-7 inline-flex rounded-full bg-gradient-to-r from-cyan-300 to-violet-400 px-5 py-2.5 text-xs font-black text-slate-950">Try AI Strategy Lab <ArrowRight className="ml-1 inline size-4" /></Link>
-    <div className="absolute right-[5%] top-[11%] size-72 rounded-full border border-cyan-200/25 shadow-[0_0_80px_rgba(0,229,255,.18)]"><div className="absolute inset-12 rounded-full bg-cyan-300/10 blur-xl" /><div className="absolute inset-0 flex items-center justify-center text-8xl font-black text-cyan-200/70">A</div></div>
-    <div className="absolute bottom-8 right-[8%] font-serif text-xl italic text-white/70">Ideas<br />Data<br />Discipline<br /><span className="text-cyan-300">Results</span></div>
-  </div>;
-}
-
-function LiveMarkets({ markets, loading }: { markets: any[]; loading: boolean }) {
-  const rows = (loading ? [] : markets).slice(0,5);
-  return <div className="rounded-2xl border border-white/10 bg-[#06111d] p-5"><div className="flex items-center justify-between"><h3 className="text-lg font-black">Live Market Overview</h3><div className="flex gap-3 text-[10px] text-slate-400"><span className="text-cyan-300">Crypto</span><span>Forex</span><span>Metals</span><span>Equities</span><span>ETFs</span></div></div>
-    <div className="mt-4 space-y-2">{rows.length ? rows.map((m:any) => <div key={m.id} className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-3 rounded-xl border border-white/5 bg-black/20 px-3 py-2.5"><div><div className="text-xs font-bold">{m.symbol}</div><div className="text-[9px] text-slate-500">{m.assetClass}</div></div><div className="text-xs">{Number(m.price).toLocaleString()}</div><div className={m.changePct >= 0 ? "text-[10px] font-bold text-emerald-300" : "text-[10px] font-bold text-rose-300"}>{m.changePct >= 0 ? "+" : ""}{Number(m.changePct).toFixed(2)}%</div><Link to="/trade" className="rounded-lg border border-cyan-300/30 px-3 py-1 text-[10px] font-bold text-cyan-200">Trade</Link></div>) : [1,2,3,4,5].map(i => <div key={i} className="h-12 animate-pulse rounded-xl bg-white/5" />)}</div>
-    <Link to="/markets" className="mt-4 inline-flex rounded-full border border-cyan-300/40 px-4 py-2 text-[10px] font-bold text-cyan-200">View All Markets <ArrowRight className="ml-1 size-3.5" /></Link>
-    <div className="float-right mt-5 text-[9px] font-bold tracking-[.35em] text-cyan-300">TRADE THE WORLD. YOUR WAY.</div>
-  </div>;
-}
-
-function SocialProof() {
-  return <section className="border-b border-white/10 bg-[#020812] px-5 py-4 lg:px-8"><div className="mx-auto grid max-w-[1440px] gap-3 lg:grid-cols-3">
-    <Card title="Top Performing Traders"><div className="space-y-2">{[["Quantum Trend","+42.8%"],["Alpha Scalper","+28.1%"],["Macro Master","+35.4%"],["Gold Runner","+24.6%"]].map(([n,r],i)=><div key={n} className="flex items-center gap-2 rounded-lg border border-white/5 bg-black/20 p-2 text-[10px]"><b className="flex size-5 items-center justify-center rounded bg-white/10">{i+1}</b><span className="flex-1 font-bold">{n}</span><span className="text-emerald-300">{r}</span><button className="rounded-full border border-cyan-300/30 px-2 py-1 text-[9px] text-cyan-200">Follow</button></div>)}</div></Card>
-    <Card title="Global Community"><div className="relative h-full min-h-[180px] overflow-hidden"><Globe2 className="absolute right-3 top-3 size-28 text-cyan-300/20" /><p className="relative mt-8 text-sm font-semibold">Traders. Creators. Innovators.<br />A stronger tomorrow.</p><div className="mt-6 text-2xl font-black">10K+</div><Link to="/discover" className="mt-4 inline-flex rounded-full bg-gradient-to-r from-violet-400 to-cyan-300 px-4 py-2 text-[10px] font-black text-slate-950">Join the Community <ArrowRight className="ml-1 size-3.5" /></Link></div></Card>
-    <Card title="Trade Anywhere"><div className="relative min-h-[180px]"><div className="absolute right-0 top-2 flex items-end gap-1"><div className="h-24 w-36 rounded-lg border border-cyan-300/30 bg-[#07192a] p-2 shadow-[0_0_30px_rgba(0,229,255,.15)]"><div className="h-full rounded bg-[linear-gradient(160deg,transparent_45%,rgba(0,229,255,.55)_46%,transparent_48%)]" /></div><div className="h-16 w-9 rounded-md border border-cyan-300/30 bg-[#07192a]" /></div><div className="absolute left-0 bottom-3 space-y-1 text-[10px] text-slate-300">{["Web Platform","iOS App","Android App","Connect Wallet","Connect MT5"].map(x=><div key={x}><span className="mr-2 text-cyan-300">✓</span>{x}</div>)}</div></div></Card>
-  </div></section>;
-}
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) { return <div className="rounded-2xl border border-white/10 bg-white/[.025] p-4"><h3 className="text-sm font-black">{title}<span className="float-right text-[10px] font-normal text-cyan-300">View All →</span></h3>{children}</div>; }
-
-function ConnectedEcosystem() {
-  return <section className="border-b border-white/10 bg-[#03101d] px-5 py-14 lg:px-8"><SectionIntro eyebrow="ONE CONNECTED ECOSYSTEM" title="Build. Test. Trade. Copy. Compete. Earn." text="Six connected experiences — one global trading ecosystem." /><div className="mx-auto mt-9 grid max-w-[1440px] gap-3 md:grid-cols-2 xl:grid-cols-3">{ecosystem.map(([title,description,Icon,href])=><Link key={title} to={href} className="rounded-2xl border border-white/10 bg-white/[.025] p-5 transition hover:border-cyan-300/40"><Icon className="size-7 text-cyan-300" /><h3 className="mt-4 font-black">{title}</h3><p className="mt-2 text-xs leading-5 text-slate-400">{description}</p><span className="mt-4 inline-flex size-7 items-center justify-center rounded-full border border-cyan-300/40 text-cyan-300"><ArrowRight className="size-3" /></span></Link>)}</div></section>;
-}
-
-function GlobalCTA() {
-  return <section className="relative overflow-hidden border-b border-white/10 px-5 py-14 lg:px-8"><div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_110%,rgba(255,174,93,.35),transparent_35%),linear-gradient(180deg,#020812,#07172b)]" /><div className="absolute inset-x-0 bottom-0 h-44 bg-[linear-gradient(165deg,transparent_35%,#10294a_36%_45%,transparent_46%),linear-gradient(195deg,transparent_30%,#0b223e_31%_44%,transparent_45%)] opacity-80" /><div className="relative mx-auto max-w-[1440px]"><p className="text-[10px] font-bold tracking-[.35em] text-cyan-300">BE PART OF SOMETHING BIGGER</p><h2 className="mt-3 text-3xl font-black sm:text-5xl">Traders. Creators. Innovators.</h2><p className="mt-2 text-sm text-slate-300">A global movement for a brighter financial future.</p><Link to="/login" className="mt-6 inline-flex rounded-full bg-gradient-to-r from-fuchsia-400 to-cyan-300 px-6 py-3 text-xs font-black text-slate-950">Get Started <ArrowRight className="ml-1 size-4" /></Link><div className="absolute right-[7%] top-[-8%] hidden text-right font-serif text-lg italic text-white/80 md:block">Discipline today<br /><span className="text-cyan-300">creates freedom tomorrow.</span></div></div></section>;
-}
-
-function SectionIntro({ eyebrow, title, text }: { eyebrow: string; title: string; text: string }) { return <div className="mx-auto max-w-3xl text-center"><p className="text-[10px] font-bold tracking-[.35em] text-cyan-300">{eyebrow}</p><h2 className="mt-3 text-3xl font-black tracking-tight sm:text-5xl">{title}</h2><p className="mt-3 text-sm leading-6 text-slate-400">{text}</p></div>; }
-
-function LandingFooter() {
-  const cols = [
-    ["Product", [["Features","/"],["Strategies","/strategies"],["Pricing","#footer"],["Roadmap","#footer"]]],
-    ["Markets", [["Forex","/markets"],["Crypto","/markets"],["Metals","/markets"],["Equities","/markets"],["ETFs","/markets"]]],
-    ["Resources", [["Documentation","/help"],["Help Center","/help"],["Blog","#footer"],["API","#footer"]]],
-    ["Company", [["About","#footer"],["Careers","#footer"],["Contact","/help"]]],
-    ["Legal", [["Risk Disclosure","/help"],["Terms of Service","/help"],["Privacy Policy","/help"]]],
+function Sparkline({ n = 0 }: { n?: number }) {
+  const points = [
+    "0,18 8,13 15,15 22,7 29,11 37,4 44,8 52,2 60,5",
+    "0,17 8,15 15,8 23,12 30,6 38,9 45,3 53,5 60,1",
+    "0,15 8,8 15,11 22,5 29,13 37,7 45,9 52,3 60,6",
   ];
-  return <footer id="footer" className="bg-[#01060c] px-5 py-10 lg:px-8"><div className="mx-auto grid max-w-[1440px] gap-8 md:grid-cols-[1.5fr_repeat(5,1fr)]"><div><LandingBrand /><p className="mt-4 text-xs text-slate-500">Trade Beyond Limits.</p><div className="mt-6 flex gap-2"><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">X</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">◉</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">▶</span><span className="flex size-8 items-center justify-center rounded border border-white/15 text-xs">in</span></div></div>{cols.map(([h,links])=><div key={h}><h4 className="text-xs font-black">{h}</h4><div className="mt-4 grid gap-2">{(links as string[][]).map(([label,href])=>href.startsWith("#")?<a key={label} href={href} className="text-[10px] text-slate-500 hover:text-white">{label}</a>:<Link key={label} to={href} className="text-[10px] text-slate-500 hover:text-white">{label}</Link>)}</div></div>)}</div><div className="mx-auto mt-8 flex max-w-[1440px] justify-between border-t border-white/10 pt-5 text-[10px] text-slate-600"><span>© 2026 Alphentra. All rights reserved.</span><span>Trade Smarter. Live Freer.</span></div></footer>;
+  return <svg className="spark" viewBox="0 0 60 20" aria-hidden="true"><polyline points={points[n % points.length]} /></svg>;
+}
+
+function Index() {
+  const marketQuery = useQuery({
+    queryKey: ["landing-market-board"],
+    queryFn: loadMarketBoard,
+    staleTime: 30_000,
+    retry: 1,
+  });
+  const markets = (marketQuery.data ?? [])
+    .filter((m) => m.providerStatus === "live" && Number(m.price) > 0)
+    .slice(0, 6);
+
+  return (
+    <main id="top" className="site-shell">
+      <header className="topbar">
+        <Brand />
+        <nav aria-label="Main navigation">
+          <a href="#products">Product</a><a href="#strategies">Strategies</a><a href="#copy">Copy Trading</a>
+          <a href="#arena">Arena</a><a href="#markets">Markets</a><a href="#community">Community</a>
+        </nav>
+        <div className="nav-actions">
+          <a className="icon-link" href="#markets" aria-label="Search"><Search size={18} /></a>
+          <a className="outline-action" href="#wallet"><Wallet size={16} /> Connect Wallet</a>
+          <a className="primary-action compact" href="/login">Get Started <ArrowRight size={17} /></a>
+        </div>
+      </header>
+
+      <section className="relative min-h-[720px] overflow-hidden border-b border-white/10">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_38%,rgba(0,194,255,.22),transparent_27%),radial-gradient(circle_at_88%_70%,rgba(117,54,255,.18),transparent_28%),linear-gradient(110deg,#020812_0%,#04182a_54%,#020812_100%)]" />
+        <div className="absolute inset-0 opacity-25 [background-image:linear-gradient(rgba(0,229,255,.12)_1px,transparent_1px),linear-gradient(90deg,rgba(0,229,255,.12)_1px,transparent_1px)] [background-size:70px_70px]" />
+        <div className="relative mx-auto grid max-w-[1440px] items-center gap-4 px-5 pb-20 pt-28 lg:grid-cols-[.78fr_1.22fr] lg:px-10 lg:pt-32">
+          <div className="z-10 max-w-[650px]">
+            <p className="text-[11px] font-bold uppercase tracking-[.35em] text-cyan-300">DISCIPLINE TODAY. <span className="text-cyan-200">FREEDOM TOMORROW.</span></p>
+            <h1 className="mt-5 text-6xl font-black leading-[.88] tracking-[-.055em] sm:text-7xl lg:text-[82px]">TRADE<br />BEYOND <span className="bg-gradient-to-r from-white via-cyan-200 to-cyan-400 bg-clip-text text-transparent">LIMITS</span></h1>
+            <p className="mt-7 max-w-xl text-[15px] leading-6 text-slate-300">A global trading ecosystem for traders, creators and investors.<br />Build strategies. Copy top traders. Compete. Earn.<br />Be part of a brighter financial future.</p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link to="/login" className="rounded-full bg-gradient-to-r from-fuchsia-400 via-violet-400 to-cyan-300 px-7 py-3.5 text-xs font-black text-slate-950">Get Started <ArrowRight className="ml-1 inline size-4" /></Link>
+              <Link to="/app" className="rounded-full border border-cyan-300/70 px-6 py-3.5 text-xs font-bold"><Play className="mr-2 inline size-4 fill-current" />Watch Demo</Link>
+            </div>
+            <div className="mt-10 grid grid-cols-2 gap-y-5 sm:grid-cols-4">
+              {stats.map(([value, label]) => <div key={label} className="border-l border-white/15 pl-4 first:border-l-0 first:pl-0"><div className="text-2xl font-black">{value}</div><div className="mt-1 text-[10px] text-slate-400">{label}</div></div>)}
+            </div>
+          </div>
+          <HeroVisual />
+        </div>
+      </section>
+
+      <div className="ticker" aria-label="Live market ticker">
+        {marketQuery.isLoading ? (
+          <div className="w-full px-5 text-center text-[10px] font-semibold tracking-[.2em] text-slate-500">LOADING LIVE MARKET QUOTES</div>
+        ) : markets.length ? (
+          markets.slice(0, 5).map((m: any) => (
+            <div key={m.id ?? m.symbol} className="min-w-[240px]">
+              <b>{m.symbol}</b><span>{Number(m.price).toLocaleString()}</span>
+              <em className={Number(m.changePct) >= 0 ? "text-emerald-300" : "text-rose-300"}>{Number(m.changePct) >= 0 ? "+" : ""}{Number(m.changePct).toFixed(2)}%</em>
+            </div>
+          ))
+        ) : (
+          <div className="w-full px-5 text-center text-[10px] font-semibold tracking-[.2em] text-slate-500">WAITING FOR LIVE MARKET QUOTES</div>
+        )}
+      </div>
+
+      <section id="products" className="ecosystem section-wrap">
+        <p className="section-kicker">The Alphentra ecosystem</p>
+        <h2>Everything You Need. In One Place.</h2>
+        <p className="section-intro">From strategy creation to real trading and global opportunities — Alphentra brings it all together.</p>
+        <div className="ecosystem-grid">
+          {ecosystem.map(({ icon: Icon, title, copy, tone }) => (
+            <article className={`feature-card ${tone}`} key={title}>
+              <Icon /><h3>{title}</h3><p>{copy}</p><a href={`#${title.toLowerCase().replaceAll(" ", "-")}`} aria-label={`Explore ${title}`}><ArrowRight size={17} /></a>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section id="strategies" className="dashboard section-wrap">
+        <article className="ai-panel">
+          <div className="ai-copy">
+            <p><Zap size={16} /> AI Powered Trading</p>
+            <h2>Smarter Strategies.<br />Real Results.</h2>
+            <ul>{["Strategy Builder", "Backtesting", "Risk Analysis", "Optimisation", "Publish to Marketplace"].map(x => <li key={x}><Check size={15} />{x}</li>)}</ul>
+            <a className="primary-action" href="#start">Try AI Strategy Lab <ArrowRight size={17} /></a>
+          </div>
+          <div className="ai-orbit" aria-hidden="true"><div className="ai-core">A</div><span /><i /></div>
+        </article>
+
+        <article id="markets" className="market-panel">
+          <div className="panel-heading"><h2>Live Market Overview</h2><div><span>Crypto</span><span>Forex</span><span>Metals</span><span>Equities</span></div></div>
+          <div className="market-list">
+            {marketQuery.isLoading ? (
+              [1,2,3,4,5].map((i) => <div key={i} className="market-row animate-pulse"><span /><b className="h-3 rounded bg-white/5" /><span className="h-3 rounded bg-white/5" /><em className="h-3 rounded bg-white/5" /></div>)
+            ) : markets.length ? (
+              markets.slice(0, 5).map((m: any, i: number) => (
+                <div className="market-row" key={m.id ?? m.symbol}>
+                  <span className="coin">{m.symbol?.slice(0, 1) ?? "•"}</span>
+                  <b>{m.symbol} <small>{m.assetClass}</small></b>
+                  <span>{Number(m.price).toLocaleString()}</span>
+                  <em className={Number(m.changePct) >= 0 ? "text-emerald-300" : "text-rose-300"}>{Number(m.changePct) >= 0 ? "+" : ""}{Number(m.changePct).toFixed(2)}%</em>
+                  <Sparkline n={i} />
+                  <Link to="/trade">Trade</Link>
+                </div>
+              ))
+            ) : (
+              <div className="px-3 py-8 text-center text-[10px] font-semibold tracking-[.2em] text-slate-500">WAITING FOR LIVE MARKET QUOTES</div>
+            )}
+          </div>
+            ))}
+          </div>
+          <a className="outline-action panel-action" href="#markets">View All Markets <ArrowRight size={16} /></a>
+        </article>
+      </section>
+
+      <section className="lower-grid section-wrap">
+        <article id="copy"><div className="panel-heading"><h3>Top Performing Traders</h3><a href="#copy">View All →</a></div>
+          {["Quantum Trend", "Alpha Scalper", "Macro Master", "Gold Runner"].map((name, i) => <div className="trader" key={name}><span>{i + 1}</span><div className="avatar">{name[0]}</div><b>{name}</b><em>+{[42.8, 28.1, 35.4, 24.6][i]}%</em><Sparkline n={i} /><a href="#start">Follow</a></div>)}
+        </article>
+        <article id="community" className="community"><h3>Global Community</h3><p>Join 10K+ traders worldwide.</p><div className="people"><span>A</span><span>M</span><span>R</span><b>10K+</b></div><h4>Traders. Creators. Innovators.<br />A stronger tomorrow.</h4><a className="primary-action" href="#start">Join the Community <ArrowRight size={17} /></a></article>
+        <article id="wallet" className="devices"><h3>Trade Anywhere</h3><p>Seamless access on all your devices.</p><div className="device-art"><span /><span /><span /></div><ul>{["Web Platform", "iOS App", "Android App", "Connect Wallet"].map(x => <li key={x}><Check size={14} />{x}</li>)}</ul><a className="outline-action" href="#start">Start Trading Anywhere <ArrowRight size={16} /></a></article>
+      </section>
+
+      <section id="start" className="closing">
+        <img src={worldAsset.url} alt="Alphentra's connected global trading network" />
+        <div><p className="eyebrow">Be part of something bigger</p><h2>Traders. Creators. Innovators.</h2><p>A global movement for a brighter financial future.</p><a className="primary-action" href="#top">Get Started <ArrowRight size={18} /></a></div>
+      </section>
+
+      <footer>
+        <Brand />
+        <div><b>Product</b><a href="#products">Features</a><a href="#markets">Markets</a><a href="#strategies">Pricing</a></div>
+        <div><b>Resources</b><a href="#products">Documentation</a><a href="#community">Help Center</a><a href="#community">Community</a></div>
+        <div><b>Company</b><a href="#top">About</a><a href="#top">Careers</a><a href="#top">Contact</a></div>
+        <div><b>Legal</b><a href="#top">Risk Disclosure</a><a href="#top">Terms of Service</a><a href="#top">Privacy Policy</a></div>
+        <p>© 2026 Alphentra. All rights reserved.</p>
+      </footer>
+    </main>
+  );
 }
