@@ -252,6 +252,45 @@ export async function loadMarketStatuses(): Promise<Map<string, MarketStatus>> {
   return latestByMarket;
 }
 
+const MARKET_HISTORY_TTL_MS = 60_000;
+const MARKET_HISTORY_EMPTY_RETRY_MS = 5_000;
+const MARKET_HISTORY_REQUEST_COOLDOWN_MS = 30_000;
+
+const marketHistoryCache = new Map<
+  string,
+  { values: number[]; expiresAt: number }
+>();
+const marketHistoryRequestedAt = new Map<string, number>();
+
+async function loadBoardSpark(marketId: string): Promise<number[]> {
+  const now = Date.now();
+  const cached = marketHistoryCache.get(marketId);
+  if (cached && cached.expiresAt > now) {
+    return cached.values;
+  }
+
+  const lastRequestedAt = marketHistoryRequestedAt.get(marketId) ?? 0;
+  if (now - lastRequestedAt >= MARKET_HISTORY_REQUEST_COOLDOWN_MS) {
+    await requestMarketHistory(marketId, "1d", 30);
+    marketHistoryRequestedAt.set(marketId, now);
+  }
+
+  const history = await loadMarketHistory(marketId, "1d", 30);
+  const values = history
+    .map((candle) => candle.close)
+    .filter((value) => Number.isFinite(value))
+    .slice(-30);
+
+  marketHistoryCache.set(marketId, {
+    values,
+    expiresAt: now + (values.length >= 2
+      ? MARKET_HISTORY_TTL_MS
+      : MARKET_HISTORY_EMPTY_RETRY_MS),
+  });
+
+  return values;
+}
+
 export async function loadMarketBoard(): Promise<Market[]> {
   const [liveQuotes, statuses] = await Promise.all([
     loadLiveMarketQuotes(),
@@ -264,42 +303,56 @@ export async function loadMarketBoard(): Promise<Market[]> {
   );
 
   // The MT5 bridge is the source of truth for the trading universe.
-  // Never expose seeded/mock/stale catalog rows in the live market board.
-  // A market is displayed only when its MT5 tick is present and fresh.
-  return ((marketRows ?? []) as MarketRow[])
+  // A selected instrument remains visible after its session closes, using
+  // the last MT5 quote. Fresh/open checks belong to trade execution, not
+  // to the market-board catalog.
+  const visibleRows = ((marketRows ?? []) as MarketRow[])
     .map((row) => {
       const live = bySymbol.get(row.symbol.toUpperCase());
-      const status = statuses.get(row.id);
-      const liveQuoteFresh = isQuoteFresh(live);
-
-      if (!liveQuoteFresh || !live) return null;
+      if (!live) return null;
 
       return {
-        id: row.id,
-        symbol: row.symbol,
-        name: row.name,
-        assetClass: assetClassLabel(row.asset_class),
-        price: live.price,
-        change: live.change,
-        changePct: live.changePct,
-        volume: formatVolume(live.volume),
-        bid: live.bid,
-        ask: live.ask,
-        spread: live.spread,
-        isMarketOpen: live.isMarketOpen,
-        marketCap: "—",
-        spark: [],
-        aiSignal: "Neutral",
-        aiConfidence: 0,
-        providerStatus: "live" as const,
-        providerSymbol:
-          status?.providerSymbol ??
-          (typeof live.metadata?.broker_symbol === "string"
-            ? live.metadata.broker_symbol
-            : null),
+        row,
+        live,
+        status: statuses.get(row.id),
       };
     })
-    .filter((market): market is Market => market !== null);
+    .filter(
+      (
+        item,
+      ): item is {
+        row: MarketRow;
+        live: LiveMarketQuote;
+        status: MarketStatus | undefined;
+      } => item !== null,
+    );
+
+  return await Promise.all(
+    visibleRows.map(async ({ row, live, status }) => ({
+      id: row.id,
+      symbol: row.symbol,
+      name: row.name,
+      assetClass: assetClassLabel(row.asset_class),
+      price: live.price,
+      change: live.change,
+      changePct: live.changePct,
+      volume: formatVolume(live.volume),
+      bid: live.bid,
+      ask: live.ask,
+      spread: live.spread,
+      isMarketOpen: live.isMarketOpen,
+      marketCap: "—",
+      spark: await loadBoardSpark(row.id),
+      aiSignal: "Neutral",
+      aiConfidence: 0,
+      providerStatus: "live" as const,
+      providerSymbol:
+        status?.providerSymbol ??
+        (typeof live.metadata?.broker_symbol === "string"
+          ? live.metadata.broker_symbol
+          : null),
+    })),
+  );
 }
 
 export type MarketCandle = {
