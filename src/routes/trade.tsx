@@ -150,8 +150,8 @@ function TradePage() {
   const marketPickerRef = useRef<HTMLDivElement>(null);
 
   const market = markets.find((m) => m.id === symbolId) ?? markets[0] ?? null;
-  const liveQuote = liveQuotes.get(market.id);
-  const providerStatus = market.providerStatus ?? "unsupported";
+  const liveQuote = market ? liveQuotes.get(market.id) : undefined;
+  const providerStatus = market?.providerStatus ?? "unsupported";
   // Keep the Trade UI stable through short MT5 tick gaps. A quote is usable
   // for display for up to 2 minutes, while actual paper execution still
   // requires a very recent quote.
@@ -169,6 +169,7 @@ function TradePage() {
 
     setHoveredCandle(null);
     setChartCandles([]);
+    if (!market) return;
 
     const loadHistory = async () => {
       try {
@@ -215,7 +216,7 @@ function TradePage() {
       active = false;
       if (pollTimer !== null) window.clearTimeout(pollTimer);
     };
-  }, [market.id, market.providerStatus, chartTimeframe]);
+  }, [market?.id, market?.providerStatus, chartTimeframe]);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * (liveQuote?.price ?? 0);
   const marketClosed = quoteAvailable && liveQuote?.isMarketOpen === false;
 
@@ -327,6 +328,13 @@ function TradePage() {
   }, [user]);
 
   const submitOrder = async () => {
+    if (!market) {
+      toast.info("Waiting for live MT5 markets", {
+        description: "The Paper Trader only uses instruments with a current MT5 quote.",
+      });
+      return;
+    }
+
     if (!user) {
       toast.error("Sign in required", {
         description: "Sign in to place a paper order.",
@@ -399,6 +407,34 @@ function TradePage() {
       description: `${quantity} @ ${(side === "BUY" ? liveQuote?.ask ?? 0 : liveQuote?.bid ?? 0).toFixed(5)} · Paper account equity ${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
     });
   };
+
+  if (!market) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Order ticket"
+          title="Paper trade"
+          description="Waiting for live MT5 markets. The Paper Trader shows only instruments with a current MT5 quote."
+          actions={
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Waiting for MT5
+              </span>
+              <PaperTradingBadge />
+            </div>
+          }
+        />
+        <GlassCard className="mt-6 flex min-h-64 items-center justify-center px-6 text-center">
+          <div>
+            <p className="font-semibold text-foreground">No live MT5 instruments available</p>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              Keep the MT5 bridge running. As soon as it publishes a fresh quote, the live instruments will appear here automatically.
+            </p>
+          </div>
+        </GlassCard>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
