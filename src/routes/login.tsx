@@ -103,7 +103,9 @@ function LoginPage() {
       <div className="pointer-events-none absolute -right-24 bottom-0 size-80 rounded-full bg-accent/10 blur-3xl" />
 
       <GlassCard className="relative w-full max-w-md p-7">
-        <Logo />
+        <div className="flex justify-center">
+          <Logo />
+        </div>
         <h1 className="mt-6 text-2xl font-bold tracking-tight text-foreground">{title}</h1>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
