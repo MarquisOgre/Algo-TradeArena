@@ -214,20 +214,34 @@ export default {
         .map((market) => market.broker_symbol)
         .filter(Boolean);
 
-      const { data: existingActiveMarkets, error: existingActiveError } = await ctx.supabaseAdmin
-        .from("markets")
-        .select("id,broker_symbol")
-        .eq("status", "active");
+      // Supabase/PostgREST can cap a single SELECT at 1,000 rows. Page through
+      // the full active catalog so legacy markets beyond the first page cannot
+      // survive the MT5-universe cleanup.
+      const existingActiveMarkets: Array<{ id: string; broker_symbol: string | null }> = [];
+      const activePageSize = 500;
 
-      if (existingActiveError) {
-        return Response.json({ error: existingActiveError.message }, { status: 500, headers: corsHeaders() });
+      for (let offset = 0; ; offset += activePageSize) {
+        const { data: page, error: existingActiveError } = await ctx.supabaseAdmin
+          .from("markets")
+          .select("id,broker_symbol")
+          .eq("status", "active")
+          .range(offset, offset + activePageSize - 1);
+
+        if (existingActiveError) {
+          return Response.json({ error: existingActiveError.message }, { status: 500, headers: corsHeaders() });
+        }
+
+        const rows = page ?? [];
+        existingActiveMarkets.push(...rows);
+
+        if (rows.length < activePageSize) break;
       }
 
       const allowedProviderSymbols = new Set(
         providerSymbols.map((symbol) => String(symbol).toUpperCase()),
       );
 
-      const staleMarketIds = (existingActiveMarkets ?? [])
+      const staleMarketIds = existingActiveMarkets
         .filter((market) =>
           !market.broker_symbol
           || !allowedProviderSymbols.has(String(market.broker_symbol).toUpperCase())
