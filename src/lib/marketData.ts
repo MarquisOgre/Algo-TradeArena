@@ -71,7 +71,9 @@ function numberOrNull(value: number | string | null | undefined) {
 function assetClassLabel(value: string): Market["assetClass"] {
   switch (value) {
     case "stocks":
+      return "Equity";
     case "etf":
+      return "ETF";
     case "index":
       return "Equity";
     case "forex":
@@ -85,14 +87,17 @@ function assetClassLabel(value: string): Market["assetClass"] {
   }
 }
 
-type MarketSegment = "Crypto" | "FX" | "Metals" | "Equity";
+type MarketSegment = "Crypto" | "FX" | "Metals" | "Equity" | "ETF";
 
 const MARKET_SEGMENT_LIMITS: Record<MarketSegment, number> = {
-  Crypto: 7,
-  FX: 6,
-  Metals: 6,
-  Equity: 6,
+  Crypto: 5,
+  FX: 5,
+  Metals: 5,
+  Equity: 5,
+  ETF: 5,
 };
+
+const CORE_CRYPTO_SYMBOLS = ["BTCUSD", "ETHUSD"];
 
 function selectMarketUniverse(markets: Market[]): Market[] {
   const selected: Market[] = [];
@@ -106,9 +111,25 @@ function selectMarketUniverse(markets: Market[]): Market[] {
 
   for (const segment of Object.keys(MARKET_SEGMENT_LIMITS) as MarketSegment[]) {
     const limit = MARKET_SEGMENT_LIMITS[segment];
+    const segmentMarkets = liveMarkets.filter((market) => market.assetClass === segment);
+
+    if (segment === "Crypto") {
+      // BTC and ETH are core Crypto markets and must be selected before any
+      // other Crypto instrument whenever their MT5 quotes are fresh.
+      const core = CORE_CRYPTO_SYMBOLS
+        .map((symbol) => segmentMarkets.find((market) => market.symbol.toUpperCase() === symbol))
+        .filter((market): market is Market => Boolean(market));
+
+      const remaining = segmentMarkets
+        .filter((market) => !CORE_CRYPTO_SYMBOLS.includes(market.symbol.toUpperCase()))
+        .sort((a, b) => a.symbol.localeCompare(b.symbol));
+
+      selected.push(...[...core, ...remaining].slice(0, limit));
+      continue;
+    }
+
     selected.push(
-      ...liveMarkets
-        .filter((market) => market.assetClass === segment)
+      ...segmentMarkets
         .sort((a, b) => a.symbol.localeCompare(b.symbol))
         .slice(0, limit),
     );
