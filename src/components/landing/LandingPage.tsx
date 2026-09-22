@@ -75,7 +75,7 @@ export function LandingPage() {
           </nav>
           <div className="nav-actions">
             <a className="icon-link" href="/markets" aria-label="Search"><Search size={18} /></a>
-            <a className="outline-action" href="/wallet"><Wallet size={16} /> Connect Wallet</a>
+            <a className="outline-action" href="/connect-wallet"><Wallet size={16} /> Connect Wallet</a>
             <a className="primary-action compact" href="/login">Get Started <ArrowRight size={17} /></a>
           </div>
         </header>
