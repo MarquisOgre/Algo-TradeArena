@@ -64,15 +64,15 @@ export function LandingPage() {
           <Brand />
           <nav aria-label="Main navigation">
             <a href="#products">Product</a>
-            <a href="#strategies">Strategies</a>
-            <a href="#copy">Copy Trading</a>
-            <a href="#arena">Arena</a>
-            <a href="#markets">Markets</a>
-            <a href="#community">Community</a>
+            <a href="/strategies">Strategies</a>
+            <a href="/traders">Copy Trading</a>
+            <a href="/battle">Arena</a>
+            <a href="/markets">Markets</a>
+            <a href="/discover">Community</a>
           </nav>
           <div className="nav-actions">
-            <a className="icon-link" href="#markets" aria-label="Search"><Search size={18} /></a>
-            <a className="outline-action" href="#wallet"><Wallet size={16} /> Connect Wallet</a>
+            <a className="icon-link" href="/markets" aria-label="Search"><Search size={18} /></a>
+            <a className="outline-action" href="/wallet"><Wallet size={16} /> Connect Wallet</a>
             <a className="primary-action compact" href="/login">Get Started <ArrowRight size={17} /></a>
           </div>
         </header>
@@ -94,7 +94,7 @@ export function LandingPage() {
             <p className="hero-lede">A global trading ecosystem for traders, creators and investors. Build strategies. Copy top traders. Compete. Earn.</p>
             <div className="hero-actions">
               <a className="primary-action" href="/login">Get Started <ArrowRight size={18} /></a>
-              <a className="watch-action" href="#products"><Play size={16} fill="currentColor" /> Watch Demo</a>
+              <a className="watch-action" href="/app"><Play size={16} fill="currentColor" /> Open Platform</a>
             </div>
             <div className="hero-stats">
               <div><strong>10K+</strong><span>Active Traders</span></div>
@@ -138,7 +138,7 @@ export function LandingPage() {
           <div className="ecosystem-grid">
             {ecosystem.map(({ icon: Icon, title, copy, tone }) => (
               <article className={`feature-card ${tone}`} key={title}>
-                <Icon /><h3>{title}</h3><p>{copy}</p><a href={`#${title.toLowerCase().replaceAll(" ", "-")}`} aria-label={`Explore ${title}`}><ArrowRight size={17} /></a>
+                <Icon /><h3>{title}</h3><p>{copy}</p><a href={title === "AI Strategy Lab" ? "/lab" : title === "Strategy Marketplace" ? "/strategies" : title === "Copy Trading" ? "/traders" : title === "Arena" ? "/battle" : title === "Global Markets" ? "/markets" : "/wallet"} aria-label={`Explore ${title}`}><ArrowRight size={17} /></a>
               </article>
             ))}
           </div>
@@ -175,15 +175,15 @@ export function LandingPage() {
                 <div className="market-empty">WAITING FOR LIVE MARKET QUOTES</div>
               )}
             </div>
-            <a className="outline-action panel-action" href="#markets">View All Markets <ArrowRight size={16} /></a>
+            <a className="outline-action panel-action" href="/markets">View All Markets <ArrowRight size={16} /></a>
           </article>
         </section>
 
         <section className="lower-grid section-wrap">
-          <article id="copy"><div className="panel-heading"><h3>Top Performing Traders</h3><a href="#copy">View All →</a></div>
-            {["Quantum Trend", "Alpha Scalper", "Macro Master", "Gold Runner"].map((name, i) => <div className="trader" key={name}><span>{i + 1}</span><div className="avatar">{name[0]}</div><b>{name}</b><em>+{[42.8, 28.1, 35.4, 24.6][i]}%</em><Sparkline n={i} /><a href="/app">Follow</a></div>)}
+          <article id="copy"><div className="panel-heading"><h3>Top Performing Traders</h3><a href="/traders">View All →</a></div>
+            {["Quantum Trend", "Alpha Scalper", "Macro Master", "Gold Runner"].map((name, i) => <div className="trader" key={name}><span>{i + 1}</span><div className="avatar">{name[0]}</div><b>{name}</b><em>+{[42.8, 28.1, 35.4, 24.6][i]}%</em><Sparkline n={i} /><a href="/traders">Follow</a></div>)}
           </article>
-          <article id="community" className="community"><h3>Global Community</h3><p>Join 10K+ traders worldwide.</p><div className="people"><span>A</span><span>M</span><span>R</span><b>10K+</b></div><h4>Traders. Creators. Innovators.<br />A stronger tomorrow.</h4><a className="primary-action" href="/app">Join the Community <ArrowRight size={17} /></a></article>
+          <article id="community" className="community"><h3>Global Community</h3><p>Join 10K+ traders worldwide.</p><div className="people"><span>A</span><span>M</span><span>R</span><b>10K+</b></div><h4>Traders. Creators. Innovators.<br />A stronger tomorrow.</h4><a className="primary-action" href="/discover">Join the Community <ArrowRight size={17} /></a></article>
           <article id="wallet" className="devices"><h3>Trade Anywhere</h3><p>Seamless access on all your devices.</p><div className="device-art"><img src={TRADE_ANYWHERE_ASSET} alt="Trading across web, iOS and Android devices" /></div><ul>{["Web Platform", "iOS App", "Android App", "Connect Wallet", "Connect MT5"].map(x => <li key={x}><Check size={14} />{x}</li>)}</ul><a className="outline-action" href="/app">Start Trading Anywhere <ArrowRight size={16} /></a></article>
         </section>
 
@@ -194,10 +194,10 @@ export function LandingPage() {
 
         <footer>
           <Brand />
-          <div><b>Product</b><a href="#products">Features</a><a href="#markets">Markets</a><a href="#strategies">Pricing</a></div>
-          <div><b>Resources</b><a href="#products">Documentation</a><a href="#community">Help Center</a><a href="#community">Community</a></div>
-          <div><b>Company</b><a href="#top">About</a><a href="#top">Careers</a><a href="#top">Contact</a></div>
-          <div><b>Legal</b><a href="#top">Risk Disclosure</a><a href="#top">Terms of Service</a><a href="#top">Privacy Policy</a></div>
+          <div><b>Product</b><a href="#products">Features</a><a href="/markets">Markets</a><a href="/lab">Strategy Lab</a></div>
+          <div><b>Resources</b><a href="/help">Documentation</a><a href="/help">Help Center</a><a href="/discover">Community</a></div>
+          <div><b>Company</b><a href="#top">About</a><a href="#community">Careers</a><a href="/help">Contact</a></div>
+          <div><b>Legal</b><a href="/help">Risk Disclosure</a><a href="/help">Terms of Service</a><a href="/help">Privacy Policy</a></div>
           <p>© 2026 Alphentra. All rights reserved.</p>
         </footer>
       </main>
