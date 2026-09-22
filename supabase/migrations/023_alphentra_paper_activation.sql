@@ -1,9 +1,10 @@
 -- Alphentra Database Migration 023
 -- Explicit Paper Trading Account activation.
 --
--- Paper Trading behaves like an MT5 demo-account flow:
+-- Paper Trading is an ALPHENTRA-managed virtual account:
 -- a profile does not receive virtual capital automatically. The user must
 -- explicitly activate the Paper Trading Account before $100,000 is credited.
+-- No broker/demo account is required for Paper Trading.
 
 alter table public.portfolios
   add column if not exists account_status text not null default 'active',
@@ -156,7 +157,7 @@ revoke all on function public.activate_paper_account() from anon;
 grant execute on function public.activate_paper_account() to authenticated;
 
 comment on function public.activate_paper_account()
-is 'Explicitly activates a users Main Paper Account and credits exactly $100,000 of virtual USD. Idempotent after activation.';
+is 'Explicitly creates or activates a users Main Paper Account and credits exactly $100,000 of virtual USD. Idempotent after activation.';
 
 -- Paper Trading must only use an activated account.
 create index if not exists portfolios_paper_activation_lookup_idx
