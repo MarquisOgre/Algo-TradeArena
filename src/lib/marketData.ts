@@ -263,42 +263,44 @@ export async function loadMarketBoard(): Promise<Market[]> {
     [...liveQuotes.values()].map((quote) => [quote.symbol.toUpperCase(), quote]),
   );
 
-  return ((marketRows ?? []) as MarketRow[]).map((row) => {
-    const live = bySymbol.get(row.symbol.toUpperCase());
-    const status = statuses.get(row.id);
-    const fallback = mockBySymbol.get(row.symbol.toUpperCase());
-    const liveQuoteFresh = isQuoteFresh(live);
-    const providerStatus: MarketProviderStatus =
-      liveQuoteFresh
-        ? "live"
-        : status?.status ?? (live ? "no_quote" : "unsupported");
-    const price = providerStatus === "live" && live ? live.price : 0;
+  // The MT5 bridge is the source of truth for the trading universe.
+  // Never expose seeded/mock/stale catalog rows in the live market board.
+  // A market is displayed only when its MT5 tick is present and fresh.
+  return ((marketRows ?? []) as MarketRow[])
+    .map((row) => {
+      const live = bySymbol.get(row.symbol.toUpperCase());
+      const status = statuses.get(row.id);
+      const fallback = mockBySymbol.get(row.symbol.toUpperCase());
+      const liveQuoteFresh = isQuoteFresh(live);
 
-    return {
-      id: row.id,
-      symbol: row.symbol,
-      name: row.name,
-      assetClass: assetClassLabel(row.asset_class),
-      price,
-      change: providerStatus === "live" ? live?.change ?? 0 : 0,
-      changePct: providerStatus === "live" ? live?.changePct ?? 0 : 0,
-      volume: providerStatus === "live" ? formatVolume(live?.volume ?? null) : "—",
-      bid: providerStatus === "live" ? live?.bid ?? null : null,
-      ask: providerStatus === "live" ? live?.ask ?? null : null,
-      spread: providerStatus === "live" ? live?.spread ?? null : null,
-      isMarketOpen: providerStatus === "live" ? live?.isMarketOpen ?? null : false,
-      marketCap: fallback?.marketCap ?? "—",
-      spark: providerStatus === "live" ? fallback?.spark ?? Array.from({ length: 30 }, () => price) : Array.from({ length: 30 }, () => 0),
-      aiSignal: fallback?.aiSignal ?? "Neutral",
-      aiConfidence: fallback?.aiConfidence ?? 50,
-      providerStatus,
-      providerSymbol:
-        status?.providerSymbol ??
-        (typeof live?.metadata?.broker_symbol === "string"
-          ? live.metadata.broker_symbol
-          : null),
-    };
-  });
+      if (!liveQuoteFresh || !live) return null;
+
+      return {
+        id: row.id,
+        symbol: row.symbol,
+        name: row.name,
+        assetClass: assetClassLabel(row.asset_class),
+        price: live.price,
+        change: live.change,
+        changePct: live.changePct,
+        volume: formatVolume(live.volume),
+        bid: live.bid,
+        ask: live.ask,
+        spread: live.spread,
+        isMarketOpen: live.isMarketOpen,
+        marketCap: fallback?.marketCap ?? "—",
+        spark: fallback?.spark ?? Array.from({ length: 30 }, () => live.price),
+        aiSignal: fallback?.aiSignal ?? "Neutral",
+        aiConfidence: fallback?.aiConfidence ?? 50,
+        providerStatus: "live" as const,
+        providerSymbol:
+          status?.providerSymbol ??
+          (typeof live.metadata?.broker_symbol === "string"
+            ? live.metadata.broker_symbol
+            : null),
+      };
+    })
+    .filter((market): market is Market => market !== null);
 }
 
 export type MarketCandle = {
