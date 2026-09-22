@@ -7,7 +7,7 @@ import { DataTable, type Column } from "@/components/common/DataTable";
 import { Sparkline } from "@/components/common/Sparkline";
 import { Delta } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
-import { marketIndices, mockMarkets } from "@/data/mockMarkets";
+import { marketIndices } from "@/data/mockMarkets";
 import type { Market } from "@/data/types";
 import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
@@ -33,7 +33,7 @@ const filters = ["All", "FX", "Crypto", "Metals", "Equity", "ETF"] as const;
 
 function MarketsPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
-  const [markets, setMarkets] = useState(mockMarkets);
+  const [markets, setMarkets] = useState<Market[]>([]);
   const [liveData, setLiveData] = useState(false);
 
   useEffect(() => {
