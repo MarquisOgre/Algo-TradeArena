@@ -41,7 +41,7 @@ function LiveTradingPage() {
               Live Trading will use your connected broker/MetaTrader 5 account. It does not receive the $100,000 Paper Trading allocation and it does not share the Paper Trading wallet, positions, orders or P&L.
             </p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Button variant="outline" asChild><Link to="/profile">MT5 connection settings</Link></Button>
+              <Button variant="outline" asChild><Link to="/profile">Account settings</Link></Button>
               <Button asChild><Link to="/portfolio">Go to Paper Trading</Link></Button>
             </div>
           </div>
