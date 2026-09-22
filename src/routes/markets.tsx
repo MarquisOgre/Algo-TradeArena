@@ -7,7 +7,7 @@ import { DataTable, type Column } from "@/components/common/DataTable";
 import { Sparkline } from "@/components/common/Sparkline";
 import { Delta } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
-import { marketIndices, mockMarkets } from "@/data/mockMarkets";
+import { marketIndices } from "@/data/mockMarkets";
 import type { Market } from "@/data/types";
 import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
@@ -20,20 +20,20 @@ export const Route = createFileRoute("/markets")({
       {
         name: "description",
         content:
-          "Simulated market board with prices, movement and AI signal confidence across equities, ETFs, FX and commodities.",
+          "Live market board with prices, movement and AI signal confidence across Crypto, FX, Metals and Equities.",
       },
       { property: "og:title", content: "Markets — ALPHENTRA" },
-      { property: "og:description", content: "Simulated market board with AI signals." },
+      { property: "og:description", content: "Live market board with AI signals across four market segments." },
     ],
   }),
   component: MarketsPage,
 });
 
-const filters = ["All", "FX", "Crypto", "Metals", "Equity", "ETF"] as const;
+const filters = ["All", "FX", "Crypto", "Metals", "Equity"] as const;
 
 function MarketsPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
-  const [markets, setMarkets] = useState(mockMarkets);
+  const [markets, setMarkets] = useState<Market[]>([]);
   const [liveData, setLiveData] = useState(false);
 
   useEffect(() => {
