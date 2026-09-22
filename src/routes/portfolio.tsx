@@ -317,7 +317,7 @@ function PortfolioPage() {
     <AppShell wide>
       <PageHeader
         eyebrow="Paper Trading Account"
-        title="Portfolio"
+        title="Paper Trading Account"
         description="Your separate virtual Paper Trading Account. Nothing here settles with a broker or exchange."
         actions={
           <div className="flex gap-2">
