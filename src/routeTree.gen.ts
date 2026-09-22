@@ -159,7 +159,6 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
   '/connect-wallet': typeof ConnectWalletRoute
-  '/connect-wallet': typeof ConnectWalletRoute
   '/discover': typeof DiscoverRoute
   '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -185,6 +184,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/connect-wallet': typeof ConnectWalletRoute
   '/discover': typeof DiscoverRoute
   '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -207,6 +207,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/connect-wallet': typeof ConnectWalletRoute
   '/discover': typeof DiscoverRoute
   '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -234,6 +235,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai'
+    | '/connect-wallet'
     | '/discover'
     | '/help'
     | '/leaderboard'
@@ -256,6 +258,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai'
+    | '/connect-wallet'
     | '/discover'
     | '/help'
     | '/leaderboard'
@@ -278,6 +281,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai'
+    | '/connect-wallet'
     | '/discover'
     | '/help'
     | '/leaderboard'
@@ -299,6 +303,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRoute: typeof AiRoute
+  ConnectWalletRoute: typeof ConnectWalletRoute
   DiscoverRoute: typeof DiscoverRoute
   HelpRoute: typeof HelpRoute
   LeaderboardRoute: typeof LeaderboardRoute
