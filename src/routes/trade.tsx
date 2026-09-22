@@ -10,7 +10,7 @@ import { Delta } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { mockMarkets } from "@/data/mockMarkets";
+
 import type { Market } from "@/data/types";
 import { PaperTradingBadge } from "@/components/layout/TopBar";
 import { cn } from "@/lib/utils";
@@ -132,8 +132,8 @@ function CandleChart({
 
 function TradePage() {
   const { user } = useAuth();
-  const [markets, setMarkets] = useState(mockMarkets);
-  const [symbolId, setSymbolId] = useState(mockMarkets[0]!.id);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [symbolId, setSymbolId] = useState<string | null>(null);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [liveData, setLiveData] = useState(false);
   const [liveQuotes, setLiveQuotes] = useState<Awaited<ReturnType<typeof loadLiveMarketQuotes>>>(new Map());
@@ -149,7 +149,7 @@ function TradePage() {
   const [marketCategory, setMarketCategory] = useState<"All" | Market["assetClass"]>("All");
   const marketPickerRef = useRef<HTMLDivElement>(null);
 
-  const market = markets.find((m) => m.id === symbolId) ?? markets[0]!;
+  const market = markets.find((m) => m.id === symbolId) ?? markets[0] ?? null;
   const liveQuote = liveQuotes.get(market.id);
   const providerStatus = market.providerStatus ?? "unsupported";
   // Keep the Trade UI stable through short MT5 tick gaps. A quote is usable
