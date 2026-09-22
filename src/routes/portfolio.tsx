@@ -32,6 +32,8 @@ type Portfolio = {
   initial_cash: number | string;
   cash_balance: number | string;
   equity: number | string;
+  account_status: "not_activated" | "active" | "paused" | "closed";
+  activated_at: string | null;
   realized_pnl: number | string;
   unrealized_pnl: number | string;
 };
@@ -90,6 +92,7 @@ function PortfolioPage() {
   const [snapshots, setSnapshots] = useState<DbSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activating, setActivating] = useState(false);
 
   const loadPortfolio = async (silent = false) => {
     if (!user) {
@@ -104,15 +107,9 @@ function PortfolioPage() {
     if (silent) setRefreshing(true);
     else setLoading(true);
 
-    try {
-      await refreshPaperPortfolioMarks();
-    } catch (error) {
-      console.error("Failed to refresh live paper marks:", error);
-    }
-
     const { data: account, error: accountError } = await supabase
       .from("portfolios")
-      .select("id, initial_cash, cash_balance, equity, realized_pnl, unrealized_pnl")
+      .select("id, initial_cash, cash_balance, equity, account_status, activated_at, realized_pnl, unrealized_pnl")
       .eq("name", "Main Paper Account")
       .eq("portfolio_type", "paper")
       .eq("is_active", true)
@@ -133,6 +130,22 @@ function PortfolioPage() {
       setLoading(false);
       setRefreshing(false);
       return;
+    }
+
+    if (account.account_status !== "active") {
+      setPortfolio(account as Portfolio);
+      setPositions([]);
+      setExecutions([]);
+      setSnapshots([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    try {
+      await refreshPaperPortfolioMarks();
+    } catch (error) {
+      console.error("Failed to refresh live paper marks:", error);
     }
 
     const [positionsResult, executionsResult, snapshotsResult] = await Promise.all([
@@ -171,6 +184,23 @@ function PortfolioPage() {
   useEffect(() => {
     if (!authLoading) void loadPortfolio();
   }, [authLoading, user]);
+
+  const activatePaperAccount = async () => {
+    if (!user || activating) return;
+    setActivating(true);
+    const { data, error } = await supabase.rpc("activate_paper_account");
+    setActivating(false);
+
+    if (error) {
+      console.error("Failed to activate paper account:", error);
+      return;
+    }
+
+    const result = (data ?? {}) as { status?: string; cash_balance?: number };
+    if (result.status === "activated" || result.status === "already_active") {
+      await loadPortfolio();
+    }
+  };
 
   const account = portfolio
     ? {
@@ -275,7 +305,7 @@ function PortfolioPage() {
       <AppShell wide>
         <PageHeader eyebrow="Paper Trading Account" title="Paper Trading Account" description="Your ALPHENTRA paper account will appear here after sign in." />
         <GlassCard className="mt-6 p-8 text-center">
-          <p className="text-lg font-semibold text-foreground">Sign in to view your paper portfolio</p>
+          <p className="text-lg font-semibold text-foreground">Sign in to access Paper Trading</p>
           <p className="mt-2 text-sm text-muted-foreground">Your paper account and trading history are private to your ALPHENTRA account.</p>
           <Button asChild className="mt-5"><Link to="/login">Sign in</Link></Button>
         </GlassCard>
@@ -288,7 +318,7 @@ function PortfolioPage() {
       <PageHeader
         eyebrow="Paper Trading Account"
         title="Portfolio"
-        description="Live account state from ALPHENTRA's paper-trading database. Nothing here settles with a broker or exchange."
+        description="Your separate virtual Paper Trading Account. Nothing here settles with a broker or exchange."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => void loadPortfolio(true)} disabled={refreshing}>
@@ -303,14 +333,33 @@ function PortfolioPage() {
         <GlassCard className="mt-6 p-8 text-center text-sm text-muted-foreground">Loading your paper account…</GlassCard>
       ) : !account ? (
         <GlassCard className="mt-6 p-8 text-center">
-          <p className="font-semibold text-foreground">Paper account not found</p>
-          <p className="mt-2 text-sm text-muted-foreground">Your Main Paper Account has not been provisioned yet.</p>
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Wallet className="size-7" /></div>
+          <p className="mt-4 text-xl font-bold text-foreground">Activate Paper Trading</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Your Paper Trading Account works like a demo account. No virtual funds are added until you explicitly activate it.</p>
+          <div className="mx-auto mt-5 grid max-w-md grid-cols-3 gap-2 text-left">
+            <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Starting capital</p><p className="num mt-1 font-bold text-foreground">$100,000</p></div>
+            <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Real money</p><p className="mt-1 font-bold text-foreground">None</p></div>
+            <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Broker</p><p className="mt-1 font-bold text-foreground">None</p></div>
+          </div>
+          <Button className="mt-6" onClick={() => void activatePaperAccount()} disabled={activating}>
+            <Wallet className="size-4" /> {activating ? "Activating…" : "Activate Paper Trading Account"}
+          </Button>
+          <p className="mt-3 text-xs text-muted-foreground">Activation creates a separate virtual account. It is completely independent from Live Trading and MT5.</p>
+        </GlassCard>
+      ) : portfolio?.account_status !== "active" ? (
+        <GlassCard className="mt-6 p-8 text-center">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Wallet className="size-7" /></div>
+          <p className="mt-4 text-xl font-bold text-foreground">Activate Paper Trading</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Your Paper Trading Account is not active. Activate it to receive $100,000 in virtual USD.</p>
+          <Button className="mt-6" onClick={() => void activatePaperAccount()} disabled={activating}>
+            <Wallet className="size-4" /> {activating ? "Activating…" : "Activate Paper Trading Account"}
+          </Button>
         </GlassCard>
       ) : (
         <>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Account value" value={formatMoney(account.equity)} hint="current equity" />
-            <StatCard label="Total P&L" value={formatMoney(totalPnl)} delta={totalPnlPct} hint="since $100k funding" />
+            <StatCard label="Total P&L" value={formatMoney(totalPnl)} delta={totalPnlPct} hint="since $100k activation" />
             <StatCard label="Cash" value={formatMoney(account.cash)} hint="settled virtual cash" />
             <StatCard label="Buying power" value={formatMoney(account.cash)} hint="no simulated margin yet" />
           </div>
