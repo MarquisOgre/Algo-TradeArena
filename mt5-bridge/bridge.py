@@ -127,14 +127,14 @@ def is_tradable_mt5(info: Any) -> bool:
 MT5_TEST_UNIVERSE_SIZE = max(1, int(os.getenv("MT5_TEST_UNIVERSE_SIZE", "25")))
 
 
-def mt5_activity_score(info: Any, tick: Any) -> tuple[float, float, float]:
-    # Prefer broker-reported current-session activity when available.
-    # Different MT5 brokers populate different fields, so keep several
-    # fallbacks and use deterministic name ordering as the final tie-breaker.
+def mt5_activity_score(info: Any, tick: Any) -> tuple[float, float, float, float]:
+    # Fresh, usable MT5 ticks are the primary eligibility requirement.
+    # Among eligible markets, prefer the freshest quote and then broker-reported activity.
+    tick_time = float(getattr(tick, "time", 0) or 0) if tick is not None else 0.0
     session_volume = float(getattr(info, "session_volume", 0) or 0)
     session_deals = float(getattr(info, "session_deals", 0) or 0)
     tick_volume = float(getattr(tick, "volume", 0) or 0) if tick is not None else 0.0
-    return (session_volume, session_deals, tick_volume)
+    return (tick_time, session_deals, session_volume, tick_volume)
 
 
 def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
@@ -153,6 +153,10 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
         if tick is None or float(getattr(tick, "bid", 0) or 0) <= 0 or float(getattr(tick, "ask", 0) or 0) <= 0:
             continue
 
+        tick_time = float(getattr(tick, "time", 0) or 0)
+        if tick_time <= 0 or time.time() - tick_time > max(120.0, POLL_SECONDS * 10.0):
+            continue
+
         candidates.append((
             mt5_activity_score(info, tick),
             broker_symbol.upper(),
@@ -162,7 +166,7 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
 
     # Highest current-session activity first. The broker's live MT5 metadata
     # determines the ranking; no Alphentra symbol names are hardcoded.
-    candidates.sort(key=lambda row: (row[0][0], row[0][1], row[0][2], row[1]), reverse=True)
+    candidates.sort(key=lambda row: (row[0][0], row[0][1], row[0][2], row[0][3], row[1]), reverse=True)
 
     selected = candidates[:MT5_TEST_UNIVERSE_SIZE]
     universe: list[dict[str, Any]] = []
