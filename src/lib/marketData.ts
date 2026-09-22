@@ -416,12 +416,13 @@ export async function refreshPaperPortfolioMarks() {
 
 
 export function subscribeToMarketQuotes(onChange: () => void) {
-  // Quote rows are updated for a large, dynamically discovered MT5 universe.
-  // Listening to every market_quotes row would fan out thousands of realtime
-  // events and cause the browser to repeatedly reload the entire market board.
-  // Poll the latest quote snapshot at a controlled cadence instead, while
-  // retaining realtime for the much smaller provider-status table.
-  const pollTimer = window.setInterval(onChange, 5000);
+  // Keep the board responsive when a selected instrument loses its quote.
+  // The next refresh re-runs the live-only universe selection, so the first
+  // eligible live instrument from the same segment replaces it automatically.
+  // We do not subscribe to every market_quotes row because that would fan out
+  // thousands of realtime events; a short polling cadence keeps replacement
+  // detection fast without turning the browser into a high-frequency client.
+  const pollTimer = window.setInterval(onChange, 2000);
 
   const channel = supabase
     .channel("alphentra-market-status")
