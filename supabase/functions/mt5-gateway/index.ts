@@ -229,8 +229,8 @@ export default {
 
       const staleMarketIds = (existingActiveMarkets ?? [])
         .filter((market) =>
-          market.broker_symbol
-          && !allowedProviderSymbols.has(String(market.broker_symbol).toUpperCase())
+          !market.broker_symbol
+          || !allowedProviderSymbols.has(String(market.broker_symbol).toUpperCase())
         )
         .map((market) => market.id);
 
