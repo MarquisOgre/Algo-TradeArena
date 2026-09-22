@@ -11,6 +11,8 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiRouteImport } from './routes/ai'
+import { Route as AuthConfirmRouteImport } from './routes/auth.confirm'
+import { Route as AuthResetPasswordRouteImport } from './routes/auth.reset-password'
 import { Route as ConnectWalletRouteImport } from './routes/connect-wallet'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as HelpRouteImport } from './routes/help'
@@ -42,6 +44,16 @@ const IndexRoute = IndexRouteImport.update({
 const AiRoute = AiRouteImport.update({
   id: '/ai',
   path: '/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthConfirmRoute = AuthConfirmRouteImport.update({
+  id: '/auth/confirm',
+  path: '/auth/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthResetPasswordRoute = AuthResetPasswordRouteImport.update({
+  id: '/auth/reset-password',
+  path: '/auth/reset-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ConnectWalletRoute = ConnectWalletRouteImport.update({
@@ -158,6 +170,8 @@ const WalletRoute = WalletRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/auth/confirm': typeof AuthConfirmRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/connect-wallet': typeof ConnectWalletRoute
   '/discover': typeof DiscoverRoute
   '/help': typeof HelpRoute
@@ -184,6 +198,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/auth/confirm': typeof AuthConfirmRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/connect-wallet': typeof ConnectWalletRoute
   '/discover': typeof DiscoverRoute
   '/help': typeof HelpRoute
@@ -207,6 +223,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/auth/confirm': typeof AuthConfirmRoute
+  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/connect-wallet': typeof ConnectWalletRoute
   '/discover': typeof DiscoverRoute
   '/help': typeof HelpRoute
@@ -235,6 +253,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai'
+    | '/auth/confirm'
+    | '/auth/reset-password'
     | '/connect-wallet'
     | '/discover'
     | '/help'
@@ -258,6 +278,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai'
+    | '/auth/confirm'
+    | '/auth/reset-password'
     | '/connect-wallet'
     | '/discover'
     | '/help'
@@ -281,6 +303,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai'
+    | '/auth/confirm'
+    | '/auth/reset-password'
     | '/connect-wallet'
     | '/discover'
     | '/help'
@@ -303,6 +327,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRoute: typeof AiRoute
+  AuthConfirmRoute: typeof AuthConfirmRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   ConnectWalletRoute: typeof ConnectWalletRoute
   DiscoverRoute: typeof DiscoverRoute
   HelpRoute: typeof HelpRoute
@@ -329,6 +355,20 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/confirm': {
+      id: '/auth/confirm'
+      path: '/auth/confirm'
+      fullPath: '/auth/confirm'
+      preLoaderRoute: typeof AuthConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/reset-password': {
+      id: '/auth/reset-password'
+      path: '/auth/reset-password'
+      fullPath: '/auth/reset-password'
+      preLoaderRoute: typeof AuthResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ai': {
@@ -498,6 +538,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiRoute: AiRoute,
+  AuthConfirmRoute: AuthConfirmRoute,
+  AuthResetPasswordRoute: AuthResetPasswordRoute,
   ConnectWalletRoute: ConnectWalletRoute,
   DiscoverRoute: DiscoverRoute,
   HelpRoute: HelpRoute,

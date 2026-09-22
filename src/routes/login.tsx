@@ -11,6 +11,9 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search) => ({
+    mode: search.mode === "forgot" ? search.mode : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — ALPHENTRA" },
@@ -19,7 +22,10 @@ export const Route = createFileRoute("/login")({
         content: "Sign in to your ALPHENTRA account.",
       },
       { property: "og:title", content: "Sign in — ALPHENTRA" },
-      { property: "og:description", content: "Sign in to your ALPHENTRA account." },
+      {
+        property: "og:description",
+        content: "Sign in to your ALPHENTRA account.",
+      },
     ],
   }),
   component: LoginPage,
@@ -29,15 +35,16 @@ type Mode = "signin" | "signup" | "forgot";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { mode: requestedMode } = Route.useSearch();
   const { user, loading: authLoading } = useAuth();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(requestedMode === "forgot" ? "forgot" : "signin");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (!authLoading && user) {
-    void navigate({ to: "/" });
+  if (!authLoading && user && mode === "signin") {
+    void navigate({ to: "/app" });
     return null;
   }
 
@@ -50,21 +57,24 @@ function LoginPage() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { full_name: displayName.trim() } },
+          options: {
+            data: { full_name: displayName.trim() },
+            emailRedirectTo: window.location.origin + "/auth/confirm",
+          },
         });
 
         if (error) throw error;
 
         if (data.session) {
           toast.success("Welcome to ALPHENTRA.");
-          await navigate({ to: "/" });
+          await navigate({ to: "/app" });
         } else {
           toast.success("Account created. Check your email to confirm your account.");
           setMode("signin");
         }
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin + "/login",
+          redirectTo: window.location.origin + "/auth/reset-password",
         });
 
         if (error) throw error;
@@ -79,7 +89,7 @@ function LoginPage() {
         if (error) throw error;
 
         toast.success("Welcome back to ALPHENTRA.");
-        await navigate({ to: "/" });
+        await navigate({ to: "/app" });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Authentication failed.";
@@ -165,7 +175,11 @@ function LoginPage() {
 
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting && <Loader2 className="size-4 animate-spin" />}
-            {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset link"}
+            {mode === "signin"
+              ? "Sign in"
+              : mode === "signup"
+                ? "Create account"
+                : "Send reset link"}
           </Button>
         </form>
 
