@@ -71,11 +71,9 @@ function numberOrNull(value: number | string | null | undefined) {
 function assetClassLabel(value: string): Market["assetClass"] {
   switch (value) {
     case "stocks":
-      return "Equity";
     case "etf":
-      return "ETF";
     case "index":
-      return "Index";
+      return "Equity";
     case "forex":
       return "FX";
     case "crypto":
@@ -85,6 +83,30 @@ function assetClassLabel(value: string): Market["assetClass"] {
     default:
       return "Commodity";
   }
+}
+
+type MarketSegment = "Crypto" | "FX" | "Metals" | "Equity";
+
+const MARKET_SEGMENT_LIMITS: Record<MarketSegment, number> = {
+  Crypto: 7,
+  FX: 6,
+  Metals: 6,
+  Equity: 6,
+};
+
+function selectMarketUniverse(markets: Market[]): Market[] {
+  const selected: Market[] = [];
+
+  for (const segment of Object.keys(MARKET_SEGMENT_LIMITS) as MarketSegment[]) {
+    const limit = MARKET_SEGMENT_LIMITS[segment];
+    selected.push(
+      ...markets
+        .filter((market) => market.assetClass === segment)
+        .slice(0, limit),
+    );
+  }
+
+  return selected.slice(0, 25);
 }
 
 function formatVolume(value: number | null) {
@@ -263,7 +285,7 @@ export async function loadMarketBoard(): Promise<Market[]> {
     [...liveQuotes.values()].map((quote) => [quote.symbol.toUpperCase(), quote]),
   );
 
-  return ((marketRows ?? []) as MarketRow[]).map((row) => {
+  const boardMarkets = ((marketRows ?? []) as MarketRow[]).map((row) => {
     const live = bySymbol.get(row.symbol.toUpperCase());
     const status = statuses.get(row.id);
     const fallback = mockBySymbol.get(row.symbol.toUpperCase());
@@ -299,6 +321,8 @@ export async function loadMarketBoard(): Promise<Market[]> {
           : null),
     };
   });
+
+  return selectMarketUniverse(boardMarkets);
 }
 
 export type MarketCandle = {
