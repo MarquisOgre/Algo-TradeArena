@@ -63,11 +63,14 @@ export function LandingPage() {
         <header className="topbar">
           <Brand />
           <nav aria-label="Main navigation">
-            <a href="/strategies">Strategies</a>
-            <a href="/traders">Copy Trading</a>
-            <a href="/battle">Arena</a>
             <a href="/markets">Markets</a>
-            <a href="/discover">Community</a>
+            <a href="/trade">Trade</a>
+            <a href="/strategies">Strategies</a>
+            <a href="/copy">Copy Trading</a>
+            <a href="/battle">Arena</a>
+            <a href="/agents">AI Strategies</a>
+            <a href="/tournaments">Competitions</a>
+            <a href="/discover">Discover</a>
           </nav>
           <div className="nav-actions">
             <a className="icon-link" href="/markets" aria-label="Search"><Search size={18} /></a>
