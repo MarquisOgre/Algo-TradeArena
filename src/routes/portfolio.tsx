@@ -273,7 +273,7 @@ function PortfolioPage() {
   if (!user && !authLoading) {
     return (
       <AppShell wide>
-        <PageHeader eyebrow="Paper Trading Account" title="Portfolio" description="Your ALPHENTRA paper account will appear here after sign in." />
+        <PageHeader eyebrow="Paper Trading Account" title="Paper Trading Account" description="Your ALPHENTRA paper account will appear here after sign in." />
         <GlassCard className="mt-6 p-8 text-center">
           <p className="text-lg font-semibold text-foreground">Sign in to view your paper portfolio</p>
           <p className="mt-2 text-sm text-muted-foreground">Your paper account and trading history are private to your ALPHENTRA account.</p>
