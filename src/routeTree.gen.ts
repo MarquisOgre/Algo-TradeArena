@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AiRouteImport } from './routes/ai'
+import { Route as ConnectWalletRouteImport } from './routes/connect-wallet'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as HelpRouteImport } from './routes/help'
 import { Route as LeaderboardRouteImport } from './routes/leaderboard'
@@ -41,6 +42,11 @@ const IndexRoute = IndexRouteImport.update({
 const AiRoute = AiRouteImport.update({
   id: '/ai',
   path: '/ai',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnectWalletRoute = ConnectWalletRouteImport.update({
+  id: '/connect-wallet',
+  path: '/connect-wallet',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DiscoverRoute = DiscoverRouteImport.update({
@@ -152,6 +158,8 @@ const WalletRoute = WalletRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/ai': typeof AiRoute
+  '/connect-wallet': typeof ConnectWalletRoute
+  '/connect-wallet': typeof ConnectWalletRoute
   '/discover': typeof DiscoverRoute
   '/help': typeof HelpRoute
   '/leaderboard': typeof LeaderboardRoute
@@ -325,6 +333,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AiRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connect-wallet': {
+      id: '/connect-wallet'
+      path: '/connect-wallet'
+      fullPath: '/connect-wallet'
+      preLoaderRoute: typeof ConnectWalletRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/discover': {
       id: '/discover'
       path: '/discover'
@@ -478,6 +493,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AiRoute: AiRoute,
+  ConnectWalletRoute: ConnectWalletRoute,
   DiscoverRoute: DiscoverRoute,
   HelpRoute: HelpRoute,
   LeaderboardRoute: LeaderboardRoute,
