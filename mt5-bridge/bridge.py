@@ -121,7 +121,7 @@ def classify_mt5_asset(info: Any) -> str | None:
         "METALS", "PRECIOUS METALS", "GOLD", "SILVER", "COPPER",
         "PLATINUM", "PALLADIUM",
     )):
-        return "commodity"
+        return "metals"
 
     if any(token in metadata_text for token in (
         "COMMODITIES", "ENERGY", "BRENT", "CRUDE", "OIL",
