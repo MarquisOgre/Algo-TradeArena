@@ -12,7 +12,10 @@ import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search) => ({
-    mode: search.mode === "forgot" ? "forgot" : undefined,
+    mode:
+      search.mode === "forgot" || search.mode === "reset"
+        ? search.mode
+        : undefined,
   }),
   head: () => ({
     meta: [
@@ -34,7 +37,16 @@ function LoginPage() {
   const navigate = useNavigate();
   const { mode: requestedMode } = Route.useSearch();
   const { user, loading: authLoading, passwordRecovery } = useAuth();
-  const [mode, setMode] = useState<Mode>(requestedMode === "forgot" ? "forgot" : "signin");
+  const recoveryHash =
+    typeof window !== "undefined" &&
+    new URLSearchParams(window.location.hash.replace(/^#/, "")).get("type") === "recovery";
+  const [mode, setMode] = useState<Mode>(
+    requestedMode === "forgot" || requestedMode === "reset" || passwordRecovery || recoveryHash
+      ? requestedMode === "forgot"
+        ? "forgot"
+        : "reset"
+      : "signin",
+  );
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,14 +54,22 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (passwordRecovery) {
+    if (passwordRecovery || recoveryHash || requestedMode === "reset") {
       setMode("reset");
     } else if (requestedMode === "forgot") {
       setMode("forgot");
     }
-  }, [passwordRecovery, requestedMode]);
+  }, [passwordRecovery, recoveryHash, requestedMode]);
 
-  if (!authLoading && user && !passwordRecovery && mode !== "reset" && mode !== "forgot") {
+  if (
+    !authLoading &&
+    user &&
+    !passwordRecovery &&
+    !recoveryHash &&
+    requestedMode !== "reset" &&
+    mode !== "reset" &&
+    mode !== "forgot"
+  ) {
     void navigate({ to: "/app" });
     return null;
   }
@@ -86,7 +106,7 @@ function LoginPage() {
         }
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin + "/login",
+          redirectTo: window.location.origin + "/login?mode=reset",
         });
 
         if (error) throw error;
