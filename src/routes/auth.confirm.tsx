@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 import { GlassCard } from "@/components/common/GlassCard";
@@ -30,7 +31,7 @@ function ConfirmEmailPage() {
     let active = true;
     let handled = false;
 
-    const finish = async (session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]) => {
+    const finish = async (session: Session | null) => {
       if (!active || handled) return;
       handled = true;
 
@@ -62,7 +63,7 @@ function ConfirmEmailPage() {
 
     if (errorDescription) {
       setState("error");
-      setMessage(decodeURIComponent(errorDescription.replace(/\+/g, " ")));
+      setMessage(errorDescription.replace(/\+/g, " "));
       handled = true;
     } else {
       void supabase.auth.getSession().then(({ data: sessionData, error }) => {
