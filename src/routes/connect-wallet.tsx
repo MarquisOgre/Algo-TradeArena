@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowLeft, CheckCircle2, ChevronRight, ShieldCheck, WalletCards } from "lucide-react";
+import { ArrowLeft, ChevronRight, ShieldCheck, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/common/GlassCard";
