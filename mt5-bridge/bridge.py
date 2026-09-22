@@ -30,6 +30,7 @@ CANDLE_REQUEST_MAX_BARS = int(os.getenv("CANDLE_REQUEST_MAX_BARS", "240"))
 CANDLE_CHUNK_SIZE = int(os.getenv("CANDLE_CHUNK_SIZE", "500"))
 UNIVERSE_REFRESH_SECONDS = float(os.getenv("UNIVERSE_REFRESH_SECONDS", "300"))
 LIVE_STATUS_REFRESH_SECONDS = float(os.getenv("LIVE_STATUS_REFRESH_SECONDS", "30"))
+MT5_ROLE = os.getenv("MT5_ROLE", "paper_demo").lower()
 ALLOW_LIVE = os.getenv("ALLOW_LIVE", "false").lower() == "true"
 
 REST_HEADERS = {"apikey": SUPABASE_PUBLISHABLE_KEY, "Accept": "application/json"}
@@ -47,7 +48,11 @@ def initialize_mt5() -> None:
     account = mt5.account_info()
     if account is None: raise RuntimeError(f"MT5 account_info failed: {mt5.last_error()}")
     environment = os.getenv("MT5_ENVIRONMENT", "demo").lower()
-    if environment == "live" and not ALLOW_LIVE: raise RuntimeError("MT5_ENVIRONMENT=live but ALLOW_LIVE is not true. Validate with demo first.")
+    if MT5_ROLE not in {"paper_demo", "live"}: raise RuntimeError("MT5_ROLE must be paper_demo or live.")
+    expected_environment = "demo" if MT5_ROLE == "paper_demo" else "live"
+    if environment != expected_environment: raise RuntimeError(f"MT5_ROLE={MT5_ROLE} requires MT5_ENVIRONMENT={expected_environment}.")
+    if MT5_ROLE == "live" and not ALLOW_LIVE: raise RuntimeError("Live MT5 role requested but ALLOW_LIVE is not true.")
+    print(f"MT5 role={MT5_ROLE} environment={environment}")
     print(f"Connected to MT5 login={account.login} server={account.server} balance={account.balance:.2f} equity={account.equity:.2f}")
 
 def normalize_symbol(value: str) -> str:
