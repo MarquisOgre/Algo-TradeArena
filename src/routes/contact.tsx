@@ -1,7 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, MessageSquare } from "lucide-react";
+import { createFileRoute } from "@tanstack/react-router";
 import { InfoPage } from "@/components/common/InfoPage";
-import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/contact")({
   head: () => ({
