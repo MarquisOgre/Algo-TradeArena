@@ -505,7 +505,7 @@ function TradePage() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="hidden text-xs text-muted-foreground sm:inline">{getMarketCalendarLabel()}</span>
             <span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {liveData ? "Live quotes" : "Simulated fallback"}
+              {liveData ? "MT5 live quotes" : "Waiting for MT5"}
             </span>
             <PaperTradingBadge />
           </div>
