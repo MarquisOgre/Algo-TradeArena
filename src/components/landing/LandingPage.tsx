@@ -14,6 +14,7 @@ import {
   Zap,
 } from "lucide-react";
 import { loadMarketBoard } from "@/lib/marketData";
+import { Footer } from "@/components/layout/Footer";
 
 const WORLD_ASSET = "/alphentra-world.png";
 const LOGO_ASSET = "/alphentra-logo.png";
@@ -194,17 +195,7 @@ export function LandingPage() {
           <div><p className="eyebrow">Be part of something bigger</p><h2>Traders. Creators. Innovators.</h2><p>A global movement for a brighter financial future.</p><a className="primary-action" href="/login">Get Started <ArrowRight size={18} /></a></div>
         </section>
 
-        <footer>
-          <Brand />
-          <div><b>Product</b><a href="#products">Features</a><a href="/markets">Markets</a><a href="/lab">Strategy Lab</a></div>
-          <div><b>Resources</b><a href="/help">Help Center</a><a href="/discover">Community</a></div>
-          <div><b>Company</b><a href="/about">About</a><a href="/contact">Contact</a></div>
-          <div><b>Legal</b><a href="/risk-disclosure">Risk Disclosure</a><a href="/terms">Terms &amp; Conditions</a><a href="/privacy">Privacy Policy</a></div>
-          <div className="landing-footer-bottom">
-            <p>© 2026 ALPHENTRA. All rights reserved.</p>
-            <p>Developed by <span>Dexorzo Creations</span>.</p>
-          </div>
-        </footer>
+        <Footer />
       </main>
     </div>
   );
