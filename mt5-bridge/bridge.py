@@ -82,56 +82,72 @@ def normalize_symbol(value: str) -> str:
 
 
 def classify_mt5_asset(info: Any) -> str | None:
+    # Prefer broker-provided classification metadata, then fall back to the
+    # MT5 symbol tree/description and calculation mode. No symbol names are
+    # hardcoded; the connected terminal remains the source of truth.
     description = str(getattr(info, "description", "") or "").upper()
     path = str(getattr(info, "path", "") or "").upper()
+    category = str(getattr(info, "category", "") or "").upper()
+    sector = str(getattr(info, "sector", "") or "").upper()
+    industry = str(getattr(info, "industry", "") or "").upper()
+    metadata_text = " ".join((path, category, sector, industry, description))
 
-    if "CRYPTOCURRENCIES" in path or "CRYPTO" in path or "DIGITAL ASSETS" in path:
+    if any(token in metadata_text for token in (
+        "CRYPTOCURRENCIES", "CRYPTO", "DIGITAL ASSETS", "CURRENCY_CRYPTO",
+        "CRYPTOCURRENCY",
+    )):
         return "crypto"
 
-    if "FOREX" in path or "\\CURRENCIES\\" in path:
+    if (
+        "FOREX" in metadata_text
+        or "CURRENCIES" in metadata_text
+        or "FOREIGN EXCHANGE" in metadata_text
+        or sector in {"CURRENCY", "CURRENCIES"}
+    ):
         return "forex"
 
-    if any(token in path for token in (
-        "\\INDICES\\",
-        "\\INDEX\\",
-        "\\INDEXES\\",
-        "\\INDICES CFD\\",
+    if any(token in metadata_text for token in (
+        "ETF", "EXCHANGE TRADED FUND", "EXCHANGE-TRADED FUND",
     )):
-        return "index"
-
-    if any(token in path for token in ("\\ETF\\", "\\ETFS\\")) or " ETF" in description:
         return "etf"
 
-    if any(token in path for token in (
-        "\\STOCKS\\",
-        "\\SHARES\\",
-        "\\EQUITIES\\",
-    )):
-        return "stocks"
-
-    if any(token in path for token in (
-        "\\COMMODITIES\\",
-        "\\METALS\\",
-        "\\ENERGY\\",
-        "\\GOLD\\",
-        "\\SILVER\\",
-        "\\OIL\\",
-        "\\NATURAL GAS\\",
-    )):
-        return "commodity"
-
-    # Some MT5 brokers expose metals/energy/indices without a clean folder.
-    # Use the broker's calculation mode as a secondary hint only; never map
-    # an instrument from a hardcoded symbol list.
-    if any(token in description for token in (
-        "GOLD", "SILVER", "BRENT", "CRUDE", "OIL", "NATURAL GAS", "COPPER"
-    )):
-        return "commodity"
-
-    if any(token in description for token in (
-        "INDEX", "DOW JONES", "NASDAQ", "S&P 500", "DAX", "FTSE", "NIKKEI"
+    if any(token in metadata_text for token in (
+        "INDICES", "INDEX", "INDEXES", "CFD INDEX",
+        "DOW JONES", "NASDAQ", "S&P 500", "DAX", "FTSE", "NIKKEI",
     )):
         return "index"
+
+    if any(token in metadata_text for token in (
+        "METALS", "PRECIOUS METALS", "GOLD", "SILVER", "COPPER",
+        "PLATINUM", "PALLADIUM",
+    )):
+        return "commodity"
+
+    if any(token in metadata_text for token in (
+        "COMMODITIES", "ENERGY", "BRENT", "CRUDE", "OIL",
+        "NATURAL GAS", "AGRICULTURAL",
+    )):
+        return "commodity"
+
+    # MT5 exposes contract calculation modes. Use the broker's calculation
+    # mode as a metadata fallback when the symbol tree is not descriptive.
+    calc_mode = getattr(info, "trade_calc_mode", None)
+    forex_modes = {
+        getattr(mt5, "SYMBOL_CALC_MODE_FOREX", -1),
+        getattr(mt5, "SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE", -2),
+    }
+    exchange_stock_mode = getattr(mt5, "SYMBOL_CALC_MODE_EXCH_STOCKS", -999)
+
+    if calc_mode in forex_modes:
+        return "forex"
+
+    if calc_mode == exchange_stock_mode:
+        return "stocks"
+
+    if any(token in metadata_text for token in (
+        "STOCKS", "SHARES", "EQUITIES", "EQUITY", "SECURITIES",
+    )):
+        return "stocks"
 
     return None
 
@@ -232,6 +248,9 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
                 "volume_step": float(getattr(info, "volume_step", 0) or 0),
                 "trade_mode": int(getattr(info, "trade_mode", 0) or 0),
                 "trade_calc_mode": int(getattr(info, "trade_calc_mode", 0) or 0),
+                "category": str(getattr(info, "category", "") or "").strip(),
+                "sector": str(getattr(info, "sector", "") or "").strip(),
+                "industry": str(getattr(info, "industry", "") or "").strip(),
                 "activity_session_volume": float(getattr(info, "session_volume", 0) or 0),
                 "activity_session_deals": float(getattr(info, "session_deals", 0) or 0),
             },
