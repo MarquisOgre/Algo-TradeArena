@@ -93,6 +93,7 @@ function PortfolioPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activating, setActivating] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
 
   const loadPortfolio = async (silent = false) => {
     if (!user) {
@@ -187,12 +188,14 @@ function PortfolioPage() {
 
   const activatePaperAccount = async () => {
     if (!user || activating) return;
+    setActivationError(null);
     setActivating(true);
     const { data, error } = await supabase.rpc("activate_paper_account");
     setActivating(false);
 
     if (error) {
       console.error("Failed to activate paper account:", error);
+      setActivationError(error.message || "We could not activate your Paper Trading Account. Please try again.");
       return;
     }
 
@@ -318,7 +321,7 @@ function PortfolioPage() {
       <PageHeader
         eyebrow="Paper Trading Account"
         title="Paper Trading Account"
-        description="Your separate virtual Paper Trading Account. Nothing here settles with a broker or exchange."
+        description="Create your ALPHENTRA Paper Trading Account with $100,000 in virtual USD. No broker account is required."
         actions={
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => void loadPortfolio(true)} disabled={refreshing}>
@@ -329,28 +332,36 @@ function PortfolioPage() {
         }
       />
 
-      {loading ? (
+      {activationError ? (
+        <GlassCard className="mt-6 border-danger/30 p-5">
+          <p className="text-sm font-semibold text-danger">Paper Trading Account activation failed</p>
+          <p className="mt-1 text-sm text-muted-foreground">{activationError}</p>
+          <Button className="mt-4" onClick={() => void activatePaperAccount()} disabled={activating}>
+            <Wallet className="size-4" /> {activating ? "Activating…" : "Try Again"}
+          </Button>
+        </GlassCard>
+      ) : loading ? (
         <GlassCard className="mt-6 p-8 text-center text-sm text-muted-foreground">Loading your paper account…</GlassCard>
       ) : !account ? (
         <GlassCard className="mt-6 p-8 text-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Wallet className="size-7" /></div>
           <p className="mt-4 text-xl font-bold text-foreground">Activate Paper Trading</p>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Your Paper Trading Account works like a demo account. No virtual funds are added until you explicitly activate it.</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Create your ALPHENTRA virtual Paper Trading Account with $100,000 in virtual USD. Paper orders are handled by the ALPHENTRA paper engine.</p>
           <div className="mx-auto mt-5 grid max-w-md grid-cols-3 gap-2 text-left">
             <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Starting capital</p><p className="num mt-1 font-bold text-foreground">$100,000</p></div>
             <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Real money</p><p className="mt-1 font-bold text-foreground">None</p></div>
-            <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Broker</p><p className="mt-1 font-bold text-foreground">None</p></div>
+            <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Execution</p><p className="mt-1 font-bold text-foreground">ALPHENTRA</p></div>
           </div>
           <Button className="mt-6" onClick={() => void activatePaperAccount()} disabled={activating}>
-            <Wallet className="size-4" /> {activating ? "Activating…" : "Activate Paper Trading Account"}
+            <Wallet className="size-4" /> {activating ? "Activating…" : "Create / Activate Paper Account"}
           </Button>
-          <p className="mt-3 text-xs text-muted-foreground">Activation creates a separate virtual account. It is completely independent from Live Trading and MT5.</p>
+          <p className="mt-3 text-xs text-muted-foreground">Activation creates your ALPHENTRA virtual account. Market prices can come from MT5, but no broker account is required for Paper Trading.</p>
         </GlassCard>
       ) : portfolio?.account_status !== "active" ? (
         <GlassCard className="mt-6 p-8 text-center">
           <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Wallet className="size-7" /></div>
           <p className="mt-4 text-xl font-bold text-foreground">Activate Paper Trading</p>
-          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Your Paper Trading Account is not active. Activate it to receive $100,000 in virtual USD.</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Your ALPHENTRA Paper Trading Account is not active. Activate it to receive $100,000 in virtual USD.</p>
           <Button className="mt-6" onClick={() => void activatePaperAccount()} disabled={activating}>
             <Wallet className="size-4" /> {activating ? "Activating…" : "Activate Paper Trading Account"}
           </Button>
@@ -359,9 +370,9 @@ function PortfolioPage() {
         <>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Account value" value={formatMoney(account.equity)} hint="current equity" />
-            <StatCard label="Total P&L" value={formatMoney(totalPnl)} delta={totalPnlPct} hint="since $100k activation" />
-            <StatCard label="Cash" value={formatMoney(account.cash)} hint="settled virtual cash" />
-            <StatCard label="Buying power" value={formatMoney(account.cash)} hint="no simulated margin yet" />
+            <StatCard label="Total P&L" value={formatMoney(totalPnl)} delta={totalPnlPct} hint="since account activation" />
+            <StatCard label="Cash" value={formatMoney(account.cash)} hint="available virtual cash" />
+            <StatCard label="Buying power" value={formatMoney(account.cash)} hint="virtual buying power" />
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[2fr_1fr]">
