@@ -332,12 +332,14 @@ def collect_quotes(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if detected_offset:
             MT5_TIME_OFFSET_SECONDS = detected_offset
 
-        # Use the normalized broker tick timestamp for storage. This keeps
-        # quote_time aligned with Supabase UTC even when the MT5 server clock
-        # is represented with a broker-time offset.
+        # Use the bridge receipt time as the canonical live quote timestamp.
+        # MT5 broker/server tick timestamps can use a different wall-clock offset
+        # from UTC. The quote has just been received by ALPHENTRA, so receipt time
+        # is unambiguous for freshness checks and live market display.
         normalized_tick_time = tick_time - MT5_TIME_OFFSET_SECONDS if tick_time > 0 else 0
         quote_age_seconds = max(0.0, time.time() - normalized_tick_time) if normalized_tick_time > 0 else float("inf")
         is_market_open = quote_age_seconds <= max(120.0, POLL_SECONDS * 10.0)
+        received_at = datetime.now(timezone.utc).isoformat()
 
         quotes.append({
             "symbol": market["symbol"],
@@ -348,13 +350,15 @@ def collect_quotes(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "change": change,
             "percent_change": change_pct,
             "previous_close": previous_close,
-            "quote_time": iso_from_seconds(getattr(tick, "time", None), MT5_TIME_OFFSET_SECONDS),
+            "quote_time": received_at,
             "volume": session_volume,
             "is_market_open": is_market_open,
             "metadata": {
                 **market["metadata"],
                 "mt5_time_msc": getattr(tick, "time_msc", None),
+                "mt5_tick_time": tick_time,
                 "mt5_time_offset_seconds": MT5_TIME_OFFSET_SECONDS,
+                "quote_received_at": received_at,
                 "volume_type": "tick_volume",
                 "reference": "previous_completed_d1_close",
                 "synced_at": datetime.now(timezone.utc).isoformat(),
