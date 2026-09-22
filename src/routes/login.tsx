@@ -138,21 +138,6 @@ function LoginPage() {
                 autoComplete="name"
                 required
               />
-              {mode === "reset" && (
-                <div className="mt-3 space-y-2">
-                  <Label htmlFor="confirm-password">Confirm new password</Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Re-enter your new password"
-                    autoComplete="new-password"
-                    minLength={6}
-                    required
-                  />
-                </div>
-              )}
             </div>
           )}
 
