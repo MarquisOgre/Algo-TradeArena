@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -12,10 +12,7 @@ import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
   validateSearch: (search) => ({
-    mode:
-      search.mode === "forgot" || search.mode === "reset"
-        ? search.mode
-        : undefined,
+    mode: search.mode === "forgot" ? search.mode : undefined,
   }),
   head: () => ({
     meta: [
@@ -25,51 +22,28 @@ export const Route = createFileRoute("/login")({
         content: "Sign in to your ALPHENTRA account.",
       },
       { property: "og:title", content: "Sign in — ALPHENTRA" },
-      { property: "og:description", content: "Sign in to your ALPHENTRA account." },
+      {
+        property: "og:description",
+        content: "Sign in to your ALPHENTRA account.",
+      },
     ],
   }),
   component: LoginPage,
 });
 
-type Mode = "signin" | "signup" | "forgot" | "reset";
+type Mode = "signin" | "signup" | "forgot";
 
 function LoginPage() {
   const navigate = useNavigate();
   const { mode: requestedMode } = Route.useSearch();
-  const { user, loading: authLoading, passwordRecovery } = useAuth();
-  const recoveryHash =
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.hash.replace(/^#/, "")).get("type") === "recovery";
-  const [mode, setMode] = useState<Mode>(
-    requestedMode === "forgot" || requestedMode === "reset" || passwordRecovery || recoveryHash
-      ? requestedMode === "forgot"
-        ? "forgot"
-        : "reset"
-      : "signin",
-  );
+  const { user, loading: authLoading } = useAuth();
+  const [mode, setMode] = useState<Mode>(requestedMode === "forgot" ? "forgot" : "signin");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (passwordRecovery || recoveryHash || requestedMode === "reset") {
-      setMode("reset");
-    } else if (requestedMode === "forgot") {
-      setMode("forgot");
-    }
-  }, [passwordRecovery, recoveryHash, requestedMode]);
-
-  if (
-    !authLoading &&
-    user &&
-    !passwordRecovery &&
-    !recoveryHash &&
-    requestedMode !== "reset" &&
-    mode !== "reset" &&
-    mode !== "forgot"
-  ) {
+  if (!authLoading && user && mode === "signin") {
     void navigate({ to: "/app" });
     return null;
   }
@@ -79,20 +53,14 @@ function LoginPage() {
     setSubmitting(true);
 
     try {
-      if (mode === "reset") {
-        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
-        if (password !== confirmPassword) throw new Error("Passwords do not match.");
-
-        const { error } = await supabase.auth.updateUser({ password });
-        if (error) throw error;
-
-        toast.success("Password changed successfully.");
-        await navigate({ to: "/app" });
-      } else if (mode === "signup") {
+      if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { data: { full_name: displayName.trim() } },
+          options: {
+            data: { full_name: displayName.trim() },
+            emailRedirectTo: window.location.origin + "/auth/confirm",
+          },
         });
 
         if (error) throw error;
@@ -106,7 +74,7 @@ function LoginPage() {
         }
       } else if (mode === "forgot") {
         const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-          redirectTo: window.location.origin + "/login?mode=reset",
+          redirectTo: window.location.origin + "/auth/reset-password",
         });
 
         if (error) throw error;
@@ -136,9 +104,7 @@ function LoginPage() {
       ? "Create your ALPHENTRA account"
       : mode === "forgot"
         ? "Reset your password"
-        : mode === "reset"
-          ? "Change your password"
-          : "Enter the arena";
+        : "Enter the arena";
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
@@ -167,9 +133,8 @@ function LoginPage() {
             </div>
           )}
 
-          {mode !== "reset" && (
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+          <div className="space-y-2">
+            <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
@@ -178,9 +143,8 @@ function LoginPage() {
               placeholder="you@example.com"
               autoComplete="email"
               required
-              />
-            </div>
-          )}
+            />
+          </div>
 
           {mode !== "forgot" && (
             <div className="space-y-2">
@@ -206,27 +170,16 @@ function LoginPage() {
                 minLength={6}
                 required
               />
-              {mode === "reset" && (
-                <div className="mt-3 space-y-2">
-                  <Label htmlFor="confirm-password">Confirm new password</Label>
-                  <Input
-                    id="confirm-password"
-                    type="password"
-                    value={confirmPassword}
-                    onChange={(event) => setConfirmPassword(event.target.value)}
-                    placeholder="Re-enter your new password"
-                    autoComplete="new-password"
-                    minLength={6}
-                    required
-                  />
-                </div>
-              )}
             </div>
           )}
 
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting && <Loader2 className="size-4 animate-spin" />}
-            {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : mode === "reset" ? "Change Password" : "Send reset link"}
+            {mode === "signin"
+              ? "Sign in"
+              : mode === "signup"
+                ? "Create account"
+                : "Send reset link"}
           </Button>
         </form>
 
