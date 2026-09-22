@@ -39,7 +39,7 @@ export const primaryNav: NavItem[] = [
   { label: "Discover", to: "/discover", icon: Compass },
   { label: "Leaderboard", to: "/leaderboard", icon: Medal },
   { label: "Portfolio", to: "/portfolio", icon: Wallet },
-  { label: "ALPHENTRA Wallet", to: "/wallet", icon: Wallet, badge: "ALPH" },
+  { label: "Wallet", to: "/wallet", icon: Wallet, badge: "ALPH" },
   { label: "AI Copilot", to: "/ai", icon: Sparkles },
 ];
 

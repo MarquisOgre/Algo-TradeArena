@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { ArrowDownLeft, ArrowUpRight, Coins, Copy, Gift, LockKeyhole, Send, ShieldCheck, Trophy, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/wallet")({
   head: () => ({
@@ -25,8 +26,19 @@ const transactions = [
 ];
 
 function WalletPage() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const [buyOpen, setBuyOpen] = useState(false);
   const [comingSoon, setComingSoon] = useState<"sell" | "send" | "receive" | null>(null);
+
+  if (!authLoading && !user) {
+    void navigate({ to: "/login" });
+    return null;
+  }
+
+  if (authLoading) {
+    return null;
+  }
 
   return (
     <AppShell wide>

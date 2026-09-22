@@ -17,7 +17,7 @@ export function AppShell({
   wide?: boolean;
 }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="app-shell flex min-h-screen flex-col bg-background">
       <Sidebar />
       <div className="flex min-h-screen flex-1 flex-col lg:pl-64">
         <TopBar />
