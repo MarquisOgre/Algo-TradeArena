@@ -192,7 +192,12 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
             continue
 
         tick_time = float(getattr(tick, "time", 0) or 0)
-        if tick_time <= 0 or time.time() - tick_time > max(120.0, POLL_SECONDS * 10.0):
+        # Universe eligibility requires a real MT5 bid/ask tick, but the
+        # instrument does not need to be actively trading right now. Closed
+        # markets retain their last valid MT5 tick and remain in the 25-market
+        # catalog; collect_market_statuses/collect_quotes determine whether
+        # that tick is currently fresh and the market is open.
+        if tick_time <= 0:
             continue
 
         candidates.append((
