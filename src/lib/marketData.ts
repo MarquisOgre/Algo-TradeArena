@@ -269,32 +269,48 @@ async function loadBoardSpark(marketId: string): Promise<number[]> {
     return cached.values;
   }
 
-  const lastRequestedAt = marketHistoryRequestedAt.get(marketId) ?? 0;
-  if (now - lastRequestedAt >= MARKET_HISTORY_REQUEST_COOLDOWN_MS) {
-    await requestMarketHistory(marketId, "1d", 30);
-    marketHistoryRequestedAt.set(marketId, now);
+  try {
+    const lastRequestedAt = marketHistoryRequestedAt.get(marketId) ?? 0;
+    if (now - lastRequestedAt >= MARKET_HISTORY_REQUEST_COOLDOWN_MS) {
+      await requestMarketHistory(marketId, "1d", 30);
+      marketHistoryRequestedAt.set(marketId, now);
+    }
+
+    const history = await loadMarketHistory(marketId, "1d", 30);
+    const values = history
+      .map((candle) => candle.close)
+      .filter((value) => Number.isFinite(value))
+      .slice(-30);
+
+    marketHistoryCache.set(marketId, {
+      values,
+      expiresAt: now + (values.length >= 2
+        ? MARKET_HISTORY_TTL_MS
+        : MARKET_HISTORY_EMPTY_RETRY_MS),
+    });
+
+    return values;
+  } catch (error) {
+    // Historical data is an enhancement to the market board. A failed or
+    // delayed candle request must never hide otherwise valid live MT5 quotes.
+    console.error("Failed to load MT5 market history:", error);
+    marketHistoryCache.set(marketId, {
+      values: [],
+      expiresAt: now + MARKET_HISTORY_EMPTY_RETRY_MS,
+    });
+    return [];
   }
-
-  const history = await loadMarketHistory(marketId, "1d", 30);
-  const values = history
-    .map((candle) => candle.close)
-    .filter((value) => Number.isFinite(value))
-    .slice(-30);
-
-  marketHistoryCache.set(marketId, {
-    values,
-    expiresAt: now + (values.length >= 2
-      ? MARKET_HISTORY_TTL_MS
-      : MARKET_HISTORY_EMPTY_RETRY_MS),
-  });
-
-  return values;
 }
 
 export async function loadMarketBoard(): Promise<Market[]> {
   const [liveQuotes, statuses] = await Promise.all([
     loadLiveMarketQuotes(),
-    loadMarketStatuses(),
+    loadMarketStatuses().catch((error) => {
+      // Provider status is auxiliary. Keep the MT5 quote board visible even if
+      // the status table is temporarily unavailable to the browser.
+      console.error("Failed to load MT5 provider statuses:", error);
+      return new Map<string, MarketStatus>();
+    }),
   ]);
   const marketRows = await loadAllActiveMarkets(true);
 
