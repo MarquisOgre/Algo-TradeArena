@@ -58,6 +58,11 @@ function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingNotifications, setSavingNotifications] = useState(false);
+  const [showPasswordReset, setShowPasswordReset] = useState(false);
+  const [oldPassword, setOldPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -169,6 +174,52 @@ function SettingsPage() {
 
     setHandle(nextHandle);
     toast.success("Profile saved.");
+  }
+
+  async function changePassword(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!user?.email) return;
+
+    if (newPassword.length < 6) {
+      toast.error("New password must be at least 6 characters.");
+      return;
+    }
+
+    if (newPassword !== confirmNewPassword) {
+      toast.error("New passwords do not match.");
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const { error: verifyError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: oldPassword,
+      });
+
+      if (verifyError) {
+        toast.error("Old password is incorrect.");
+        return;
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({
+        password: newPassword,
+      });
+
+      if (updateError) throw updateError;
+
+      setOldPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setShowPasswordReset(false);
+      toast.success("Changed Password Successfully");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Password change failed.";
+      toast.error(message);
+    } finally {
+      setChangingPassword(false);
+    }
   }
 
   async function saveNotifications() {
@@ -323,10 +374,71 @@ function SettingsPage() {
             <Button asChild variant="outline">
               <Link to="/portfolio">Open paper portfolio</Link>
             </Button>
-            <Button asChild variant="ghost">
-              <Link to="/login?mode=forgot">Reset password</Link>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowPasswordReset((current) => !current)}
+            >
+              {showPasswordReset ? "Cancel Password Change" : "Reset Password"}
             </Button>
           </div>
+
+          {showPasswordReset && (
+            <form className="mt-6 max-w-xl space-y-4 border-t border-border pt-6" onSubmit={changePassword}>
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Change Password</h3>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Verify your old password, then choose a new password for your ALPHENTRA account.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="old-password">Old Password</Label>
+                <Input
+                  id="old-password"
+                  type="password"
+                  value={oldPassword}
+                  onChange={(event) => setOldPassword(event.target.value)}
+                  autoComplete="current-password"
+                  placeholder="Enter your current password"
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(event) => setNewPassword(event.target.value)}
+                  autoComplete="new-password"
+                  placeholder="At least 6 characters"
+                  minLength={6}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-new-password">Confirm New Password</Label>
+                <Input
+                  id="confirm-new-password"
+                  type="password"
+                  value={confirmNewPassword}
+                  onChange={(event) => setConfirmNewPassword(event.target.value)}
+                  autoComplete="new-password"
+                  placeholder="Re-enter your new password"
+                  minLength={6}
+                  required
+                />
+              </div>
+
+              <Button type="submit" disabled={changingPassword}>
+                {changingPassword && <Loader2 className="size-4 animate-spin" />}
+                {changingPassword ? "Changing Password..." : "Save"}
+              </Button>
+            </form>
+          )}
         </GlassCard>
       </div>
     </AppShell>
