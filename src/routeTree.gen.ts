@@ -327,6 +327,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AiRoute: typeof AiRoute
+  AuthConfirmRoute: typeof AuthConfirmRoute
+  AuthResetPasswordRoute: typeof AuthResetPasswordRoute
   ConnectWalletRoute: typeof ConnectWalletRoute
   DiscoverRoute: typeof DiscoverRoute
   HelpRoute: typeof HelpRoute
