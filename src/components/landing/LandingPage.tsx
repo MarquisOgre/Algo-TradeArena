@@ -200,7 +200,10 @@ export function LandingPage() {
           <div><b>Resources</b><a href="/help">Help Center</a><a href="/discover">Community</a></div>
           <div><b>Company</b><a href="/about">About</a><a href="/contact">Contact</a></div>
           <div><b>Legal</b><a href="/risk-disclosure">Risk Disclosure</a><a href="/terms">Terms &amp; Conditions</a><a href="/privacy">Privacy Policy</a></div>
-          <p>© 2026 Alphentra. All rights reserved.</p>
+          <div className="landing-footer-bottom">
+            <p>© 2026 ALPHENTRA. All rights reserved.</p>
+            <p>Developed by <span>Dexorzo Creations</span>.</p>
+          </div>
         </footer>
       </main>
     </div>
