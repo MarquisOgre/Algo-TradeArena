@@ -20,16 +20,16 @@ export const Route = createFileRoute("/markets")({
       {
         name: "description",
         content:
-          "Live market board with prices, movement and AI signal confidence across Crypto, FX, Metals and Equities.",
+          "Live market board with prices, movement and AI signal confidence across Crypto, FX, Metals, Equities and ETFs.",
       },
       { property: "og:title", content: "Markets — ALPHENTRA" },
-      { property: "og:description", content: "Live market board with AI signals across four market segments." },
+      { property: "og:description", content: "Live market board with AI signals across five market segments." },
     ],
   }),
   component: MarketsPage,
 });
 
-const filters = ["All", "FX", "Crypto", "Metals", "Equity"] as const;
+const filters = ["All", "FX", "Crypto", "Metals", "Equity", "ETF"] as const;
 
 function MarketsPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
