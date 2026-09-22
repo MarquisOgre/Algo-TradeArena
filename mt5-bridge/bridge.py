@@ -60,10 +60,8 @@ def normalize_symbol(value: str) -> str:
 
 
 def classify_mt5_asset(info: Any) -> str | None:
-    name = str(getattr(info, "name", "") or "").upper()
     description = str(getattr(info, "description", "") or "").upper()
     path = str(getattr(info, "path", "") or "").upper()
-    haystack = f"{name} {description} {path}"
 
     if "CRYPTOCURRENCIES" in path or "CRYPTO" in path or "DIGITAL ASSETS" in path:
         return "crypto"
@@ -71,13 +69,23 @@ def classify_mt5_asset(info: Any) -> str | None:
     if "FOREX" in path or "\\CURRENCIES\\" in path:
         return "forex"
 
-    if any(token in path for token in ("\\STOCKS\\", "\\SHARES\\", "\\EQUITIES\\")):
-        if "ETF" in path or "ETF" in description:
-            return "etf"
-        return "stocks"
+    if any(token in path for token in (
+        "\\INDICES\\",
+        "\\INDEX\\",
+        "\\INDEXES\\",
+        "\\INDICES CFD\\",
+    )):
+        return "index"
 
     if any(token in path for token in ("\\ETF\\", "\\ETFS\\")) or " ETF" in description:
         return "etf"
+
+    if any(token in path for token in (
+        "\\STOCKS\\",
+        "\\SHARES\\",
+        "\\EQUITIES\\",
+    )):
+        return "stocks"
 
     if any(token in path for token in (
         "\\COMMODITIES\\",
@@ -90,6 +98,19 @@ def classify_mt5_asset(info: Any) -> str | None:
     )):
         return "commodity"
 
+    # Some MT5 brokers expose metals/energy/indices without a clean folder.
+    # Use the broker's calculation mode as a secondary hint only; never map
+    # an instrument from a hardcoded symbol list.
+    if any(token in description for token in (
+        "GOLD", "SILVER", "BRENT", "CRUDE", "OIL", "NATURAL GAS", "COPPER"
+    )):
+        return "commodity"
+
+    if any(token in description for token in (
+        "INDEX", "DOW JONES", "NASDAQ", "S&P 500", "DAX", "FTSE", "NIKKEI"
+    )):
+        return "index"
+
     return None
 
 
@@ -101,47 +122,52 @@ def is_tradable_mt5(info: Any) -> bool:
     return trade_mode in {1, 2, 3}
 
 
-# Alphentra's initial MT5 trading universe is intentionally limited.
-# These are the only canonical instruments Alphentra will synchronize.
-# The terminal must expose the exact symbol; unavailable instruments are
-# skipped rather than replaced with another provider or synthetic price.
-ALPHENTRA_INSTRUMENTS: tuple[tuple[str, str], ...] = (
-    ("EURUSD", "forex"), ("GBPUSD", "forex"), ("USDJPY", "forex"),
-    ("USDCHF", "forex"), ("USDCAD", "forex"), ("AUDUSD", "forex"),
-    ("NZDUSD", "forex"), ("EURGBP", "forex"), ("EURJPY", "forex"),
-    ("GBPJPY", "forex"),
-    ("BTCUSD", "crypto"), ("ETHUSD", "crypto"), ("LTCUSD", "crypto"),
-    ("XRPUSD", "crypto"),
-    ("XAUUSD", "commodity"), ("XAGUSD", "commodity"), ("XBRUSD", "commodity"),
-    ("XTIUSD", "commodity"), ("NATGAS", "commodity"), ("COPPER", "commodity"),
-    ("US30", "index"), ("US500", "index"), ("NAS100", "index"),
-    ("GER40", "index"), ("UK100", "index"), ("JP225", "index"),
-    ("AAPL", "stocks"), ("AMZN", "stocks"), ("GOOGL", "stocks"),
-    ("META", "stocks"), ("MSFT", "stocks"), ("NVDA", "stocks"),
-    ("TSLA", "stocks"), ("AMD", "stocks"), ("NFLX", "stocks"),
-    ("INTC", "stocks"), ("AVGO", "stocks"), ("JPM", "stocks"),
-    ("BAC", "stocks"), ("COIN", "stocks"), ("UBER", "stocks"),
-    ("SPY", "etf"), ("QQQ", "etf"), ("IWM", "etf"), ("DIA", "etf"),
-    ("GLD", "etf"),
-)
+# Testing universe size. This is a limit, not an instrument list.
+# The actual instruments are discovered from the connected MT5 terminal.
+MT5_TEST_UNIVERSE_SIZE = max(1, int(os.getenv("MT5_TEST_UNIVERSE_SIZE", "25")))
+
+
+def mt5_activity_score(info: Any, tick: Any) -> tuple[float, float, float]:
+    # Prefer broker-reported current-session activity when available.
+    # Different MT5 brokers populate different fields, so keep several
+    # fallbacks and use deterministic name ordering as the final tie-breaker.
+    session_volume = float(getattr(info, "session_volume", 0) or 0)
+    session_deals = float(getattr(info, "session_deals", 0) or 0)
+    tick_volume = float(getattr(tick, "volume", 0) or 0) if tick is not None else 0.0
+    return (session_volume, session_deals, tick_volume)
 
 
 def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
-    available_by_name = {
-        str(getattr(info, "name", "") or "").strip().upper(): info
-        for info in symbols
-        if str(getattr(info, "name", "") or "").strip()
-    }
+    candidates: list[tuple[tuple[float, float, float], str, Any, str]] = []
 
-    universe: list[dict[str, Any]] = []
-    missing: list[str] = []
-
-    for canonical_symbol, asset_class in ALPHENTRA_INSTRUMENTS:
-        info = available_by_name.get(canonical_symbol)
-        if info is None:
-            missing.append(canonical_symbol)
+    for info in symbols:
+        broker_symbol = str(getattr(info, "name", "") or "").strip()
+        if not broker_symbol or not is_tradable_mt5(info):
             continue
 
+        asset_class = classify_mt5_asset(info)
+        if asset_class is None:
+            continue
+
+        tick = mt5.symbol_info_tick(broker_symbol)
+        if tick is None or float(getattr(tick, "bid", 0) or 0) <= 0 or float(getattr(tick, "ask", 0) or 0) <= 0:
+            continue
+
+        candidates.append((
+            mt5_activity_score(info, tick),
+            broker_symbol.upper(),
+            info,
+            asset_class,
+        ))
+
+    # Highest current-session activity first. The broker's live MT5 metadata
+    # determines the ranking; no Alphentra symbol names are hardcoded.
+    candidates.sort(key=lambda row: (row[0][0], row[0][1], row[0][2], row[1]), reverse=True)
+
+    selected = candidates[:MT5_TEST_UNIVERSE_SIZE]
+    universe: list[dict[str, Any]] = []
+
+    for _, broker_symbol_upper, info, asset_class in selected:
         broker_symbol = str(getattr(info, "name", "") or "").strip()
         description = str(getattr(info, "description", "") or broker_symbol).strip()
         path = str(getattr(info, "path", "") or "").strip()
@@ -150,8 +176,8 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
         quote_currency = str(getattr(info, "currency_profit", "") or "").strip().upper() or "USD"
 
         universe.append({
-            "symbol": canonical_symbol,
-            "name": description or canonical_symbol,
+            "symbol": broker_symbol,
+            "name": description or broker_symbol,
             "asset_class": asset_class,
             "exchange": exchange,
             "quote_currency": quote_currency,
@@ -161,10 +187,10 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
             "quantity_precision": 8,
             "min_quantity": float(getattr(info, "volume_min", 0) or 0) or None,
             "contract_size": float(getattr(info, "trade_contract_size", 1) or 1),
-            "is_tradable": is_tradable_mt5(info),
+            "is_tradable": True,
             "metadata": {
                 "provider": "mt5",
-                "canonical_symbol": canonical_symbol,
+                "canonical_symbol": broker_symbol,
                 "path": path,
                 "description": description,
                 "currency_base": base_currency,
@@ -180,12 +206,21 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
                 "volume_step": float(getattr(info, "volume_step", 0) or 0),
                 "trade_mode": int(getattr(info, "trade_mode", 0) or 0),
                 "trade_calc_mode": int(getattr(info, "trade_calc_mode", 0) or 0),
+                "activity_session_volume": float(getattr(info, "session_volume", 0) or 0),
+                "activity_session_deals": float(getattr(info, "session_deals", 0) or 0),
             },
         })
 
-    print(f"Alphentra fixed MT5 universe: {len(universe)}/{len(ALPHENTRA_INSTRUMENTS)} available")
-    if missing:
-        print("Unavailable configured instruments: " + ", ".join(missing))
+    by_class: dict[str, int] = {}
+    for market in universe:
+        by_class[market["asset_class"]] = by_class.get(market["asset_class"], 0) + 1
+
+    print(
+        f"Alphentra dynamic MT5 universe: {len(universe)}/{MT5_TEST_UNIVERSE_SIZE} selected "
+        f"from {len(symbols)} terminal symbols"
+    )
+    if by_class:
+        print("  " + " | ".join(f"{key}={value}" for key, value in sorted(by_class.items())))
 
     return universe
 
