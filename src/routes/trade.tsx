@@ -142,35 +142,12 @@ function TradePage() {
   const [hoveredCandle, setHoveredCandle] = useState<MarketCandle | null>(null);
   const [qty, setQty] = useState("100");
   const [cashBalance, setCashBalance] = useState<number | null>(null);
+  const [paperAccountActive, setPaperAccountActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
   const [marketSearch, setMarketSearch] = useState("");
   const [marketCategory, setMarketCategory] = useState<"All" | Market["assetClass"]>("All");
   const marketPickerRef = useRef<HTMLDivElement>(null);
-  const [mt5Account, setMt5Account] = useState<{
-    brokerName: string;
-    server: string;
-    environment: string;
-    status: string;
-    balance: number;
-    equity: number;
-    margin: number;
-    freeMargin: number;
-    currency: string;
-    lastSync: string | null;
-  } | null>(null);
-  const [mt5Positions, setMt5Positions] = useState<Array<{
-    symbol: string;
-    side: string;
-    volume: number;
-    open_price: number;
-    current_price: number | null;
-    profit: number;
-    stop_loss: number | null;
-    take_profit: number | null;
-    mt5_ticket: number;
-  }>>([]);
-  const [mt5AccountLoading, setMt5AccountLoading] = useState(false);
 
   const market = markets.find((m) => m.id === symbolId) ?? markets[0]!;
   const liveQuote = liveQuotes.get(market.id);
@@ -318,87 +295,6 @@ function TradePage() {
     };
   }, []);
 
-  const refreshMt5Account = async () => {
-    if (!user) {
-      setMt5Account(null);
-      setMt5Positions([]);
-      return;
-    }
-
-    setMt5AccountLoading(true);
-    try {
-      const { data: broker, error: brokerError } = await supabase
-        .from("broker_accounts")
-        .select("id, broker_name, environment, status")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (brokerError) throw brokerError;
-      if (!broker) {
-        setMt5Account(null);
-        setMt5Positions([]);
-        return;
-      }
-
-      const { data: account, error: accountError } = await supabase
-        .from("mt5_accounts")
-        .select("id, server_name, balance, equity, margin, free_margin, currency, last_account_sync_at")
-        .eq("broker_account_id", broker.id)
-        .maybeSingle();
-
-      if (accountError) throw accountError;
-      if (!account) {
-        setMt5Account(null);
-        setMt5Positions([]);
-        return;
-      }
-
-      setMt5Account({
-        brokerName: broker.broker_name,
-        server: account.server_name ?? "—",
-        environment: broker.environment,
-        status: broker.status,
-        balance: Number(account.balance ?? 0),
-        equity: Number(account.equity ?? 0),
-        margin: Number(account.margin ?? 0),
-        freeMargin: Number(account.free_margin ?? 0),
-        currency: account.currency ?? "USD",
-        lastSync: account.last_account_sync_at,
-      });
-
-      const { data: positions, error: positionsError } = await supabase
-        .from("mt5_positions")
-        .select("symbol, side, volume, open_price, current_price, profit, stop_loss, take_profit, mt5_ticket")
-        .eq("mt5_account_id", account.id)
-        .eq("is_open", true)
-        .order("opened_at", { ascending: false });
-
-      if (positionsError) throw positionsError;
-      setMt5Positions((positions ?? []).map((position) => ({
-        symbol: position.symbol,
-        side: position.side,
-        volume: Number(position.volume ?? 0),
-        open_price: Number(position.open_price ?? 0),
-        current_price: position.current_price == null ? null : Number(position.current_price),
-        profit: Number(position.profit ?? 0),
-        stop_loss: position.stop_loss == null ? null : Number(position.stop_loss),
-        take_profit: position.take_profit == null ? null : Number(position.take_profit),
-        mt5_ticket: Number(position.mt5_ticket),
-      })));
-    } catch (error) {
-      console.error("Failed to load MT5 account:", error);
-    } finally {
-      setMt5AccountLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void refreshMt5Account();
-    const timer = window.setInterval(() => void refreshMt5Account(), 5000);
-    return () => window.clearInterval(timer);
-  }, [user]);
-
   useEffect(() => {
     if (!user) {
       setCashBalance(null);
@@ -409,7 +305,7 @@ function TradePage() {
 
     void supabase
       .from("portfolios")
-      .select("cash_balance")
+      .select("cash_balance, account_status")
       .eq("name", "Main Paper Account")
       .eq("portfolio_type", "paper")
       .eq("is_active", true)
@@ -420,7 +316,9 @@ function TradePage() {
           console.error("Failed to load paper buying power:", error);
           return;
         }
-        setCashBalance(data?.cash_balance == null ? null : Number(data.cash_balance));
+        const active = data?.account_status === "active";
+        setPaperAccountActive(active);
+        setCashBalance(active && data?.cash_balance != null ? Number(data.cash_balance) : null);
       });
 
     return () => {
@@ -432,6 +330,13 @@ function TradePage() {
     if (!user) {
       toast.error("Sign in required", {
         description: "Sign in to place a paper order.",
+      });
+      return;
+    }
+
+    if (!paperAccountActive) {
+      toast.info("Activate Paper Trading first", {
+        description: "Open Paper Trading and activate your virtual account before placing orders.",
       });
       return;
     }
@@ -511,86 +416,6 @@ function TradePage() {
           </div>
         }
       />
-
-      {mt5Account && (
-        <GlassCard className="mb-4 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-success" />
-                <span className="text-sm font-bold text-foreground">MT5 Account</span>
-                <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {mt5Account.environment}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{mt5Account.brokerName} · {mt5Account.server}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => void refreshMt5Account()} disabled={mt5AccountLoading}>
-              <RefreshCw className={cn("mr-2 size-3.5", mt5AccountLoading && "animate-spin")} />
-              Refresh
-            </Button>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-            {[
-              ["Balance", mt5Account.balance],
-              ["Equity", mt5Account.equity],
-              ["Margin", mt5Account.margin],
-              ["Free Margin", mt5Account.freeMargin],
-            ].map(([label, value]) => (
-              <div key={String(label)} className="rounded-xl bg-muted/40 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-                <p className="num mt-1 font-semibold text-foreground">{mt5Account.currency} {Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 })}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>{mt5Account.status === "connected" ? "● Connected" : "● Registered"}</span>
-            <span>{mt5Account.lastSync ? "Last sync " + new Date(mt5Account.lastSync).toLocaleTimeString() : "Waiting for sync"}</span>
-          </div>
-        </GlassCard>
-      )}
-
-      <div className="mb-4">
-        <GlassCard className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-foreground">MT5 Open Positions</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Read-only view of positions synchronized from MetaTrader 5.</p>
-            </div>
-            <span className="rounded-full border border-border px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              {mt5Positions.length} {mt5Positions.length === 1 ? "position" : "positions"}
-            </span>
-          </div>
-          {mt5Positions.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">
-              No open MT5 positions.
-            </div>
-          ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-xs">
-                <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="pb-2">Symbol</th><th className="pb-2">Side</th><th className="pb-2">Volume</th><th className="pb-2">Open</th><th className="pb-2">Current</th><th className="pb-2">SL / TP</th><th className="pb-2 text-right">P&L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mt5Positions.map((position) => (
-                    <tr key={position.mt5_ticket} className="border-b border-border/60 last:border-0">
-                      <td className="py-3 font-semibold text-foreground">{position.symbol}</td>
-                      <td className={cn("py-3 font-semibold uppercase", position.side === "long" ? "text-success" : "text-danger")}>{position.side}</td>
-                      <td className="num py-3 text-muted-foreground">{position.volume}</td>
-                      <td className="num py-3 text-muted-foreground">{position.open_price.toLocaleString("en-US", { maximumFractionDigits: 8 })}</td>
-                      <td className="num py-3 text-muted-foreground">{position.current_price == null ? "—" : position.current_price.toLocaleString("en-US", { maximumFractionDigits: 8 })}</td>
-                      <td className="num py-3 text-muted-foreground">{position.stop_loss ?? "—"} / {position.take_profit ?? "—"}</td>
-                      <td className={cn("num py-3 text-right font-semibold", position.profit >= 0 ? "text-success" : "text-danger")}>{position.profit >= 0 ? "+" : ""}{position.profit.toLocaleString("en-US", { maximumFractionDigits: 2 })}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </GlassCard>
-      </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_380px]">
         <ChartCard
@@ -889,13 +714,19 @@ function TradePage() {
 
           {!user && (
             <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-              Sign in to access your $100,000 paper account and place orders.
+              Activate Paper Trading to receive $100,000 in virtual USD and place orders.
+            </div>
+          )}
+
+          {!paperAccountActive && user && (
+            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+              Paper Trading is not activated yet. <Link to="/portfolio" className="font-semibold text-primary hover:underline">Activate your Paper Trading Account</Link> to receive $100,000 virtual USD.
             </div>
           )}
 
           <Button
             className="mt-4 w-full"
-            disabled={submitting || !user}
+            disabled={submitting || !user || !paperAccountActive}
             onClick={() => void submitOrder()}
           >
             {submitting ? "Executing…" : `${side} ${market.symbol}`}
@@ -904,7 +735,7 @@ function TradePage() {
           <p className="mt-3 text-center text-[11px] text-muted-foreground">
             {user
               ? "Execution is atomic: order, fill, position, cash and P&L update together."
-              : "Sign in to place a database-backed paper order."}
+              : "Activate Paper Trading to place a database-backed paper order."}
           </p>
 
           {user && (
