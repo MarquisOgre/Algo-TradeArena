@@ -96,21 +96,20 @@ const MARKET_SEGMENT_LIMITS: Record<MarketSegment, number> = {
 
 function selectMarketUniverse(markets: Market[]): Market[] {
   const selected: Market[] = [];
-  const statusRank: Record<MarketProviderStatus, number> = {
-    live: 0,
-    no_quote: 1,
-    unsupported: 2,
-  };
+
+  // The public market board is a live-data surface. Never fill the 25 slots
+  // with instruments that only have a mapping/status record but no fresh MT5
+  // quote. If fewer than 25 live instruments are available, show only the
+  // verified live instruments rather than presenting "No quote" rows as part
+  // of the primary universe.
+  const liveMarkets = markets.filter((market) => market.providerStatus === "live");
 
   for (const segment of Object.keys(MARKET_SEGMENT_LIMITS) as MarketSegment[]) {
     const limit = MARKET_SEGMENT_LIMITS[segment];
     selected.push(
-      ...markets
+      ...liveMarkets
         .filter((market) => market.assetClass === segment)
-        .sort((a, b) => {
-          const statusDiff = statusRank[a.providerStatus] - statusRank[b.providerStatus];
-          return statusDiff || a.symbol.localeCompare(b.symbol);
-        })
+        .sort((a, b) => a.symbol.localeCompare(b.symbol))
         .slice(0, limit),
     );
   }
