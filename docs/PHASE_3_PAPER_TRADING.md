@@ -41,3 +41,16 @@ Provide every authenticated ALPHENTRA user with a persistent paper-trading accou
 - Account reset/restart controls with explicit confirmation
 - Paper trading performance analytics
 - Stronger execution/risk validation based on MT5 symbol metadata
+
+
+### Explicit account activation
+
+Paper Trading is intentionally separate from Live Trading.
+
+- New profiles do **not** receive a Paper Trading account or virtual funds automatically.
+- The user opens **Paper Trading** and explicitly selects **Activate Paper Trading Account**.
+- Activation creates/activates the user's **Main Paper Account** with exactly **$100,000 virtual USD**.
+- Before activation, there is no Paper Trading buying power and paper orders cannot execute.
+- Paper Trading has its own cash, equity, positions, orders, executions and P&L.
+- Live Trading is a separate account domain and will use the user's connected MT5/broker account; it never shares Paper Trading funds or positions.
+- Accounts provisioned by the earlier automatic-default migration are retained as legacy records and are excluded from the active Paper Trading flow.
