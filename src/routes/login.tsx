@@ -25,18 +25,23 @@ export const Route = createFileRoute("/login")({
   component: LoginPage,
 });
 
-type Mode = "signin" | "signup" | "forgot";
+type Mode = "signin" | "signup" | "forgot" | "reset";
 
 function LoginPage() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, passwordRecovery } = useAuth();
   const [mode, setMode] = useState<Mode>("signin");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (!authLoading && user) {
+  if (passwordRecovery && mode !== "reset") {
+    setMode("reset");
+  }
+
+  if (!authLoading && user && !passwordRecovery && mode !== "reset") {
     void navigate({ to: "/app" });
     return null;
   }
@@ -46,7 +51,16 @@ function LoginPage() {
     setSubmitting(true);
 
     try {
-      if (mode === "signup") {
+      if (mode === "reset") {
+        if (password.length < 6) throw new Error("Password must be at least 6 characters.");
+        if (password !== confirmPassword) throw new Error("Passwords do not match.");
+
+        const { error } = await supabase.auth.updateUser({ password });
+        if (error) throw error;
+
+        toast.success("Password changed successfully.");
+        await navigate({ to: "/app" });
+      } else if (mode === "signup") {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -94,7 +108,9 @@ function LoginPage() {
       ? "Create your ALPHENTRA account"
       : mode === "forgot"
         ? "Reset your password"
-        : "Enter the arena";
+        : mode === "reset"
+          ? "Change your password"
+          : "Enter the arena";
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-background px-4 py-10">
@@ -120,6 +136,21 @@ function LoginPage() {
                 autoComplete="name"
                 required
               />
+              {mode === "reset" && (
+                <div className="mt-3 space-y-2">
+                  <Label htmlFor="confirm-password">Confirm new password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Re-enter your new password"
+                    autoComplete="new-password"
+                    minLength={6}
+                    required
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -165,7 +196,7 @@ function LoginPage() {
 
           <Button type="submit" className="w-full" disabled={submitting}>
             {submitting && <Loader2 className="size-4 animate-spin" />}
-            {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : "Send reset link"}
+            {mode === "signin" ? "Sign in" : mode === "signup" ? "Create account" : mode === "reset" ? "Change Password" : "Send reset link"}
           </Button>
         </form>
 
