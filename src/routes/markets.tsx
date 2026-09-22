@@ -155,7 +155,7 @@ function MarketsPage() {
           >
             {m.aiSignal}
           </span>
-          <span className="num mt-1 text-[11px] text-muted-foreground">{m.aiConfidence}% conf.</span>
+          <span className="num mt-1 text-[11px] text-muted-foreground">{m.aiConfidence > 0 ? `${m.aiConfidence}% conf.` : "Prototype"}</span>
         </div>
       ),
     },
