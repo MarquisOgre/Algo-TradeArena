@@ -32,30 +32,36 @@ UNIVERSE_REFRESH_SECONDS = float(os.getenv("UNIVERSE_REFRESH_SECONDS", "300"))
 LIVE_STATUS_REFRESH_SECONDS = float(os.getenv("LIVE_STATUS_REFRESH_SECONDS", "30"))
 MT5_ROLE = os.getenv("MT5_ROLE", "paper_demo").lower()
 ALLOW_LIVE = os.getenv("ALLOW_LIVE", "false").lower() == "true"
+MT5_TIME_OFFSET_SECONDS = 0
 
 REST_HEADERS = {"apikey": SUPABASE_PUBLISHABLE_KEY, "Accept": "application/json"}
 GATEWAY_HEADERS = {"apikey": MT5_GATEWAY_SECRET, "Content-Type": "application/json"}
 
-def iso_from_seconds(value: Any) -> str | None:
+def iso_from_seconds(value: Any, offset_seconds: int | None = None) -> str | None:
     if value is None:
         return None
     try:
-        raw_seconds = float(value)
-        raw_dt = datetime.fromtimestamp(raw_seconds, tz=timezone.utc)
-        now_utc = datetime.now(timezone.utc)
-        future_seconds = (raw_dt - now_utc).total_seconds()
-
-        # Some MT5 broker servers expose tick.time with server-local epoch
-        # semantics. Normalize an implausible future whole-hour offset instead
-        # of hardcoding a broker timezone.
-        if 60 < future_seconds <= 12 * 3600:
-            offset_hours = round(future_seconds / 3600)
-            if 1 <= offset_hours <= 12:
-                raw_dt -= timedelta(hours=offset_hours)
-
-        return raw_dt.isoformat()
+        seconds = float(value)
+        offset = MT5_TIME_OFFSET_SECONDS if offset_seconds is None else offset_seconds
+        dt = datetime.fromtimestamp(seconds - offset, tz=timezone.utc)
+        return dt.isoformat()
     except (TypeError, ValueError, OSError):
         return None
+
+def detect_mt5_time_offset_seconds(tick_time: Any) -> int:
+    try:
+        raw_seconds = float(tick_time)
+        delta = raw_seconds - time.time()
+        # MT5 broker/server timestamps can be represented as wall-clock
+        # seconds. Infer only a whole-hour offset from the current tick.
+        if abs(delta) >= 60:
+            hours = round(delta / 3600)
+            if -12 <= hours <= 12 and abs(delta - hours * 3600) <= 120:
+                return int(hours * 3600)
+    except (TypeError, ValueError):
+        pass
+    return 0
+
 
 def initialize_mt5() -> None:
     kwargs: dict[str, Any] = {"login": MT5_LOGIN, "password": MT5_PASSWORD, "server": MT5_SERVER}
@@ -320,8 +326,17 @@ def collect_quotes(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if current_daily is not None and len(current_daily) > 0:
             session_volume = float(current_daily[0]["tick_volume"])
 
+        global MT5_TIME_OFFSET_SECONDS
         tick_time = float(getattr(tick, "time", 0) or 0)
-        quote_age_seconds = max(0.0, time.time() - tick_time) if tick_time > 0 else float("inf")
+        detected_offset = detect_mt5_time_offset_seconds(tick_time)
+        if detected_offset:
+            MT5_TIME_OFFSET_SECONDS = detected_offset
+
+        # Use the normalized broker tick timestamp for storage. This keeps
+        # quote_time aligned with Supabase UTC even when the MT5 server clock
+        # is represented with a broker-time offset.
+        normalized_tick_time = tick_time - MT5_TIME_OFFSET_SECONDS if tick_time > 0 else 0
+        quote_age_seconds = max(0.0, time.time() - normalized_tick_time) if normalized_tick_time > 0 else float("inf")
         is_market_open = quote_age_seconds <= max(120.0, POLL_SECONDS * 10.0)
 
         quotes.append({
@@ -333,12 +348,13 @@ def collect_quotes(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "change": change,
             "percent_change": change_pct,
             "previous_close": previous_close,
-            "quote_time": iso_from_seconds(getattr(tick, "time", None)),
+            "quote_time": iso_from_seconds(getattr(tick, "time", None), MT5_TIME_OFFSET_SECONDS),
             "volume": session_volume,
             "is_market_open": is_market_open,
             "metadata": {
                 **market["metadata"],
                 "mt5_time_msc": getattr(tick, "time_msc", None),
+                "mt5_time_offset_seconds": MT5_TIME_OFFSET_SECONDS,
                 "volume_type": "tick_volume",
                 "reference": "previous_completed_d1_close",
                 "synced_at": datetime.now(timezone.utc).isoformat(),
