@@ -37,7 +37,7 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!authLoading && user) {
-    void navigate({ to: "/" });
+    void navigate({ to: "/app" });
     return null;
   }
 
@@ -57,7 +57,7 @@ function LoginPage() {
 
         if (data.session) {
           toast.success("Welcome to ALPHENTRA.");
-          await navigate({ to: "/" });
+          await navigate({ to: "/app" });
         } else {
           toast.success("Account created. Check your email to confirm your account.");
           setMode("signin");
@@ -79,7 +79,7 @@ function LoginPage() {
         if (error) throw error;
 
         toast.success("Welcome back to ALPHENTRA.");
-        await navigate({ to: "/" });
+        await navigate({ to: "/app" });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Authentication failed.";
