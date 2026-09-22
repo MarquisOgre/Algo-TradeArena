@@ -714,7 +714,7 @@ function TradePage() {
 
           {!user && (
             <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-              Activate Paper Trading to receive $100,000 in virtual USD and place orders.
+              Sign in to access Paper Trading and activate your $100,000 virtual account.
             </div>
           )}
 
