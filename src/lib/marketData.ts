@@ -97,7 +97,7 @@ const MARKET_SEGMENT_LIMITS: Record<MarketSegment, number> = {
   ETF: 5,
 };
 
-const CORE_CRYPTO_SYMBOLS = ["BTCUSD", "ETHUSD"];
+const CORE_CRYPTO_SYMBOLS = ["BTC", "ETH"];
 
 function selectMarketUniverse(markets: Market[]): Market[] {
   const selected: Market[] = [];
@@ -117,11 +117,14 @@ function selectMarketUniverse(markets: Market[]): Market[] {
       // BTC and ETH are core Crypto markets and must be selected before any
       // other Crypto instrument whenever their MT5 quotes are fresh.
       const core = CORE_CRYPTO_SYMBOLS
-        .map((symbol) => segmentMarkets.find((market) => market.symbol.toUpperCase() === symbol))
+        .map((prefix) =>
+          segmentMarkets.find((market) => market.symbol.toUpperCase().startsWith(prefix)),
+        )
         .filter((market): market is Market => Boolean(market));
 
+      const coreSymbols = new Set(core.map((market) => market.id));
       const remaining = segmentMarkets
-        .filter((market) => !CORE_CRYPTO_SYMBOLS.includes(market.symbol.toUpperCase()))
+        .filter((market) => !coreSymbols.has(market.id))
         .sort((a, b) => a.symbol.localeCompare(b.symbol));
 
       selected.push(...[...core, ...remaining].slice(0, limit));
