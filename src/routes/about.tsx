@@ -46,8 +46,7 @@ function AboutPage() {
         },
       ]}
       notice="ALPHENTRA is currently presented as a prototype/paper-trading platform. This page describes the product direction and should not be read as a statement that live brokerage, custody or regulated investment services are currently available."
-    >
-      <></>
-    </InfoPage>
+    />
+    
   );
 }
