@@ -1,4 +1,3 @@
-import { mockMarkets } from "@/data/mockMarkets";
 import type { Market } from "@/data/types";
 import { supabase } from "@/lib/supabase";
 
@@ -258,7 +257,6 @@ export async function loadMarketBoard(): Promise<Market[]> {
   ]);
   const marketRows = await loadAllActiveMarkets(true);
 
-  const mockBySymbol = new Map(mockMarkets.map((market) => [market.symbol.toUpperCase(), market]));
   const bySymbol = new Map(
     [...liveQuotes.values()].map((quote) => [quote.symbol.toUpperCase(), quote]),
   );
@@ -270,7 +268,6 @@ export async function loadMarketBoard(): Promise<Market[]> {
     .map((row) => {
       const live = bySymbol.get(row.symbol.toUpperCase());
       const status = statuses.get(row.id);
-      const fallback = mockBySymbol.get(row.symbol.toUpperCase());
       const liveQuoteFresh = isQuoteFresh(live);
 
       if (!liveQuoteFresh || !live) return null;
@@ -288,10 +285,10 @@ export async function loadMarketBoard(): Promise<Market[]> {
         ask: live.ask,
         spread: live.spread,
         isMarketOpen: live.isMarketOpen,
-        marketCap: fallback?.marketCap ?? "—",
-        spark: fallback?.spark ?? Array.from({ length: 30 }, () => live.price),
-        aiSignal: fallback?.aiSignal ?? "Neutral",
-        aiConfidence: fallback?.aiConfidence ?? 50,
+        marketCap: "—",
+        spark: [],
+        aiSignal: "Neutral",
+        aiConfidence: 0,
         providerStatus: "live" as const,
         providerSymbol:
           status?.providerSymbol ??
