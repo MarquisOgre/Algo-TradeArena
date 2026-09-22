@@ -22,7 +22,7 @@ export const Route = createFileRoute("/markets")({
           "Simulated market board with prices, movement and AI signal confidence across equities, ETFs, FX and commodities.",
       },
       { property: "og:title", content: "Markets — ALPHENTRA" },
-      { property: "og:description", content: "Simulated market board with AI signals." },
+      { property: "og:description", content: "Live MT5 market board with 30-session price history." },
     ],
   }),
   component: MarketsPage,
@@ -166,7 +166,7 @@ function MarketsPage() {
       <PageHeader
         eyebrow="Market board"
         title="Markets"
-        description="Live market data powered by MetaTrader 5 with bid, ask, spread, change and quote activity."
+        description="Live market data powered by MetaTrader 5 with bid, ask, spread, market status and real 30-session price history."
       />
 
       <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -185,7 +185,7 @@ function MarketsPage() {
         <GlassCard className="px-4 py-3">
           <p className="text-xs text-muted-foreground">Market source</p>
           <p className="mt-1 text-lg font-bold text-foreground">MT5</p>
-          <p className="mt-0.5 text-[11px] text-muted-foreground">No seeded market index values</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">25-instrument MT5 universe</p>
         </GlassCard>
       </div>
 
