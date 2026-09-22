@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import MetaTrader5 as mt5
@@ -37,9 +37,25 @@ REST_HEADERS = {"apikey": SUPABASE_PUBLISHABLE_KEY, "Accept": "application/json"
 GATEWAY_HEADERS = {"apikey": MT5_GATEWAY_SECRET, "Content-Type": "application/json"}
 
 def iso_from_seconds(value: Any) -> str | None:
-    if value is None: return None
-    try: return datetime.fromtimestamp(float(value), tz=timezone.utc).isoformat()
-    except (TypeError, ValueError, OSError): return None
+    if value is None:
+        return None
+    try:
+        raw_seconds = float(value)
+        raw_dt = datetime.fromtimestamp(raw_seconds, tz=timezone.utc)
+        now_utc = datetime.now(timezone.utc)
+        future_seconds = (raw_dt - now_utc).total_seconds()
+
+        # Some MT5 broker servers expose tick.time with server-local epoch
+        # semantics. Normalize an implausible future whole-hour offset instead
+        # of hardcoding a broker timezone.
+        if 60 < future_seconds <= 12 * 3600:
+            offset_hours = round(future_seconds / 3600)
+            if 1 <= offset_hours <= 12:
+                raw_dt -= timedelta(hours=offset_hours)
+
+        return raw_dt.isoformat()
+    except (TypeError, ValueError, OSError):
+        return None
 
 def initialize_mt5() -> None:
     kwargs: dict[str, Any] = {"login": MT5_LOGIN, "password": MT5_PASSWORD, "server": MT5_SERVER}
