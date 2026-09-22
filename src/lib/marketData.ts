@@ -79,8 +79,10 @@ function assetClassLabel(value: string): Market["assetClass"] {
       return "FX";
     case "crypto":
       return "Crypto";
-    case "commodity":
+    case "metals":
       return "Metals";
+    case "commodity":
+      return "Commodity";
     default:
       return "Commodity";
   }
