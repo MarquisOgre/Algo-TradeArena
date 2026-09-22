@@ -54,7 +54,7 @@ type BrokerMarketMappingSnapshot = {
 type MarketUniverseSnapshot = {
   symbol: string;
   name: string;
-  asset_class: "crypto" | "forex" | "stocks" | "etf" | "index" | "commodity" | "futures" | "options";
+  asset_class: "crypto" | "forex" | "stocks" | "etf" | "index" | "metals" | "commodity" | "futures" | "options";
   exchange?: string | null;
   quote_currency?: string | null;
   base_currency?: string | null;
