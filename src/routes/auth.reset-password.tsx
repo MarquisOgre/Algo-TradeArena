@@ -34,7 +34,7 @@ function ResetPasswordPage() {
     let active = true;
     let recoveryDetected = false;
 
-    const handleRecovery = (session: Awaited<ReturnType<typeof supabase.auth.getSession>>["data"]["session"]) => {
+    const handleRecovery = (session: Session | null) => {
       if (!active || !session || recoveryDetected) return;
       recoveryDetected = true;
       setReady(true);
@@ -55,22 +55,19 @@ function ResetPasswordPage() {
       setInvalid(true);
     } else if (hashType === "recovery") {
       void supabase.auth.getSession().then(({ data: sessionData, error }) => {
-        if (!active) return;
-        if (error || !sessionData.session) {
-          setInvalid(true);
+        if (!active || recoveryDetected) return;
+        if (!error && sessionData.session) {
+          handleRecovery(sessionData.session);
           return;
         }
-        handleRecovery(sessionData.session);
+
+        window.setTimeout(() => {
+          if (!active || recoveryDetected) return;
+          setInvalid(true);
+        }, 2500);
       });
     } else {
-      void supabase.auth.getSession().then(({ data: sessionData }) => {
-        if (!active) return;
-        if (sessionData.session) {
-          setInvalid(true);
-        } else {
-          setInvalid(true);
-        }
-      });
+      setInvalid(true);
     }
 
     return () => {
