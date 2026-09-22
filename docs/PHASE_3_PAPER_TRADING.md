@@ -1,56 +1,64 @@
-# Phase 3 — Paper Trading Account
+# Phase 3 — Paper Trading
 
-## Objective
+## Account model
 
-Provide every authenticated ALPHENTRA user with a persistent paper-trading account backed by Supabase.
+ALPHENTRA Paper Trading is a **Pepperstone MetaTrader 5 Demo account**, not an internal simulated cash account.
 
-## Current architecture
+- Paper Trading → **Pepperstone MT5 Demo**
+- Live Trading → **Pepperstone MT5 Live**
+- ALPN Wallet → separate from both trading accounts
+- MT5 credentials never enter the browser or Supabase tables.
 
-- Default account: **Main Paper Account**
-- Initial virtual capital: **$100,000 USD**
-- Orders are persisted in `orders`
-- Fills are persisted in `executions`
-- Positions are persisted in `positions`
-- Account state is persisted in `portfolios`
-- Equity history is persisted in `portfolio_snapshots`
-- Paper execution is atomic through `execute_paper_market_order`
-- Paper execution never routes orders to a broker or exchange
-- Market execution requires a fresh **MT5** quote in the Trade UI
+The screenshot-confirmed development account is the Pepperstone MT5 Demo account. The MT5 terminal/bridge is the source of truth for demo balance, equity, margin, positions and executions.
 
-## Phase 3 rules
+Pepperstone's MT5 demo environment provides virtual funds and live market access for practice; the demo account can be configured/funded with virtual funds through Pepperstone. citeturn0search1turn0search0
 
-1. No hard-coded simulated instrument should be presented as a live tradable market.
-2. MT5 is the market-data source for paper execution.
-3. A buy requires sufficient paper cash.
-4. A sell requires an existing long position with sufficient quantity.
-5. Client order IDs provide idempotency protection.
-6. Portfolio cash, equity and P&L are updated atomically with the fill.
-7. Users can only read their own paper account, positions, executions and snapshots.
+## Paper Trading activation
 
-## Phase 3 UI
+A user must explicitly connect/register their **Pepperstone MT5 Demo** account before Paper Trading becomes available.
 
-- Trade page: live MT5 quote + paper order ticket
-- Portfolio page: account value, P&L, cash, buying power, equity curve, allocation, open positions and trade history
-- Navigation: Trade + Portfolio remain the primary paper-trading entry points
+ALPHENTRA must not silently create a synthetic $100,000 ledger.
 
-## Next Phase 3 increments
+If we want the development demo to start at exactly **$100,000**, the Pepperstone MT5 Demo account itself should be created/funded with $100,000 virtual funds. ALPHENTRA then displays and uses the actual MT5 balance rather than maintaining a second balance.
 
-- Stop-loss / take-profit order fields and server-side trigger handling
-- Pending order support
-- More complete realized-P&L history
-- Account reset/restart controls with explicit confirmation
-- Paper trading performance analytics
-- Stronger execution/risk validation based on MT5 symbol metadata
+## Execution boundary
 
+Paper orders must be routed to the connected Pepperstone MT5 Demo terminal using the MT5 bridge. The existing database paper-execution RPC is a legacy prototype and must not be used as the production Paper Trading execution path.
 
-### Explicit account activation
+MT5's Python integration supports server-side order submission through `order_send()`; the next execution milestone will add a secured order queue between ALPHENTRA, the MT5 gateway and the Pepperstone Demo terminal. citeturn3search0
 
-Paper Trading is intentionally separate from Live Trading.
+## Live Trading
 
-- New profiles do **not** receive a Paper Trading account or virtual funds automatically.
-- The user opens **Paper Trading** and explicitly selects **Activate Paper Trading Account**.
-- Activation creates/activates the user's **Main Paper Account** with exactly **$100,000 virtual USD**.
-- Before activation, there is no Paper Trading buying power and paper orders cannot execute.
-- Paper Trading has its own cash, equity, positions, orders, executions and P&L.
-- Live Trading is a separate account domain and will use the user's connected MT5/broker account; it never shares Paper Trading funds or positions.
-- Accounts provisioned by the earlier automatic-default migration are retained as legacy records and are excluded from the active Paper Trading flow.
+Live Trading is a completely separate environment:
+
+```
+ALPHENTRA Paper Trading
+        ↓
+Pepperstone MT5 Demo
+        ↓
+Virtual funds / demo execution
+
+ALPHENTRA Live Trading
+        ↓
+Pepperstone MT5 Live
+        ↓
+Real broker account / live execution
+```
+
+The Live MT5 environment remains disabled until explicit live authorization and the live execution safeguards are implemented.
+
+## Current Phase 3 status
+
+Completed:
+- Separate Paper Trading and Live Trading navigation
+- MT5 broker/account registration foundation
+- MT5 Demo/Live account metadata model
+- MT5 market-data bridge
+- Pepperstone Demo role guard in the bridge
+- Database execution guard for the legacy paper ledger
+
+Next:
+1. Replace the legacy paper execution path with an MT5 Demo order queue.
+2. Synchronize demo orders/deals/positions back into ALPHENTRA.
+3. Make the Paper Trading dashboard display MT5 Demo balance/equity/margin.
+4. Keep Live MT5 order routing disabled until the dedicated Live Trading phase.
