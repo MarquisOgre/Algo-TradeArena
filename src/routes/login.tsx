@@ -11,6 +11,9 @@ import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth";
 
 export const Route = createFileRoute("/login")({
+  validateSearch: (search) => ({
+    mode: search.mode === "forgot" ? "forgot" : undefined,
+  }),
   head: () => ({
     meta: [
       { title: "Sign in — ALPHENTRA" },
@@ -29,8 +32,9 @@ type Mode = "signin" | "signup" | "forgot" | "reset";
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { mode: requestedMode } = Route.useSearch();
   const { user, loading: authLoading, passwordRecovery } = useAuth();
-  const [mode, setMode] = useState<Mode>("signin");
+  const [mode, setMode] = useState<Mode>(requestedMode === "forgot" ? "forgot" : "signin");
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -40,10 +44,12 @@ function LoginPage() {
   useEffect(() => {
     if (passwordRecovery) {
       setMode("reset");
+    } else if (requestedMode === "forgot") {
+      setMode("forgot");
     }
-  }, [passwordRecovery]);
+  }, [passwordRecovery, requestedMode]);
 
-  if (!authLoading && user && !passwordRecovery && mode !== "reset") {
+  if (!authLoading && user && !passwordRecovery && mode !== "reset" && mode !== "forgot") {
     void navigate({ to: "/app" });
     return null;
   }
