@@ -172,8 +172,6 @@ export interface FileRoutesByFullPath {
   '/ai': typeof AiRoute
   '/auth/confirm': typeof AuthConfirmRoute
   '/auth/reset-password': typeof AuthResetPasswordRoute
-  '/auth/confirm': typeof AuthConfirmRoute
-  '/auth/reset-password': typeof AuthResetPasswordRoute
   '/connect-wallet': typeof ConnectWalletRoute
   '/discover': typeof DiscoverRoute
   '/help': typeof HelpRoute
@@ -255,6 +253,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/ai'
+    | '/auth/confirm'
+    | '/auth/reset-password'
     | '/connect-wallet'
     | '/discover'
     | '/help'
@@ -278,6 +278,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/ai'
+    | '/auth/confirm'
+    | '/auth/reset-password'
     | '/connect-wallet'
     | '/discover'
     | '/help'
@@ -301,6 +303,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/ai'
+    | '/auth/confirm'
+    | '/auth/reset-password'
     | '/connect-wallet'
     | '/discover'
     | '/help'
