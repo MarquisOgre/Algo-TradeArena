@@ -1,4 +1,4 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -37,9 +37,11 @@ function LoginPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  if (passwordRecovery && mode !== "reset") {
-    setMode("reset");
-  }
+  useEffect(() => {
+    if (passwordRecovery) {
+      setMode("reset");
+    }
+  }, [passwordRecovery]);
 
   if (!authLoading && user && !passwordRecovery && mode !== "reset") {
     void navigate({ to: "/app" });
@@ -154,8 +156,9 @@ function LoginPage() {
             </div>
           )}
 
-          <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+          {mode !== "reset" && (
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
             <Input
               id="email"
               type="email"
@@ -164,8 +167,9 @@ function LoginPage() {
               placeholder="you@example.com"
               autoComplete="email"
               required
-            />
-          </div>
+              />
+            </div>
+          )}
 
           {mode !== "forgot" && (
             <div className="space-y-2">
@@ -191,6 +195,21 @@ function LoginPage() {
                 minLength={6}
                 required
               />
+              {mode === "reset" && (
+                <div className="mt-3 space-y-2">
+                  <Label htmlFor="confirm-password">Confirm new password</Label>
+                  <Input
+                    id="confirm-password"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Re-enter your new password"
+                    autoComplete="new-password"
+                    minLength={6}
+                    required
+                  />
+                </div>
+              )}
             </div>
           )}
 
