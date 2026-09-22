@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Check, ChevronDown, RefreshCw, Search, Star } from "lucide-react";
+import { Check, ChevronDown, Search, Star } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
