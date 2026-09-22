@@ -96,12 +96,21 @@ const MARKET_SEGMENT_LIMITS: Record<MarketSegment, number> = {
 
 function selectMarketUniverse(markets: Market[]): Market[] {
   const selected: Market[] = [];
+  const statusRank: Record<MarketProviderStatus, number> = {
+    live: 0,
+    no_quote: 1,
+    unsupported: 2,
+  };
 
   for (const segment of Object.keys(MARKET_SEGMENT_LIMITS) as MarketSegment[]) {
     const limit = MARKET_SEGMENT_LIMITS[segment];
     selected.push(
       ...markets
         .filter((market) => market.assetClass === segment)
+        .sort((a, b) => {
+          const statusDiff = statusRank[a.providerStatus] - statusRank[b.providerStatus];
+          return statusDiff || a.symbol.localeCompare(b.symbol);
+        })
         .slice(0, limit),
     );
   }
