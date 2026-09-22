@@ -197,9 +197,9 @@ export function LandingPage() {
         <footer>
           <Brand />
           <div><b>Product</b><a href="#products">Features</a><a href="/markets">Markets</a><a href="/lab">Strategy Lab</a></div>
-          <div><b>Resources</b><a href="/help">Documentation</a><a href="/help">Help Center</a><a href="/discover">Community</a></div>
-          <div><b>Company</b><a href="#top">About</a><a href="#community">Careers</a><a href="/help">Contact</a></div>
-          <div><b>Legal</b><a href="/help">Risk Disclosure</a><a href="/help">Terms of Service</a><a href="/help">Privacy Policy</a></div>
+          <div><b>Resources</b><a href="/help">Help Center</a><a href="/discover">Community</a></div>
+          <div><b>Company</b><a href="/about">About</a><a href="/contact">Contact</a></div>
+          <div><b>Legal</b><a href="/risk-disclosure">Risk Disclosure</a><a href="/terms">Terms &amp; Conditions</a><a href="/privacy">Privacy Policy</a></div>
           <p>© 2026 Alphentra. All rights reserved.</p>
         </footer>
       </main>
