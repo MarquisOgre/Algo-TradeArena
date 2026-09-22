@@ -134,8 +134,46 @@ function RootComponent() {
   );
 }
 
+const PROTECTED_PATHS = [
+  "/app",
+  "/trade",
+  "/lab",
+  "/copy",
+  "/wallet",
+  "/portfolio",
+  "/profile",
+  "/settings",
+  "/agents",
+  "/ai",
+];
+
+function isProtectedPath(pathname: string) {
+  return PROTECTED_PATHS.some((path) => pathname === path || pathname.startsWith(`${path}/`));
+}
+
 function AuthenticationGate() {
-  // The public ALPHENTRA home page and discovery experience remain accessible
-  // without an account. Authentication is required for account actions.
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const protectedPath = isProtectedPath(pathname);
+
+  useEffect(() => {
+    if (!loading && protectedPath && !user) {
+      void router.navigate({ to: "/login", replace: true });
+    }
+  }, [loading, protectedPath, router, user]);
+
+  if (protectedPath && loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <p className="text-sm text-muted-foreground">Checking your ALPHENTRA session…</p>
+      </div>
+    );
+  }
+
+  if (protectedPath && !user) {
+    return null;
+  }
+
   return <Outlet />;
 }
