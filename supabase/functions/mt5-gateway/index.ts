@@ -205,40 +205,37 @@ export default {
     const marketIdByProviderSymbol = new Map<string, string>();
 
     if (body.market_universe?.length) {
-      // The MT5 bridge is the source of truth for the development universe.
-      // Deactivate the old prototype/simulated catalog before applying the
-      // currently discovered MT5 instruments.
+      // The connected MT5 terminal is the source of truth for the
+      // development trading universe. Remove every active catalog row that is
+      // not part of the current MT5 universe, including legacy mock/prototype
+      // rows. This prevents stale symbols such as old HK equities from leaking
+      // into the live market board and Paper Trader.
       const providerSymbols = body.market_universe
         .map((market) => market.broker_symbol)
         .filter(Boolean);
 
-      // The fixed Alphentra universe is the source of truth for MT5 markets.
-      // Deactivate previously synchronized MT5 instruments that are no longer
-      // in the configured list, while leaving other future provider records
-      // untouched.
-      const { data: existingMt5Markets, error: existingMt5Error } = await ctx.supabaseAdmin
+      const { data: existingActiveMarkets, error: existingActiveError } = await ctx.supabaseAdmin
         .from("markets")
-        .select("id,broker_symbol,metadata")
+        .select("id,broker_symbol")
         .eq("status", "active");
 
-      if (existingMt5Error) {
-        return Response.json({ error: existingMt5Error.message }, { status: 500, headers: corsHeaders() });
+      if (existingActiveError) {
+        return Response.json({ error: existingActiveError.message }, { status: 500, headers: corsHeaders() });
       }
 
       const allowedProviderSymbols = new Set(
         providerSymbols.map((symbol) => String(symbol).toUpperCase()),
       );
 
-      const staleMt5Ids = (existingMt5Markets ?? [])
+      const staleMarketIds = (existingActiveMarkets ?? [])
         .filter((market) =>
-          (market.metadata as Record<string, unknown> | null)?.provider === "mt5"
-          && market.broker_symbol
+          market.broker_symbol
           && !allowedProviderSymbols.has(String(market.broker_symbol).toUpperCase())
         )
         .map((market) => market.id);
 
-      for (let start = 0; start < staleMt5Ids.length; start += 100) {
-        const chunk = staleMt5Ids.slice(start, start + 100);
+      for (let start = 0; start < staleMarketIds.length; start += 100) {
+        const chunk = staleMarketIds.slice(start, start + 100);
         const { error: deactivateError } = await ctx.supabaseAdmin
           .from("markets")
           .update({ status: "inactive", is_tradable: false, updated_at: now })
