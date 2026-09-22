@@ -63,7 +63,6 @@ export function LandingPage() {
         <header className="topbar">
           <Brand />
           <nav aria-label="Main navigation">
-            <a href="#products">Product</a>
             <a href="/strategies">Strategies</a>
             <a href="/traders">Copy Trading</a>
             <a href="/battle">Arena</a>
