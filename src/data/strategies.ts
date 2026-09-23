@@ -85,6 +85,7 @@ export function saveStrategy(input: {
   riskLimit?: number;
   status?: Strategy["status"];
   backtest?: Strategy["backtest"];
+  definition?: Record<string, unknown>;
 }) {
   const strategies = getStrategies();
   const timestamp = now();
@@ -95,6 +96,7 @@ export function saveStrategy(input: {
     specification: input.specification,
     markets: input.markets ?? ["Forex"],
     riskLimit: input.riskLimit ?? 1,
+    definition: input.definition,
   };
   const strategy: Strategy = {
     id: makeId("strategy"),
