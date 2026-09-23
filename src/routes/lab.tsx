@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
 import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
 import { BacktestResults } from "@/components/strategy/BacktestResults";
-import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";
+import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";\nimport type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -53,7 +53,7 @@ function StrategyLabPage() {
     "Build a momentum strategy for major FX pairs using trend confirmation, volatility-aware position sizing, and a strict 1% risk limit per trade.",
   );
   const [completed, setCompleted] = useState<number[]>([]);
-  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);
+  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);\n  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);\n  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
   const [rules, setRules] = useState<StrategyRuleDefinition>({
     entryOperator: "AND",
     entry: [
@@ -90,7 +90,7 @@ function StrategyLabPage() {
       style: "Momentum",
       markets: ["Forex"],
       riskLimit: 1,
-      status: "Published",
+      status: "Draft",
       definition: rules,
     });
     setSavedStrategyId(saved.id);
@@ -209,7 +209,7 @@ function StrategyLabPage() {
                   <h2 className="mt-1 text-xl font-semibold">{strategyName || "Untitled Strategy"}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">Select an instrument from the live MT5 universe and run the current rule set against stored MT5 historical candles.</p>
                 </div>
-                <BacktestResults definition={rules} />
+                <BacktestResults definition={rules} strategyName={strategyName} onBacktestComplete={(id, result) => { setBacktestRunId(id); setBacktestResult(result); setCompleted((items) => items.includes(1) ? items : [...items, 1]); }} />
                 <Button variant="outline" onClick={() => setStep(0)}>Back to Build</Button>
               </div>
             )}
@@ -273,19 +273,19 @@ function StrategyLabPage() {
               <div className="mx-auto max-w-2xl text-center">
                 <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-success/10 text-success"><Check className="size-7" /></div>
                 <h2 className="mt-5 text-2xl font-semibold">Validation complete</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Your strategy has completed the prototype validation path. Save it to your strategy library, then complete the observation period before treating it as production-ready.</p>
+                <p className="mt-2 text-sm text-muted-foreground">Your strategy has passed the Strategy Lab backtest gate. Stress testing and paper forward testing must still be completed before the strategy can be published.</p>
                 <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  {["Backtest complete", "Stress test complete", "Forward test ready"].map((item) => (
+                  {["Backtest complete", "Stress test pending", "Forward test pending"].map((item) => (
                     <div key={item} className="rounded-xl border border-border bg-surface/50 p-4 text-sm"><Check className="mx-auto mb-2 size-4 text-success" />{item}</div>
                   ))}
                 </div>
                 <Button className="mt-6" onClick={saveCurrentStrategy} disabled={Boolean(savedStrategyId)}>
-                  <Save />{savedStrategyId ? "Strategy Saved Locally" : "Save Strategy Locally"}
+                  <Save />{savedStrategyId ? "Strategy Draft Saved" : "Save Strategy Draft"}
                 </Button>
                 {savedStrategyId ? (
-                  <p className="mt-3 text-xs text-success">Saved to your strategy library. ID: {savedStrategyId}</p>
+                  <p className="mt-3 text-xs text-success">Strategy draft saved to your local Strategy Lab library. ID: {savedStrategyId}{backtestRunId ? ` · Backtest: ${backtestRunId.slice(0, 8)}…` : ""}</p>
                 ) : (
-                  <p className="mt-3 text-xs text-muted-foreground">Prototype only — publishing saves a reusable strategy record locally; it does not create a live trading account.</p>
+                  <p className="mt-3 text-xs text-muted-foreground">Draft save only. Publication remains gated until stress testing and forward testing are completed.</p>
                 )}
               </div>
             )}
