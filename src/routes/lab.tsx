@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
 import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
 import { BacktestResults } from "@/components/strategy/BacktestResults";
-import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";\nimport type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";\nimport { runStrategyStressTest, type StressTestResult } from "@/lib/strategy/stress-test";\nimport { runForwardTestCycle, startForwardTest } from "@/lib/strategy/forward-test";
+import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";\nimport { supabase } from "@/lib/supabase";\nimport type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";\nimport { runStrategyStressTest, type StressTestResult } from "@/lib/strategy/stress-test";\nimport { runForwardTestCycle, startForwardTest } from "@/lib/strategy/forward-test";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -53,7 +53,7 @@ function StrategyLabPage() {
     "Build a momentum strategy for major FX pairs using trend confirmation, volatility-aware position sizing, and a strict 1% risk limit per trade.",
   );
   const [completed, setCompleted] = useState<number[]>([]);
-  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);\n  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);\n  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);\n  const [stressResult, setStressResult] = useState<StressTestResult | null>(null);\n  const [backtestMarketId, setBacktestMarketId] = useState<string | null>(null);\n  const [backtestTimeframe, setBacktestTimeframe] = useState<"5m" | "15m" | "1h" | "4h" | "1d">("5m");\n  const [stressRunning, setStressRunning] = useState(false);\n  const [forwardTestId, setForwardTestId] = useState<string | null>(null);\n  const [forwardRunning, setForwardRunning] = useState(false);\n  const [forwardEvent, setForwardEvent] = useState<{ signal: string; action: string; price: number } | null>(null);
+  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);\n  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);\n  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);\n  const [stressResult, setStressResult] = useState<StressTestResult | null>(null);\n  const [backtestMarketId, setBacktestMarketId] = useState<string | null>(null);\n  const [backtestTimeframe, setBacktestTimeframe] = useState<"5m" | "15m" | "1h" | "4h" | "1d">("5m");\n  const [stressRunning, setStressRunning] = useState(false);\n  const [forwardTestId, setForwardTestId] = useState<string | null>(null);\n  const [forwardRunning, setForwardRunning] = useState(false);\n  const [forwardEvent, setForwardEvent] = useState<{ signal: string; action: string; price: number } | null>(null);\n  const [aiRunning, setAiRunning] = useState(false);\n  const [aiError, setAiError] = useState<string | null>(null);
   const [rules, setRules] = useState<StrategyRuleDefinition>({
     entryOperator: "AND",
     entry: [
@@ -73,6 +73,25 @@ function StrategyLabPage() {
 
   const current = steps[step];
   const ruleValidation = validateStrategyDefinition(rules);
+
+  async function generateWithAI() {
+    setAiRunning(true);
+    setAiError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-strategy-builder", { body: { prompt } });
+      if (error) throw error;
+      const generated = data?.definition as StrategyRuleDefinition | undefined;
+      if (!generated) throw new Error("AI returned no strategy definition.");
+      const validation = validateStrategyDefinition(generated);
+      if (!validation.valid) throw new Error(validation.errors.join(" "));
+      setRules(generated);
+      setCompleted((items) => items.filter((item) => item !== 0));
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "AI strategy generation failed.");
+    } finally {
+      setAiRunning(false);
+    }
+  }
 
   const progress = useMemo(() => Math.round((step / (steps.length - 1)) * 100), [step]);
 
@@ -168,8 +187,8 @@ function StrategyLabPage() {
 
                   <StrategyRuleBuilder value={rules} onChange={setRules} />
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={nextStep} disabled={!ruleValidation.valid}><Sparkles />Generate Strategy</Button>
-                    {!ruleValidation.valid && (
+                    <Button onClick={async () => { await generateWithAI(); }} disabled={aiRunning || !prompt.trim()}><Sparkles />{aiRunning ? "Generating with AI…" : "Generate with AI"}</Button>\n                    <Button onClick={nextStep} disabled={!ruleValidation.valid}><ArrowRight />Use Current Rules</Button>
+                    {aiError && <div className="w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">{aiError}</div>}\n                    {!ruleValidation.valid && (
                       <div className="w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
                         {ruleValidation.errors.map((error) => <p key={error}>{error}</p>)}
                       </div>
@@ -186,7 +205,7 @@ function StrategyLabPage() {
                     <div>
                       <p className="font-semibold">AI Strategy Builder</p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        The prototype converts your description into a structured strategy specification. A live model can plug into this step later.
+                        The AI Strategy Builder converts your natural-language idea into validated, backtestable rules. It does not promise profitability; generated strategies must still pass backtest, stress, and paper forward gates.
                       </p>
                     </div>
                   </div>
