@@ -53,7 +53,6 @@ Deno.serve(async (req: Request) => {
       "nvidia/nemotron-3-super-120b-a12b:free",
       "qwen/qwen3.8-27b:free",
       "nex-agi/nex-n2.5-pro:free",
-      "liquid/lfm-2.5-2.6b:free",
     ];
     const models = configuredModel &&
       configuredModel !== "openrouter/free" &&
