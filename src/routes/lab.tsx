@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
 import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
 import { BacktestResults } from "@/components/strategy/BacktestResults";
-import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";\nimport type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";
+import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";\nimport type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";\nimport { runStrategyStressTest, type StressTestResult } from "@/lib/strategy/stress-test";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -53,7 +53,7 @@ function StrategyLabPage() {
     "Build a momentum strategy for major FX pairs using trend confirmation, volatility-aware position sizing, and a strict 1% risk limit per trade.",
   );
   const [completed, setCompleted] = useState<number[]>([]);
-  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);\n  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);\n  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
+  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);\n  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);\n  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);\n  const [stressResult, setStressResult] = useState<StressTestResult | null>(null);\n  const [backtestMarketId, setBacktestMarketId] = useState<string | null>(null);\n  const [backtestTimeframe, setBacktestTimeframe] = useState<"5m" | "15m" | "1h" | "4h" | "1d">("5m");\n  const [stressRunning, setStressRunning] = useState(false);
   const [rules, setRules] = useState<StrategyRuleDefinition>({
     entryOperator: "AND",
     entry: [
@@ -209,7 +209,7 @@ function StrategyLabPage() {
                   <h2 className="mt-1 text-xl font-semibold">{strategyName || "Untitled Strategy"}</h2>
                   <p className="mt-1 text-sm text-muted-foreground">Select an instrument from the live MT5 universe and run the current rule set against stored MT5 historical candles.</p>
                 </div>
-                <BacktestResults definition={rules} strategyName={strategyName} onBacktestComplete={(id, result) => { setBacktestRunId(id); setBacktestResult(result); setCompleted((items) => items.includes(1) ? items : [...items, 1]); }} />
+                <BacktestResults definition={rules} strategyName={strategyName} onBacktestComplete={(id, result, marketId, timeframe) => { setBacktestRunId(id); setBacktestResult(result); setBacktestMarketId(marketId); setBacktestTimeframe(timeframe); setStressResult(null); setCompleted((items) => items.includes(1) ? items : [...items, 1]); }} />
                 <Button variant="outline" onClick={() => setStep(0)}>Back to Build</Button>
               </div>
             )}
@@ -219,26 +219,46 @@ function StrategyLabPage() {
                 <div>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Scenario analysis</p>
                   <h2 className="mt-1 text-xl font-semibold">Stress-test {strategyName || "your strategy"}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Challenge the strategy against volatility spikes, spread expansion, and adverse market regimes.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Run deterministic cost, slippage, volatility, and adverse-drift scenarios against the same MT5 history used by the backtest.</p>
                 </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {[
-                    ["Volatility shock", "VIX +80%", "-11.2%", "Contained"],
-                    ["Spread expansion", "2.5× normal", "-6.4%", "Contained"],
-                    ["Trend reversal", "Rapid regime flip", "-9.1%", "Contained"],
-                  ].map(([name, scenario, impact, status]) => (
-                    <GlassCard key={name} className="p-5">
-                      <div className="flex items-center justify-between"><Gauge className="size-5 text-cyan-400" /><Badge variant="outline" className="border-success/30 text-success">{status}</Badge></div>
-                      <h3 className="mt-4 font-semibold">{name}</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">{scenario}</p>
-                      <p className="num mt-5 text-2xl font-bold">{impact}</p>
-                    </GlassCard>
-                  ))}
-                </div>
-                <div className="rounded-xl border border-success/20 bg-success/5 p-4 text-sm text-muted-foreground">
-                  <ShieldCheck className="mr-2 inline size-4 text-success" />Stress profile is within the prototype risk guardrails. This is simulated output, not a guarantee of future performance.
-                </div>
-                <Button onClick={nextStep}><ArrowRight />Continue to Forward Test</Button>
+                {!backtestResult || !backtestMarketId ? (
+                  <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 text-sm text-muted-foreground">Run a completed MT5 backtest first. Stress testing uses that run's instrument and timeframe.</div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">{backtestTimeframe}</Badge>
+                      <span className="text-xs text-muted-foreground">Baseline return {backtestResult.netReturnPct.toFixed(2)}% · DD {backtestResult.maxDrawdownPct.toFixed(2)}%</span>
+                      <Button className="ml-auto" disabled={stressRunning} onClick={async () => {
+                        setStressRunning(true);
+                        try {
+                          const result = await runStrategyStressTest({ definition: { entry: { operator: rules.entryOperator, conditions: rules.entry }, exit: { operator: rules.exitOperator, conditions: rules.exit }, stopLossPct: rules.stopLossPct, takeProfitPct: rules.takeProfitPct, trailingStopPct: rules.trailingStopPct, riskPerTradePct: rules.riskPerTradePct, positionSizing: rules.positionSizing }, marketId: backtestMarketId, timeframe: backtestTimeframe, initialCapital: backtestResult.initialCapital, maxBars: Math.min(240, Math.max(30, backtestResult.equityCurve.length)) });
+                          setStressResult(result);
+                          setCompleted((items) => items.includes(2) ? items : [...items, 2]);
+                        } catch (error) {
+                          setStressResult(null);
+                          console.error(error);
+                        } finally { setStressRunning(false); }
+                      }}>{stressRunning ? "Running Stress Tests…" : "Run Real Stress Test"} <ArrowRight /></Button>
+                    </div>
+                    {stressResult && (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {stressResult.scenarios.map((scenario) => (
+                          <GlassCard key={scenario.id} className="p-5">
+                            <div className="flex items-center justify-between"><Gauge className="size-5 text-primary" /><Badge variant="outline">{scenario.result.trades.length} trades</Badge></div>
+                            <h3 className="mt-4 font-semibold">{scenario.name}</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">{scenario.description}</p>
+                            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                              <div><span className="text-muted-foreground">Return</span><p className="num font-semibold">{scenario.result.netReturnPct.toFixed(2)}%</p></div>
+                              <div><span className="text-muted-foreground">Max DD</span><p className="num font-semibold">{scenario.result.maxDrawdownPct.toFixed(2)}%</p></div>
+                            </div>
+                          </GlassCard>
+                        ))}
+                      </div>
+                    )}
+                    {stressResult && <div className="rounded-xl border border-border bg-surface/40 p-4 text-sm text-muted-foreground"><ShieldCheck className="mr-2 inline size-4 text-success" />Stress results are scenario diagnostics, not a guarantee of future performance.</div>}
+                  </>
+                )}
+                <Button onClick={nextStep} disabled={!stressResult}><ArrowRight />Continue to Forward Test</Button>
               </div>
             )}
 
