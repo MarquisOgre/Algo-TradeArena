@@ -5,9 +5,7 @@ import {
   Check,
   ChevronRight,
   FlaskConical,
-  Gauge,
   LineChart,
-  Play,
   Save,
   ShieldCheck,
   Sparkles,
@@ -94,13 +92,6 @@ function StrategyLabPage() {
       riskLimit: 1,
       status: "Published",
       definition: rules,
-      backtest: {
-        returnPct: 24.8,
-        maxDrawdownPct: -8.6,
-        winRatePct: 61.4,
-        sharpe: 1.72,
-        trades: 184,
-      },
     });
     setSavedStrategyId(saved.id);
     setCompleted((items) => (items.includes(4) ? items : [...items, 4]));
@@ -116,7 +107,7 @@ function StrategyLabPage() {
           description="Turn an idea into a measurable strategy, then prepare it for forward testing and the ALPHENTRA Arena."
           actions={
             <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
-              Prototype workflow
+              MT5 Strategy Lab
             </Badge>
           }
         />
