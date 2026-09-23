@@ -5,6 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const AI_TIMEOUT_MS = 30_000;
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
@@ -47,24 +49,47 @@ Deno.serve(async (req: Request) => {
     ].join(" ");
 
     const model = Deno.env.get("OPENROUTER_STRATEGY_MODEL") ?? "openrouter/free";
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-        "HTTP-Referer": "https://alphentra.vercel.app",
-        "X-Title": "ALPHENTRA Strategy Lab",
-      },
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: prompt },
-        ],
-      }),
-    });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
+
+    let response: Response;
+    try {
+      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://alphentra.vercel.app",
+          "X-Title": "ALPHENTRA Strategy Lab",
+        },
+        body: JSON.stringify({
+          model,
+          temperature: 0.2,
+          max_tokens: 500,
+          response_format: { type: "json_object" },
+          messages: [
+            { role: "system", content: system },
+            { role: "user", content: prompt },
+          ],
+        }),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        return new Response(JSON.stringify({
+          error: `AI provider timed out after ${AI_TIMEOUT_MS / 1000} seconds. Please try again.`,
+          provider: "openrouter",
+          provider_status: 408,
+          model,
+        }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeoutId);
+    }
 
     if (!response.ok) {
       const providerText = await response.text();
@@ -88,17 +113,23 @@ Deno.serve(async (req: Request) => {
 
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;
-    if (!content) throw new Error("AI provider returned no strategy definition.");
+    if (!content) {
+      throw new Error(`AI provider returned no strategy definition. Model: ${payload?.model ?? model}`);
+    }
 
     let definition: unknown;
     try {
-      definition = JSON.parse(content);
+      definition = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
     } catch {
       const cleaned = String(content)
         .replace(/^\s*```(?:json)?\s*/i, "")
         .replace(/\s*```\s*$/i, "")
         .trim();
-      definition = JSON.parse(cleaned);
+      try {
+        definition = JSON.parse(cleaned);
+      } catch {
+        throw new Error(`AI provider returned non-JSON strategy content. Model: ${payload?.model ?? model}`);
+      }
     }
 
     return new Response(JSON.stringify({ definition, model: payload?.model ?? model }), {
