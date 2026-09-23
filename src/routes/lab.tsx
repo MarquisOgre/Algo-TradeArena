@@ -95,21 +95,11 @@ function StrategyLabPage() {
     setAiError(null);
     try {
       const { data, error } = await supabase.functions.invoke("ai-strategy-builder", { body: { prompt } });
-      if (error) {
-        let detail = error.message || "AI Strategy Builder request failed.";
-        const context = (error as { context?: Response }).context;
-        if (context) {
-          try {
-            const body = await context.clone().json();
-            if (body?.error) {
-              detail = String(body.error);
-              if (body.provider_status) detail += ` (provider status ${body.provider_status})`;
-              if (body.model) detail += ` — model: ${body.model}`;
-            }
-          } catch {
-            // Keep the Supabase error message when the response body is not JSON.
-          }
-        }
+      if (error) throw error;
+      if (data?.error) {
+        let detail = String(data.error);
+        if (data.provider_status) detail += ` (provider status ${data.provider_status})`;
+        if (data.model) detail += ` — model: ${data.model}`;
         throw new Error(detail);
       }
       const generated = data?.definition as StrategyRuleDefinition | undefined;
