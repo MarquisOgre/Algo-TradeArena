@@ -50,8 +50,10 @@ Deno.serve(async (req: Request) => {
 
     const configuredModel = Deno.env.get("OPENROUTER_STRATEGY_MODEL");
     const freeFallbackModels = [
-      "google/gemma-4-31b-it:free",
-      "google/gemma-4-26b-a4b-it:free",
+      "nvidia/nemotron-3-super-120b-a12b:free",
+      "qwen/qwen3.8-27b:free",
+      "nex-agi/nex-n2.5-pro:free",
+      "liquid/lfm-2.5-2.6b:free",
     ];
     const models = configuredModel &&
       configuredModel !== "openrouter/free" &&
@@ -76,7 +78,62 @@ Deno.serve(async (req: Request) => {
           models,
           temperature: 0.2,
           max_tokens: 500,
-          response_format: { type: "json_object" },
+          response_format: {
+            type: "json_schema",
+            json_schema: {
+              name: "alphentra_strategy_definition",
+              strict: true,
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                properties: {
+                  entryOperator: { type: "string", enum: ["AND", "OR"] },
+                  entry: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 6,
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      properties: {
+                        indicator: { type: "string", enum: ["EMA", "SMA", "RSI", "MACD", "ATR", "PRICE", "OPEN", "HIGH", "LOW", "VOLUME"] },
+                        period: { type: ["number", "null"] },
+                        comparator: { type: "string", enum: ["gt", "gte", "lt", "lte", "eq", "neq", "crosses_above", "crosses_below"] },
+                        value: { type: "string" },
+                      },
+                      required: ["indicator", "period", "comparator", "value"],
+                    },
+                  },
+                  exitOperator: { type: "string", enum: ["AND", "OR"] },
+                  exit: {
+                    type: "array",
+                    minItems: 1,
+                    maxItems: 6,
+                    items: {
+                      type: "object",
+                      additionalProperties: false,
+                      properties: {
+                        indicator: { type: "string", enum: ["EMA", "SMA", "RSI", "MACD", "ATR", "PRICE", "OPEN", "HIGH", "LOW", "VOLUME"] },
+                        period: { type: ["number", "null"] },
+                        comparator: { type: "string", enum: ["gt", "gte", "lt", "lte", "eq", "neq", "crosses_above", "crosses_below"] },
+                        value: { type: "string" },
+                      },
+                      required: ["indicator", "period", "comparator", "value"],
+                    },
+                  },
+                  stopLossPct: { type: "number", minimum: 0, maximum: 10 },
+                  takeProfitPct: { type: "number", minimum: 0, maximum: 20 },
+                  trailingStopPct: { type: "number", minimum: 0, maximum: 10 },
+                  riskPerTradePct: { type: "number", exclusiveMinimum: 0, maximum: 2 },
+                  positionSizing: { type: "string", enum: ["fixed", "risk_percent", "volatility_adjusted"] },
+                },
+                required: ["entryOperator", "entry", "exitOperator", "exit", "stopLossPct", "takeProfitPct", "trailingStopPct", "riskPerTradePct", "positionSizing"],
+              },
+            },
+          },
+          provider: {
+            require_parameters: true,
+          },
           messages: [
             { role: "system", content: system },
             { role: "user", content: prompt },
