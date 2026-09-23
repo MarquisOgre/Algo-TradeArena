@@ -259,43 +259,53 @@ const marketHistoryCache = new Map<
 >();
 const marketHistoryRequestedAt = new Map<string, number>();
 
-async function loadBoardSpark(marketId: string): Promise<number[]> {
-  const now = Date.now();
-  const cached = marketHistoryCache.get(marketId);
-  if (cached && cached.expiresAt > now) {
-    return cached.values;
+async function loadBoardSparks(
+  marketIds: string[],
+): Promise<Map<string, number[]>> {
+  const result = new Map<string, number[]>();
+  if (marketIds.length === 0) return result;
+
+  // The market board only needs the latest 30 daily closes for each active
+  // instrument. Fetch the existing MT5 history in one request rather than
+  // starting 25 independent request/response cycles from the browser.
+  const { data, error } = await supabase
+    .from("market_data")
+    .select("market_id, candle_time, close")
+    .in("market_id", marketIds)
+    .eq("timeframe", "1d")
+    .eq("source", "mt5")
+    .order("candle_time", { ascending: false })
+    .limit(Math.max(30, marketIds.length * 60));
+
+  if (error) throw error;
+
+  const grouped = new Map<string, number[]>();
+  for (const row of data ?? []) {
+    const close = Number(row.close);
+    if (!Number.isFinite(close)) continue;
+
+    const values = grouped.get(row.market_id) ?? [];
+    if (values.length < 30) values.push(close);
+    grouped.set(row.market_id, values);
   }
 
-  try {
-    const lastRequestedAt = marketHistoryRequestedAt.get(marketId) ?? 0;
-    if (now - lastRequestedAt >= MARKET_HISTORY_REQUEST_COOLDOWN_MS) {
+  for (const marketId of marketIds) {
+    const values = (grouped.get(marketId) ?? []).reverse();
+    result.set(marketId, values);
+  }
+
+  return result;
+}
+
+async function requestMissingBoardHistory(marketIds: string[], sparks: Map<string, number[]>) {
+  for (const marketId of marketIds) {
+    if ((sparks.get(marketId)?.length ?? 0) >= 2) continue;
+
+    try {
       await requestMarketHistory(marketId, "1d", 30);
-      marketHistoryRequestedAt.set(marketId, now);
+    } catch (error) {
+      console.error("Failed to request MT5 market history:", error);
     }
-
-    const history = await loadMarketHistory(marketId, "1d", 30);
-    const values = history
-      .map((candle) => candle.close)
-      .filter((value) => Number.isFinite(value))
-      .slice(-30);
-
-    marketHistoryCache.set(marketId, {
-      values,
-      expiresAt: now + (values.length >= 2
-        ? MARKET_HISTORY_TTL_MS
-        : MARKET_HISTORY_EMPTY_RETRY_MS),
-    });
-
-    return values;
-  } catch (error) {
-    // Historical data is an enhancement to the market board. A failed or
-    // delayed candle request must never hide otherwise valid live MT5 quotes.
-    console.error("Failed to load MT5 market history:", error);
-    marketHistoryCache.set(marketId, {
-      values: [],
-      expiresAt: now + MARKET_HISTORY_EMPTY_RETRY_MS,
-    });
-    return [];
   }
 }
 
@@ -313,7 +323,20 @@ export async function loadMarketBoard(): Promise<Market[]> {
   // Load quotes only for the active MT5 universe. This is deliberately keyed
   // by market_id rather than symbol so broker/provider suffixes cannot break the
   // join between the canonical market and its MT5 quote.
-  const liveQuotes = await loadLiveMarketQuotesForMarkets(marketRows);
+  const [liveQuotes, sparks] = await Promise.all([
+    loadLiveMarketQuotesForMarkets(marketRows),
+    loadBoardSparks(marketRows.map((market) => market.id)),
+  ]);
+
+  const missingHistoryIds = marketRows
+    .map((market) => market.id)
+    .filter((marketId) => (sparks.get(marketId)?.length ?? 0) < 2);
+
+  // Existing history is rendered immediately. Missing history is requested
+  // asynchronously for the bridge; it will appear on the next board refresh.
+  if (missingHistoryIds.length > 0) {
+    void requestMissingBoardHistory(missingHistoryIds, sparks);
+  }
 
   const byMarketId = liveQuotes;
 
@@ -357,7 +380,7 @@ export async function loadMarketBoard(): Promise<Market[]> {
       spread: live.spread,
       isMarketOpen: live.isMarketOpen,
       marketCap: "—",
-      spark: await loadBoardSpark(row.id),
+      spark: sparks.get(row.id) ?? [],
       aiSignal: "Neutral",
       aiConfidence: 0,
       providerStatus: "live" as const,
