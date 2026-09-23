@@ -1,62 +1,74 @@
 # ALPHENTRA — Phase 4: Strategies + Strategy Lab
 
-Branch: `PHASE-4-Strategies-Strategy-Lab`
+Branch: `PHASE-4-Strategies-Strategy-Lab`  
+Working implementation: `PHASE-4-WIP-20`
 
-## Phase 4 foundation started
+## Phase 4 implementation status
 
-Phase 4 builds the strategy lifecycle on top of the completed Phase 3 paper-trading foundation.
+Phase 4 now covers the complete build → backtest → stress → paper forward-test → publish-gate workflow. Publication remains locked until evidence requirements are satisfied.
 
-### Completed in this branch
+### Completed
 
 - Structured no-code Strategy Rule Builder
-  - Entry conditions
-  - Exit conditions
+  - Entry/exit conditions
   - AND / OR logic
-  - Indicator + period + comparator + operand
-  - Stop loss
-  - Take profit
-  - Trailing stop
-  - Risk-per-trade
-  - Position-sizing method
-- Strategy version model now carries a structured definition.
-- Supabase migration `026_alphentra_strategy_lab.sql`
-  - `strategy_conditions` normalized condition tree
-  - `strategy_templates` platform-owned starter strategy catalog
-  - Six initial strategy templates
-  - RLS policies for user-owned strategy conditions
-- Existing `strategies`, `strategy_versions`, `strategy_risk_profiles`, and `backtests` remain the lifecycle backbone.
+  - EMA, SMA, RSI, MACD, ATR and price expressions
+  - Stop loss, take profit and trailing stop
+  - Risk-per-trade and position sizing
+- Versioned strategy definition storage.
+- Supabase strategy-lab schema and six starter templates.
+- Deterministic condition engine with validation.
+- Real MT5 historical candle loading from the dynamic live universe.
+- Hardened backtest engine:
+  - Fees and slippage
+  - Risk-based/fixed/volatility-adjusted sizing
+  - Stop loss / take profit / trailing stop
+  - End-of-data position reconciliation
+  - Equity curve with cash, realized/unrealized P&L and drawdown
+  - Annualized return, volatility, Sharpe, Sortino, profit factor, expectancy, risk/reward, recovery factor and Calmar ratio
+- Canonical Supabase persistence:
+  - `backtests`
+  - `backtest_trades`
+  - `backtest_equity_snapshots`
+  - `backtest_metrics`
+- Strategy persistence for authenticated users through `traders`, `strategies`, and `strategy_versions`.
+- Deterministic MT5 stress testing:
+  - Fee shock
+  - Slippage shock
+  - Volatility shock
+  - Adverse drift
+- Paper forward-test persistence and cycle execution.
+- Paper-only forward execution through the existing authenticated paper-order RPC.
+- Evidence-based publish gates; no automatic production publication.
+- AI Strategy Builder edge function and Strategy Lab integration.
+  - Requires `OPENAI_API_KEY` in Supabase function secrets before live AI generation can run.
+  - Generated definitions are validated before entering backtest.
+  - AI output is treated as a strategy hypothesis, not a profitability guarantee.
 
-## Phase 4 build sequence
+## Data and execution boundaries
 
-1. Strategy definition + versioning
-2. Rule/condition engine
-3. Strategy templates
-4. Risk controls and validation
-5. Historical backtest execution
-6. Backtest metrics/equity curve persistence
-7. Paper forward testing
-8. Strategy activation / publish gates
-9. AI Strategy Builder (natural language → structured definition)
-10. Phase 4 validation and PR
+- MT5 remains the market-data source.
+- Instruments are resolved dynamically; no strategy code hardcodes the trading universe.
+- Strategy Lab never sends live broker/MT5 orders.
+- Forward testing uses the authenticated ALPHENTRA paper execution path only.
+- A backtest must complete before stress testing.
+- Stress testing must complete before forward-test progression.
+- A forward-test cycle must be recorded before the publish-gate screen can be entered.
+- Production publication remains locked until the required observation period is actually met.
 
-## Separation of concerns
+## Database hardening
 
-Strategy creation and backtesting remain separate from broker execution. Phase 4 must not send live broker orders.
+Migration `027_phase4_backtest_persistence_hardening.sql` adds authenticated owner-only write/delete policies for backtest child rows and metrics.
 
-Market inputs continue to use the existing MT5 market-data foundation. Instruments are resolved from the live market universe rather than hardcoded into strategy code.
+Migration `028_strategy_forward_tests.sql` adds owner-scoped forward-test sessions and event history.
 
-## Validation gate
+## Remaining Phase 4 work
 
-Before opening the Phase 4 PR:
+1. Configure the AI provider secret/model in Supabase and verify an end-to-end AI generation request.
+2. Complete an actual forward observation window using paper execution and record evidence.
+3. Run final application build/QA and reconcile any TypeScript/runtime issues.
+4. Raise the final Phase 4 PR to the requested `main` branch only.
 
-- Strategy definitions persist correctly.
-- Versioning is immutable/auditable.
-- Entry/exit conditions evaluate deterministically.
-- Risk limits are enforced.
-- Backtests use historical market data and persist reproducible results.
-- Paper forward testing runs without live execution.
-- Existing Phase 1–3 flows remain intact.
+## Important
 
-## Engine foundation
-
-The branch now contains a deterministic condition evaluator and a first-pass historical backtest engine. The backtest engine supports indicator-driven entry/exit signals, risk-per-trade sizing, stop loss, take profit, fees, slippage, equity curves, drawdown, win rate and profit factor. It is intentionally isolated from broker execution and must be connected to persisted MT5 historical bars before production use.
+Backtest and stress-test results are measurements of historical/synthetic scenarios. They are not guarantees of future profitability.
