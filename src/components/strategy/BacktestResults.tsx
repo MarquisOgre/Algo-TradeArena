@@ -13,7 +13,7 @@ import type { Market } from "@/data/types";
 const TIMEFRAMES = ["5m", "15m", "1h", "4h", "1d"] as const;
 type Timeframe = typeof TIMEFRAMES[number];
 
-export function BacktestResults({ definition, strategyName = "Strategy Lab Draft", onBacktestComplete }: { definition: StrategyRuleDefinition; strategyName?: string; onBacktestComplete?: (backtestId: string, result: BacktestResult) => void }) {
+export function BacktestResults({ definition, strategyName = "Strategy Lab Draft", onBacktestComplete }: { definition: StrategyRuleDefinition; strategyName?: string; onBacktestComplete?: (backtestId: string, result: BacktestResult, marketId: string, timeframe: Timeframe) => void }) {
   const engineDefinition: StrategyDefinition = {
     entry: { operator: definition.entryOperator, conditions: definition.entry },
     exit: { operator: definition.exitOperator, conditions: definition.exit },
@@ -53,7 +53,7 @@ export function BacktestResults({ definition, strategyName = "Strategy Lab Draft
         strategyName, definition: engineDefinition, marketId, timeframe,
         config: { initialCapital: capital, feeBps: 2, slippageBps: 1, maxBars: Math.min(240, Math.max(30, bars)) },
       });
-      setResult(next.result); setBacktestId(next.backtestId); onBacktestComplete?.(next.backtestId, next.result);
+      setResult(next.result); setBacktestId(next.backtestId); onBacktestComplete?.(next.backtestId, next.result, marketId, timeframe);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Backtest failed.");
     } finally { setRunning(false); }
