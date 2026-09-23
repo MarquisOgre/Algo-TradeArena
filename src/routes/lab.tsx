@@ -21,7 +21,7 @@ import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
 import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
 import { BacktestResults } from "@/components/strategy/BacktestResults";
-import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";\nimport type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";\nimport { runStrategyStressTest, type StressTestResult } from "@/lib/strategy/stress-test";
+import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";\nimport type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";\nimport { runStrategyStressTest, type StressTestResult } from "@/lib/strategy/stress-test";\nimport { runForwardTestCycle, startForwardTest } from "@/lib/strategy/forward-test";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -53,7 +53,7 @@ function StrategyLabPage() {
     "Build a momentum strategy for major FX pairs using trend confirmation, volatility-aware position sizing, and a strict 1% risk limit per trade.",
   );
   const [completed, setCompleted] = useState<number[]>([]);
-  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);\n  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);\n  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);\n  const [stressResult, setStressResult] = useState<StressTestResult | null>(null);\n  const [backtestMarketId, setBacktestMarketId] = useState<string | null>(null);\n  const [backtestTimeframe, setBacktestTimeframe] = useState<"5m" | "15m" | "1h" | "4h" | "1d">("5m");\n  const [stressRunning, setStressRunning] = useState(false);
+  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);\n  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);\n  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);\n  const [stressResult, setStressResult] = useState<StressTestResult | null>(null);\n  const [backtestMarketId, setBacktestMarketId] = useState<string | null>(null);\n  const [backtestTimeframe, setBacktestTimeframe] = useState<"5m" | "15m" | "1h" | "4h" | "1d">("5m");\n  const [stressRunning, setStressRunning] = useState(false);\n  const [forwardTestId, setForwardTestId] = useState<string | null>(null);\n  const [forwardRunning, setForwardRunning] = useState(false);\n  const [forwardEvent, setForwardEvent] = useState<{ signal: string; action: string; price: number } | null>(null);
   const [rules, setRules] = useState<StrategyRuleDefinition>({
     entryOperator: "AND",
     entry: [
@@ -267,25 +267,58 @@ function StrategyLabPage() {
                 <div>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Paper environment</p>
                   <h2 className="mt-1 text-xl font-semibold">Forward Test</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">Run the strategy against simulated market data in a paper environment before publishing it to the marketplace or Arena.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">This stage uses the authenticated ALPHENTRA paper execution engine only. No MT5/live broker order is sent from Strategy Lab.</p>
                   <div className="mt-5 space-y-3">
                     {[
-                      ["Paper balance", "$100,000"],
-                      ["Risk per trade", "1.0%"],
-                      ["Max drawdown guard", "10%"],
-                      ["Minimum observation", "30 days"],
+                      ["Backtest run", backtestRunId ? backtestRunId.slice(0, 8) + "…" : "Required"],
+                      ["Observation status", forwardTestId ? "Active" : "Not started"],
+                      ["Execution", "Paper only"],
+                      ["Market data", "MT5 live universe"],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between rounded-lg border border-border bg-surface/40 px-4 py-3 text-sm">
                         <span className="text-muted-foreground">{label}</span><span className="font-medium">{value}</span>
                       </div>
                     ))}
                   </div>
+                  {forwardEvent && <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm"><span className="font-semibold">{forwardEvent.signal}</span> · {forwardEvent.action} · {forwardEvent.price.toFixed(5)}</div>}
                 </div>
                 <GlassCard className="p-5">
                   <Badge variant="outline" className="border-warning/30 text-warning">Paper trading only</Badge>
-                  <p className="mt-4 text-sm text-muted-foreground">No real orders are sent from Strategy Lab. Broker execution will be connected after the paper workflow is validated.</p>
-                  <Button className="mt-5 w-full" onClick={nextStep}>Start Paper Forward Test <ArrowRight /></Button>
+                  <p className="mt-4 text-sm text-muted-foreground">Start a forward-test session from the completed backtest, then run a cycle against the current MT5 quote and paper portfolio.</p>
+                  {!forwardTestId ? (
+                    <Button className="mt-5 w-full" disabled={!backtestRunId} onClick={async () => {
+                      if (!backtestRunId) return;
+                      try {
+                        const started = await startForwardTest({
+                          backtestId: backtestRunId,
+                          definition: { entry: { operator: rules.entryOperator, conditions: rules.entry }, exit: { operator: rules.exitOperator, conditions: rules.exit }, stopLossPct: rules.stopLossPct, takeProfitPct: rules.takeProfitPct, trailingStopPct: rules.trailingStopPct, riskPerTradePct: rules.riskPerTradePct, positionSizing: rules.positionSizing },
+                        });
+                        setForwardTestId(started.id);
+                      } catch (error) {
+                        console.error(error);
+                      }
+                    }}>Start Paper Forward Test <ArrowRight /></Button>
+                  ) : (
+                    <>
+                      <Button className="mt-5 w-full" disabled={forwardRunning} onClick={async () => {
+                        if (!forwardTestId || !backtestMarketId) return;
+                        setForwardRunning(true);
+                        try {
+                          const event = await runForwardTestCycle({
+                            forwardTestId, marketId: backtestMarketId, timeframe: backtestTimeframe,
+                            definition: { entry: { operator: rules.entryOperator, conditions: rules.entry }, exit: { operator: rules.exitOperator, conditions: rules.exit }, stopLossPct: rules.stopLossPct, takeProfitPct: rules.takeProfitPct, trailingStopPct: rules.trailingStopPct, riskPerTradePct: rules.riskPerTradePct, positionSizing: rules.positionSizing },
+                          });
+                          setForwardEvent({ signal: event.signal, action: event.action, price: event.price });
+                          setCompleted((items) => items.includes(3) ? items : [...items, 3]);
+                        } catch (error) {
+                          console.error(error);
+                        } finally { setForwardRunning(false); }
+                      }}>{forwardRunning ? "Running Paper Cycle…" : "Run Forward Cycle"} <ArrowRight /></Button>
+                      <p className="mt-3 text-center text-xs text-muted-foreground">A production publish gate should observe this session for the required period before enabling publication.</p>
+                    </>
+                  )}
                 </GlassCard>
+                <div className="lg:col-span-2"><Button onClick={nextStep} disabled={!forwardTestId}><ArrowRight />Continue to Publish Gates</Button></div>
               </div>
             )}
 
