@@ -94,6 +94,13 @@ function StrategyLabPage() {
   }
 
   const progress = useMemo(() => Math.round((step / (steps.length - 1)) * 100), [step]);
+  const canEnterStep = (index: number) => {
+    if (index === 0) return true;
+    if (index === 1) return ruleValidation.valid;
+    if (index === 2) return Boolean(backtestResult);
+    if (index === 3) return Boolean(stressResult);
+    return Boolean(forwardTestId && forwardEvent);
+  };
 
   function nextStep() {
     if (step === 0 && !ruleValidation.valid) return;
@@ -141,7 +148,7 @@ function StrategyLabPage() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setStep(index)}
+                    onClick={() => { if (canEnterStep(index)) setStep(index); }}\n                    disabled={!canEnterStep(index)}
                     className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                       active
                         ? "bg-primary text-primary-foreground"
