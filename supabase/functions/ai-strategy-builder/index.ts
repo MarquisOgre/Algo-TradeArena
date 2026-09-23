@@ -70,7 +70,10 @@ Deno.serve(async (req: Request) => {
         provider_status: response.status,
         model,
       }), {
-        status: 502,
+        // Return a JSON application error so supabase.functions.invoke() exposes
+        // the provider message to the Strategy Lab instead of collapsing it into
+        // a generic FunctionsHttpError.
+        status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
