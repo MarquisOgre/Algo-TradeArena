@@ -88,7 +88,15 @@ function StrategyLabPage() {
   });
 
   const current = steps[step];
-  const ruleValidation = validateStrategyDefinition(rules);
+  const ruleValidation = validateStrategyDefinition({
+    entry: { operator: rules.entryOperator, conditions: rules.entry },
+    exit: { operator: rules.exitOperator, conditions: rules.exit },
+    stopLossPct: rules.stopLossPct,
+    takeProfitPct: rules.takeProfitPct,
+    trailingStopPct: rules.trailingStopPct,
+    riskPerTradePct: rules.riskPerTradePct,
+    positionSizing: rules.positionSizing,
+  });
 
   async function generateWithAI() {
     setAiRunning(true);
@@ -104,7 +112,15 @@ function StrategyLabPage() {
       }
       const generated = data?.definition as StrategyRuleDefinition | undefined;
       if (!generated) throw new Error("AI returned no strategy definition.");
-      const validation = validateStrategyDefinition(generated);
+      const validation = validateStrategyDefinition({
+        entry: { operator: generated.entryOperator, conditions: generated.entry },
+        exit: { operator: generated.exitOperator, conditions: generated.exit },
+        stopLossPct: generated.stopLossPct,
+        takeProfitPct: generated.takeProfitPct,
+        trailingStopPct: generated.trailingStopPct,
+        riskPerTradePct: generated.riskPerTradePct,
+        positionSizing: generated.positionSizing,
+      });
       if (!validation.valid) throw new Error(validation.errors.join(" "));
       setRules(generated);
       setCompleted((items) => items.filter((item) => item !== 0));

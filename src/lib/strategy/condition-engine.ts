@@ -213,28 +213,70 @@ export function evaluateStrategy(definition: StrategyDefinition, bars: StrategyB
   };
 }
 
-export function validateStrategyDefinition(definition: StrategyDefinition) {
+type RuleBuilderDefinition = {
+  entryOperator: "AND" | "OR";
+  entry: EngineCondition[];
+  exitOperator: "AND" | "OR";
+  exit: EngineCondition[];
+  stopLossPct: number;
+  takeProfitPct: number;
+  trailingStopPct: number;
+  riskPerTradePct: number;
+  positionSizing: "fixed" | "risk_percent" | "volatility_adjusted";
+};
+
+export function validateStrategyDefinition(definition: StrategyDefinition | RuleBuilderDefinition) {
   const errors: string[] = [];
   if (!definition || typeof definition !== "object") {
     return { valid: false, errors: ["Strategy definition is missing."] };
   }
-  if (!definition.entry || !Array.isArray(definition.entry.conditions)) errors.push("At least one entry condition is required.");
-  else if (definition.entry.conditions.length === 0) errors.push("At least one entry condition is required.");
-  if (!definition.exit || !Array.isArray(definition.exit.conditions)) errors.push("At least one exit condition is required.");
-  else if (definition.exit.conditions.length === 0) errors.push("At least one exit condition is required.");
-  if (!Number.isFinite(definition.riskPerTradePct) || definition.riskPerTradePct <= 0 || definition.riskPerTradePct > 10) errors.push("Risk per trade must be greater than 0% and no more than 10%.");
-  if (!Number.isFinite(definition.stopLossPct) || definition.stopLossPct < 0 || definition.stopLossPct > 50) errors.push("Stop loss must be between 0% and 50%.");
-  if (!Number.isFinite(definition.takeProfitPct) || definition.takeProfitPct < 0 || definition.takeProfitPct > 100) errors.push("Take profit must be between 0% and 100%.");
-  if (!Number.isFinite(definition.trailingStopPct) || definition.trailingStopPct < 0 || definition.trailingStopPct > 50) errors.push("Trailing stop must be between 0% and 50%.");
-  for (const group of [definition.entry, definition.exit]) {
-    if (!group || !Array.isArray(group.conditions)) continue;
-    for (const condition of group.conditions) {
-      if (!condition.indicator.trim()) errors.push("Every condition requires an indicator.");
-      if (!condition.comparator.trim()) errors.push("Every condition requires a comparator.");
-      if (condition.period !== undefined && (!Number.isInteger(condition.period) || condition.period <= 0)) {
-        errors.push("Indicator periods must be positive whole numbers.");
-      }
+
+  const candidate = definition as StrategyDefinition & Partial<RuleBuilderDefinition>;
+  const entryConditions = Array.isArray(candidate.entry)
+    ? candidate.entry
+    : Array.isArray(candidate.entry?.conditions)
+      ? candidate.entry.conditions
+      : [];
+  const exitConditions = Array.isArray(candidate.exit)
+    ? candidate.exit
+    : Array.isArray(candidate.exit?.conditions)
+      ? candidate.exit.conditions
+      : [];
+
+  if (entryConditions.length === 0) errors.push("At least one entry condition is required.");
+  if (exitConditions.length === 0) errors.push("At least one exit condition is required.");
+
+  if (!Number.isFinite(candidate.riskPerTradePct) || candidate.riskPerTradePct <= 0 || candidate.riskPerTradePct > 10) {
+    errors.push("Risk per trade must be greater than 0% and no more than 10%.");
+  }
+  if (!Number.isFinite(candidate.stopLossPct) || candidate.stopLossPct < 0 || candidate.stopLossPct > 50) {
+    errors.push("Stop loss must be between 0% and 50%.");
+  }
+  if (!Number.isFinite(candidate.takeProfitPct) || candidate.takeProfitPct < 0 || candidate.takeProfitPct > 100) {
+    errors.push("Take profit must be between 0% and 100%.");
+  }
+  if (!Number.isFinite(candidate.trailingStopPct) || candidate.trailingStopPct < 0 || candidate.trailingStopPct > 50) {
+    errors.push("Trailing stop must be between 0% and 50%.");
+  }
+
+  for (const condition of [...entryConditions, ...exitConditions]) {
+    if (!condition || typeof condition !== "object") {
+      errors.push("Every condition must be a valid object.");
+      continue;
+    }
+    if (typeof condition.indicator !== "string" || !condition.indicator.trim()) {
+      errors.push("Every condition requires an indicator.");
+    }
+    if (typeof condition.comparator !== "string" || !condition.comparator.trim()) {
+      errors.push("Every condition requires a comparator.");
+    }
+    if (condition.period !== undefined && (!Number.isInteger(condition.period) || condition.period <= 0)) {
+      errors.push("Indicator periods must be positive whole numbers.");
+    }
+    if (condition.value === undefined || condition.value === null || String(condition.value).trim() === "") {
+      errors.push("Every condition requires a comparison value.");
     }
   }
+
   return { valid: errors.length === 0, errors };
 }
