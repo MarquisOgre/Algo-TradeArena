@@ -107,6 +107,7 @@ function PortfolioPage() {
   const [activationError, setActivationError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
   const loadPortfolio = async (silent = false) => {
@@ -223,6 +224,7 @@ function PortfolioPage() {
     if (!user || resetting) return;
 
     setResetError(null);
+    setResetSuccess(false);
     setResetDialogOpen(false);
     setResetting(true);
 
@@ -237,6 +239,7 @@ function PortfolioPage() {
     }
 
     await loadPortfolio();
+    setResetSuccess(true);
   };
 
   const account = portfolio
@@ -397,6 +400,13 @@ function PortfolioPage() {
           </div>
         }
       />
+
+      {resetSuccess ? (
+        <GlassCard className="mt-6 border-success/30 p-5">
+          <p className="text-sm font-semibold text-success">Paper Wallet Reset Successfully</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your Paper Trading Account has been restored to $100,000 virtual USD.</p>
+        </GlassCard>
+      ) : null}
 
       {resetError ? (
         <GlassCard className="mt-6 border-danger/30 p-5">
