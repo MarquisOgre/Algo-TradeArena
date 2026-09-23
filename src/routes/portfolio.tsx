@@ -106,6 +106,7 @@ function PortfolioPage() {
   const [activating, setActivating] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
   const [resetError, setResetError] = useState<string | null>(null);
 
   const loadPortfolio = async (silent = false) => {
@@ -222,6 +223,7 @@ function PortfolioPage() {
     if (!user || resetting) return;
 
     setResetError(null);
+    setResetDialogOpen(false);
     setResetting(true);
 
     const { error } = await supabase.rpc("reset_paper_account");
@@ -359,7 +361,7 @@ function PortfolioPage() {
             <Button variant="outline" onClick={() => void loadPortfolio(true)} disabled={refreshing || resetting}>
               <RefreshCw className={cn("size-4", refreshing && "animate-spin")} /> Refresh
             </Button>
-            <AlertDialog>
+            <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
               <AlertDialogTrigger asChild>
                 <Button
                   variant="outline"
