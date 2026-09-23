@@ -215,8 +215,13 @@ export function evaluateStrategy(definition: StrategyDefinition, bars: StrategyB
 
 export function validateStrategyDefinition(definition: StrategyDefinition) {
   const errors: string[] = [];
-  if (definition.entry.conditions.length === 0) errors.push("At least one entry condition is required.");
-  if (definition.exit.conditions.length === 0) errors.push("At least one exit condition is required.");
+  if (!definition || typeof definition !== "object") {
+    return { valid: false, errors: ["Strategy definition is missing."] };
+  }
+  if (!definition.entry || !Array.isArray(definition.entry.conditions)) errors.push("At least one entry condition is required.");
+  else if (definition.entry.conditions.length === 0) errors.push("At least one entry condition is required.");
+  if (!definition.exit || !Array.isArray(definition.exit.conditions)) errors.push("At least one exit condition is required.");
+  else if (definition.exit.conditions.length === 0) errors.push("At least one exit condition is required.");
   if (definition.riskPerTradePct <= 0 || definition.riskPerTradePct > 10) errors.push("Risk per trade must be greater than 0% and no more than 10%.");
   if (definition.stopLossPct < 0 || definition.stopLossPct > 50) errors.push("Stop loss must be between 0% and 50%.");
   if (definition.takeProfitPct < 0 || definition.takeProfitPct > 100) errors.push("Take profit must be between 0% and 100%.");
