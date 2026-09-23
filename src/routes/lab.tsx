@@ -323,37 +323,36 @@ function StrategyLabPage() {
             )}
 
             {step === 4 && (
-              <div className="mx-auto max-w-2xl text-center">
-                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-success/10 text-success"><Check className="size-7" /></div>
-                <h2 className="mt-5 text-2xl font-semibold">Validation complete</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Your strategy has passed the Strategy Lab backtest gate. Stress testing and paper forward testing must still be completed before the strategy can be published.</p>
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  {["Backtest complete", "Stress test pending", "Forward test pending"].map((item) => (
-                    <div key={item} className="rounded-xl border border-border bg-surface/50 p-4 text-sm"><Check className="mx-auto mb-2 size-4 text-success" />{item}</div>
+              <div className="mx-auto max-w-3xl">
+                <div className="text-center">
+                  <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><ShieldCheck className="size-7" /></div>
+                  <h2 className="mt-5 text-2xl font-semibold">Publish Gates</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Publication is intentionally blocked until every validation gate is evidenced by real data. A backtest alone is not treated as production validation.</p>
+                </div>
+                <div className="mt-7 space-y-3">
+                  {[
+                    ["Historical backtest", Boolean(backtestResult), backtestResult ? `${backtestResult.trades.length} trades · DD ${backtestResult.maxDrawdownPct.toFixed(2)}%` : "Run a real MT5 backtest"],
+                    ["Stress testing", Boolean(stressResult), stressResult ? `${stressResult.scenarios.length} scenarios completed` : "Run all stress scenarios"],
+                    ["Paper forward session", Boolean(forwardTestId), forwardTestId ? "Session active" : "Start paper forward testing"],
+                    ["Forward observations", Boolean(forwardEvent), forwardEvent ? "At least one paper cycle recorded" : "No paper cycle recorded"],
+                    ["Minimum observation period", false, "Required observation window has not elapsed"],
+                  ].map(([label, ready, detail]) => (
+                    <div key={label as string} className="flex items-center gap-3 rounded-xl border border-border bg-surface/50 p-4">
+                      {ready ? <Check className="size-5 text-success" /> : <ShieldCheck className="size-5 text-warning" />}
+                      <div className="min-w-0 flex-1"><p className="font-medium">{label}</p><p className="text-xs text-muted-foreground">{detail}</p></div>
+                      <Badge variant="outline" className={ready ? "border-success/30 text-success" : "border-warning/30 text-warning"}>{ready ? "Passed" : "Pending"}</Badge>
+                    </div>
                   ))}
                 </div>
-                <Button className="mt-6" onClick={saveCurrentStrategy} disabled={Boolean(savedStrategyId)}>
-                  <Save />{savedStrategyId ? "Strategy Draft Saved" : "Save Strategy Draft"}
-                </Button>
-                {savedStrategyId ? (
-                  <p className="mt-3 text-xs text-success">Strategy draft saved to your local Strategy Lab library. ID: {savedStrategyId}{backtestRunId ? ` · Backtest: ${backtestRunId.slice(0, 8)}…` : ""}</p>
-                ) : (
-                  <p className="mt-3 text-xs text-muted-foreground">Draft save only. Publication remains gated until stress testing and forward testing are completed.</p>
-                )}
+                <div className="mt-5 rounded-xl border border-warning/20 bg-warning/5 p-4 text-sm text-muted-foreground">
+                  <ShieldCheck className="mr-2 inline size-4 text-warning" />
+                  This strategy remains a draft. ALPHENTRA will not mark it production-ready or marketplace-publishable until the required forward observation period is completed.
+                </div>
+                <div className="mt-6 flex justify-center">
+                  <Button disabled><Save /> Publish Strategy — Locked</Button>
+                </div>
+                {backtestRunId && <p className="mt-3 text-center text-xs text-muted-foreground">Backtest run: {backtestRunId}</p>}
               </div>
             )}
-          </div>
 
-          {step < 4 && (
-            <div className="flex items-center justify-between border-t border-border bg-surface/30 px-5 py-4">
-              <span className="text-xs text-muted-foreground">Step {step + 1} of {steps.length} · {current.label}</span>
-              <Button variant="outline" size="sm" onClick={nextStep}>
-                Continue <ChevronRight />
-              </Button>
-            </div>
-          )}
-        </GlassCard>
-      </div>
-    </AppShell>
-  );
-}
+
