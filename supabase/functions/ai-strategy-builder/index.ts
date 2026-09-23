@@ -142,7 +142,7 @@ Deno.serve(async (req: Request) => {
       }
     }
 
-    return new Response(JSON.stringify({ definition, model: payload?.model ?? model }), {
+    return new Response(JSON.stringify({ definition, model: payload?.model ?? primaryModel }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
