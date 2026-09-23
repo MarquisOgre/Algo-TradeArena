@@ -124,6 +124,29 @@ export function runBacktest(definition: StrategyDefinition, inputBars: StrategyB
     recordEquity(bar.time, bar.close);
   }
 
+  if (quantity > 0 && bars.length > 0) {
+    const lastBar = bars.at(-1)!;
+    const price = executionPrice(lastBar.close, "sell", slippageBps);
+    const grossPnl = (price - entryPrice) * quantity;
+    const fees = ((entryPrice + price) * quantity) * feeBps / 10_000;
+    const netPnl = grossPnl - fees;
+    cash += quantity * price - fees;
+    realizedPnl += netPnl;
+    trades.push({
+      entryTime,
+      exitTime: lastBar.time,
+      entryPrice,
+      exitPrice: price,
+      quantity,
+      grossPnl,
+      fees,
+      netPnl,
+      returnPct: entryPrice > 0 ? ((price - entryPrice) / entryPrice) * 100 : 0,
+      reason: "end_of_data",
+    });
+    quantity = 0;
+  }
+
   const finalEquity = equityCurve.at(-1)?.equity ?? initialCapital;
   const durationMs = Math.max(1, (equityCurve.at(-1)?.time ?? 0) - (equityCurve[0]?.time ?? 0));
   const years = durationMs / (365.25 * 24 * 60 * 60 * 1000);
