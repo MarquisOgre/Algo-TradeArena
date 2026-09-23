@@ -49,9 +49,16 @@ Deno.serve(async (req: Request) => {
     ].join(" ");
 
     const configuredModel = Deno.env.get("OPENROUTER_STRATEGY_MODEL");
-    const model = configuredModel && configuredModel !== "openrouter/free" && configuredModel !== "poolside/laguna-xs-2.1:free"
-      ? configuredModel
-      : "google/gemma-4-26b-a4b-it:free";
+    const freeFallbackModels = [
+      "google/gemma-4-26b-a4b-it:free",
+      "google/gemma-4-31b-it:free",
+    ];
+    const models = configuredModel &&
+      configuredModel !== "openrouter/free" &&
+      configuredModel !== "poolside/laguna-xs-2.1:free"
+      ? [configuredModel, ...freeFallbackModels.filter((candidate) => candidate !== configuredModel)]
+      : freeFallbackModels;
+    const primaryModel = models[0];
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
@@ -66,7 +73,7 @@ Deno.serve(async (req: Request) => {
           "X-Title": "ALPHENTRA Strategy Lab",
         },
         body: JSON.stringify({
-          model,
+          models,
           temperature: 0.2,
           max_tokens: 500,
           response_format: { type: "json_object" },
@@ -83,7 +90,7 @@ Deno.serve(async (req: Request) => {
           error: `AI provider timed out after ${AI_TIMEOUT_MS / 1000} seconds. Please try again.`,
           provider: "openrouter",
           provider_status: 408,
-          model,
+          model: primaryModel,
         }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -107,7 +114,7 @@ Deno.serve(async (req: Request) => {
       return new Response(JSON.stringify({
         error: providerMessage,
         provider_status: response.status,
-        model,
+        model: primaryModel,
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -117,7 +124,7 @@ Deno.serve(async (req: Request) => {
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error(`AI provider returned no strategy definition. Model: ${payload?.model ?? model}`);
+      throw new Error(`AI provider returned no strategy definition. Model: ${payload?.model ?? primaryModel}`);
     }
 
     let definition: unknown;
@@ -131,7 +138,7 @@ Deno.serve(async (req: Request) => {
       try {
         definition = JSON.parse(cleaned);
       } catch {
-        throw new Error(`AI provider returned non-JSON strategy content. Model: ${payload?.model ?? model}`);
+        throw new Error(`AI provider returned non-JSON strategy content. Model: ${payload?.model ?? primaryModel}`);
       }
     }
 
