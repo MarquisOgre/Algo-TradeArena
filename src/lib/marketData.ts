@@ -126,38 +126,30 @@ async function loadAllActiveMarkets(tradableOnly = false): Promise<MarketRow[]> 
   return rows;
 }
 
-async function loadAllMt5Quotes(): Promise<QuoteRow[]> {
-  const rows: QuoteRow[] = [];
-  const pageSize = 1000;
-  let from = 0;
+async function loadMt5QuotesForMarkets(
+  markets: MarketRow[],
+): Promise<QuoteRow[]> {
+  if (markets.length === 0) return [];
 
-  while (true) {
-    const { data, error } = await supabase
-      .from("market_quotes")
-      .select(
-        "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread, metadata",
-      )
-      .eq("provider", "mt5")
-      .order("quote_time", { ascending: false })
-      .range(from, from + pageSize - 1);
+  const marketIds = markets.map((market) => market.id);
+  const { data, error } = await supabase
+    .from("market_quotes")
+    .select(
+      "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread, metadata",
+    )
+    .eq("provider", "mt5")
+    .in("market_id", marketIds)
+    .order("quote_time", { ascending: false });
 
-    if (error) throw error;
+  if (error) throw error;
 
-    const page = (data ?? []) as QuoteRow[];
-    rows.push(...page);
-
-    if (page.length < pageSize) break;
-    from += pageSize;
-  }
-
-  return rows;
+  return (data ?? []) as QuoteRow[];
 }
 
-export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuote>> {
-  const [markets, quotes] = await Promise.all([
-    loadAllActiveMarkets(),
-    loadAllMt5Quotes(),
-  ]);
+async function loadLiveMarketQuotesForMarkets(
+  markets: MarketRow[],
+): Promise<Map<string, LiveMarketQuote>> {
+  const quotes = await loadMt5QuotesForMarkets(markets);
 
   const marketById = new Map(
     markets.map((market) => [market.id, market]),
@@ -190,6 +182,11 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
   }
 
   return latestByMarket;
+}
+
+export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuote>> {
+  const markets = await loadAllActiveMarkets(true);
+  return loadLiveMarketQuotesForMarkets(markets);
 }
 
 export async function loadBrokerMarketMappings(): Promise<Map<string, MarketStatus>> {
@@ -303,8 +300,8 @@ async function loadBoardSpark(marketId: string): Promise<number[]> {
 }
 
 export async function loadMarketBoard(): Promise<Market[]> {
-  const [liveQuotes, statuses] = await Promise.all([
-    loadLiveMarketQuotes(),
+  const [marketRows, statuses] = await Promise.all([
+    loadAllActiveMarkets(true),
     loadMarketStatuses().catch((error) => {
       // Provider status is auxiliary. Keep the MT5 quote board visible even if
       // the status table is temporarily unavailable to the browser.
@@ -312,11 +309,13 @@ export async function loadMarketBoard(): Promise<Market[]> {
       return new Map<string, MarketStatus>();
     }),
   ]);
-  const marketRows = await loadAllActiveMarkets(true);
 
-  const bySymbol = new Map(
-    [...liveQuotes.values()].map((quote) => [quote.symbol.toUpperCase(), quote]),
-  );
+  // Load quotes only for the active MT5 universe. This is deliberately keyed
+  // by market_id rather than symbol so broker/provider suffixes cannot break the
+  // join between the canonical market and its MT5 quote.
+  const liveQuotes = await loadLiveMarketQuotesForMarkets(marketRows);
+
+  const byMarketId = liveQuotes;
 
   // The MT5 bridge is the source of truth for the trading universe.
   // A selected instrument remains visible after its session closes, using
@@ -324,7 +323,7 @@ export async function loadMarketBoard(): Promise<Market[]> {
   // to the market-board catalog.
   const visibleRows = ((marketRows ?? []) as MarketRow[])
     .map((row) => {
-      const live = bySymbol.get(row.symbol.toUpperCase());
+      const live = byMarketId.get(row.id);
       if (!live) return null;
 
       return {
