@@ -56,3 +56,7 @@ Before opening the Phase 4 PR:
 - Backtests use historical market data and persist reproducible results.
 - Paper forward testing runs without live execution.
 - Existing Phase 1–3 flows remain intact.
+
+## Engine foundation
+
+The branch now contains a deterministic condition evaluator and a first-pass historical backtest engine. The backtest engine supports indicator-driven entry/exit signals, risk-per-trade sizing, stop loss, take profit, fees, slippage, equity curves, drawdown, win rate and profit factor. It is intentionally isolated from broker execution and must be connected to persisted MT5 historical bars before production use.
