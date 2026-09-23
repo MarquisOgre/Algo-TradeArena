@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { GlassCard } from "@/components/common/GlassCard";
 import { Button } from "@/components/ui/button";
