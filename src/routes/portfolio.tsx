@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Wallet, RefreshCw } from "lucide-react";
+import { Wallet, RefreshCw, RotateCcw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
@@ -11,6 +11,17 @@ import { DataTable, type Column } from "@/components/common/DataTable";
 import { Delta, formatMoney } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { refreshPaperPortfolioMarks } from "@/lib/marketData";
@@ -94,6 +105,8 @@ function PortfolioPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [activating, setActivating] = useState(false);
   const [activationError, setActivationError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const loadPortfolio = async (silent = false) => {
     if (!user) {
@@ -203,6 +216,25 @@ function PortfolioPage() {
     if (result.status === "activated" || result.status === "already_active") {
       await loadPortfolio();
     }
+  };
+
+  const resetPaperAccount = async () => {
+    if (!user || resetting) return;
+
+    setResetError(null);
+    setResetting(true);
+
+    const { error } = await supabase.rpc("reset_paper_account");
+
+    setResetting(false);
+
+    if (error) {
+      console.error("Failed to reset paper account:", error);
+      setResetError(error.message || "We could not reset your Paper Trading Account. Please try again.");
+      return;
+    }
+
+    await loadPortfolio();
   };
 
   const account = portfolio
@@ -323,14 +355,54 @@ function PortfolioPage() {
         title="Paper Trading Account"
         description="Create your ALPHENTRA Paper Trading Account with $100,000 in virtual USD. No broker account is required."
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void loadPortfolio(true)} disabled={refreshing}>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" onClick={() => void loadPortfolio(true)} disabled={refreshing || resetting}>
               <RefreshCw className={cn("size-4", refreshing && "animate-spin")} /> Refresh
             </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-danger/30 text-danger hover:bg-danger/10 hover:text-danger"
+                  disabled={resetting || !account}
+                >
+                  <RotateCcw className={cn("size-4", resetting && "animate-spin")} /> Reset Wallet
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset Paper Trading Wallet?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes all paper Buy/Sell orders, executions, open positions, trade history and equity snapshots for this account. Your Paper Trading Account stays active and is restored to exactly $100,000 virtual USD.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={resetting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-danger text-danger-foreground hover:bg-danger/90"
+                    disabled={resetting}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void resetPaperAccount();
+                    }}
+                  >
+                    {resetting ? "Resetting…" : "Reset Wallet"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button asChild><Link to="/trade"><Wallet className="size-4" /> Place a paper trade</Link></Button>
           </div>
         }
       />
+
+      {resetError ? (
+        <GlassCard className="mt-6 border-danger/30 p-5">
+          <p className="text-sm font-semibold text-danger">Paper Trading Account reset failed</p>
+          <p className="mt-1 text-sm text-muted-foreground">{resetError}</p>
+          <Button className="mt-4" variant="outline" onClick={() => setResetError(null)}>Dismiss</Button>
+        </GlassCard>
+      ) : null}
 
       {activationError ? (
         <GlassCard className="mt-6 border-danger/30 p-5">
