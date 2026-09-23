@@ -41,7 +41,8 @@ Phase 4 now covers the complete build → backtest → stress → paper forward-
 - Paper-only forward execution through the existing authenticated paper-order RPC.
 - Evidence-based publish gates; no automatic production publication.
 - AI Strategy Builder edge function and Strategy Lab integration.
-  - Requires `OPENAI_API_KEY` in Supabase function secrets before live AI generation can run.
+  - Uses OpenRouter through the `OPENROUTER_API_KEY` Supabase function secret.
+  - Defaults to the OpenRouter `openrouter/free` router for development; the model can be overridden with `OPENROUTER_STRATEGY_MODEL`.
   - Generated definitions are validated before entering backtest.
   - AI output is treated as a strategy hypothesis, not a profitability guarantee.
 
@@ -64,10 +65,16 @@ Migration `028_strategy_forward_tests.sql` adds owner-scoped forward-test sessio
 
 ## Remaining Phase 4 work
 
-1. Configure the AI provider secret/model in Supabase and verify an end-to-end AI generation request.
+1. Verify the deployed OpenRouter AI Strategy Builder end-to-end from Strategy Lab.
 2. Complete an actual forward observation window using paper execution and record evidence.
 3. Run final application build/QA and reconcile any TypeScript/runtime issues.
 4. Raise the final Phase 4 PR to the requested `main` branch only.
+
+## AI provider
+
+- OpenRouter is used for the Phase 4 development AI provider.
+- The provider key is stored only as a Supabase Edge Function secret; it is never exposed to the browser.
+- The frontend continues to call the existing `ai-strategy-builder` Edge Function, so Strategy Lab and backtesting contracts remain unchanged.
 
 ## Important
 
