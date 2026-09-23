@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
-import { Check, ChevronDown, RefreshCw, Search, Star } from "lucide-react";
+import { Check, ChevronDown, Search, Star } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
@@ -10,7 +10,7 @@ import { Delta } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { mockMarkets } from "@/data/mockMarkets";
+
 import type { Market } from "@/data/types";
 import { PaperTradingBadge } from "@/components/layout/TopBar";
 import { cn } from "@/lib/utils";
@@ -132,8 +132,8 @@ function CandleChart({
 
 function TradePage() {
   const { user } = useAuth();
-  const [markets, setMarkets] = useState(mockMarkets);
-  const [symbolId, setSymbolId] = useState(mockMarkets[0]!.id);
+  const [markets, setMarkets] = useState<Market[]>([]);
+  const [symbolId, setSymbolId] = useState<string | null>(null);
   const [side, setSide] = useState<"BUY" | "SELL">("BUY");
   const [liveData, setLiveData] = useState(false);
   const [liveQuotes, setLiveQuotes] = useState<Awaited<ReturnType<typeof loadLiveMarketQuotes>>>(new Map());
@@ -142,39 +142,16 @@ function TradePage() {
   const [hoveredCandle, setHoveredCandle] = useState<MarketCandle | null>(null);
   const [qty, setQty] = useState("100");
   const [cashBalance, setCashBalance] = useState<number | null>(null);
+  const [paperAccountActive, setPaperAccountActive] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [marketPickerOpen, setMarketPickerOpen] = useState(false);
   const [marketSearch, setMarketSearch] = useState("");
   const [marketCategory, setMarketCategory] = useState<"All" | Market["assetClass"]>("All");
   const marketPickerRef = useRef<HTMLDivElement>(null);
-  const [mt5Account, setMt5Account] = useState<{
-    brokerName: string;
-    server: string;
-    environment: string;
-    status: string;
-    balance: number;
-    equity: number;
-    margin: number;
-    freeMargin: number;
-    currency: string;
-    lastSync: string | null;
-  } | null>(null);
-  const [mt5Positions, setMt5Positions] = useState<Array<{
-    symbol: string;
-    side: string;
-    volume: number;
-    open_price: number;
-    current_price: number | null;
-    profit: number;
-    stop_loss: number | null;
-    take_profit: number | null;
-    mt5_ticket: number;
-  }>>([]);
-  const [mt5AccountLoading, setMt5AccountLoading] = useState(false);
 
-  const market = markets.find((m) => m.id === symbolId) ?? markets[0]!;
-  const liveQuote = liveQuotes.get(market.id);
-  const providerStatus = market.providerStatus ?? "unsupported";
+  const market = markets.find((m) => m.id === symbolId) ?? markets[0] ?? null;
+  const liveQuote = market ? liveQuotes.get(market.id) : undefined;
+  const providerStatus = market?.providerStatus ?? "unsupported";
   // Keep the Trade UI stable through short MT5 tick gaps. A quote is usable
   // for display for up to 2 minutes, while actual paper execution still
   // requires a very recent quote.
@@ -192,6 +169,7 @@ function TradePage() {
 
     setHoveredCandle(null);
     setChartCandles([]);
+    if (!market) return;
 
     const loadHistory = async () => {
       try {
@@ -238,7 +216,7 @@ function TradePage() {
       active = false;
       if (pollTimer !== null) window.clearTimeout(pollTimer);
     };
-  }, [market.id, market.providerStatus, chartTimeframe]);
+  }, [market?.id, market?.providerStatus, chartTimeframe]);
   const notional = (Number.isFinite(quantity) ? quantity : 0) * (liveQuote?.price ?? 0);
   const marketClosed = quoteAvailable && liveQuote?.isMarketOpen === false;
 
@@ -318,110 +296,57 @@ function TradePage() {
     };
   }, []);
 
-  const refreshMt5Account = async () => {
-    if (!user) {
-      setMt5Account(null);
-      setMt5Positions([]);
-      return;
-    }
+  useEffect(() => {
+    let active = true;
 
-    setMt5AccountLoading(true);
-    try {
-      const { data: broker, error: brokerError } = await supabase
-        .from("broker_accounts")
-        .select("id, broker_name, environment, status")
-        .order("updated_at", { ascending: false })
+    const loadPaperAccount = async () => {
+      if (!user) {
+        setPaperAccountActive(false);
+        setCashBalance(null);
+        return;
+      }
+
+      // Resolve the authenticated user directly from Supabase before reading
+      // the account. This keeps the Trade screen aligned with the account
+      // created by activate_paper_account(), even when the auth provider is
+      // still settling after navigation or refresh.
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (authError || !authData.user) {
+        console.error("Failed to resolve authenticated user for paper trading:", authError);
+        setPaperAccountActive(false);
+        setCashBalance(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("portfolios")
+        .select("cash_balance, account_status")
+        .eq("profile_id", authData.user.id)
+        .eq("name", "Main Paper Account")
+        .eq("portfolio_type", "paper")
+        .eq("is_active", true)
+        .eq("account_status", "active")
         .limit(1)
         .maybeSingle();
 
-      if (brokerError) throw brokerError;
-      if (!broker) {
-        setMt5Account(null);
-        setMt5Positions([]);
+      if (!active) return;
+
+      if (error) {
+        console.error("Failed to load paper buying power:", error);
+        setPaperAccountActive(false);
+        setCashBalance(null);
         return;
       }
 
-      const { data: account, error: accountError } = await supabase
-        .from("mt5_accounts")
-        .select("id, server_name, balance, equity, margin, free_margin, currency, last_account_sync_at")
-        .eq("broker_account_id", broker.id)
-        .maybeSingle();
+      const accountActive = data?.account_status === "active";
+      setPaperAccountActive(accountActive);
+      setCashBalance(accountActive && data?.cash_balance != null ? Number(data.cash_balance) : null);
+    };
 
-      if (accountError) throw accountError;
-      if (!account) {
-        setMt5Account(null);
-        setMt5Positions([]);
-        return;
-      }
-
-      setMt5Account({
-        brokerName: broker.broker_name,
-        server: account.server_name ?? "—",
-        environment: broker.environment,
-        status: broker.status,
-        balance: Number(account.balance ?? 0),
-        equity: Number(account.equity ?? 0),
-        margin: Number(account.margin ?? 0),
-        freeMargin: Number(account.free_margin ?? 0),
-        currency: account.currency ?? "USD",
-        lastSync: account.last_account_sync_at,
-      });
-
-      const { data: positions, error: positionsError } = await supabase
-        .from("mt5_positions")
-        .select("symbol, side, volume, open_price, current_price, profit, stop_loss, take_profit, mt5_ticket")
-        .eq("mt5_account_id", account.id)
-        .eq("is_open", true)
-        .order("opened_at", { ascending: false });
-
-      if (positionsError) throw positionsError;
-      setMt5Positions((positions ?? []).map((position) => ({
-        symbol: position.symbol,
-        side: position.side,
-        volume: Number(position.volume ?? 0),
-        open_price: Number(position.open_price ?? 0),
-        current_price: position.current_price == null ? null : Number(position.current_price),
-        profit: Number(position.profit ?? 0),
-        stop_loss: position.stop_loss == null ? null : Number(position.stop_loss),
-        take_profit: position.take_profit == null ? null : Number(position.take_profit),
-        mt5_ticket: Number(position.mt5_ticket),
-      })));
-    } catch (error) {
-      console.error("Failed to load MT5 account:", error);
-    } finally {
-      setMt5AccountLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    void refreshMt5Account();
-    const timer = window.setInterval(() => void refreshMt5Account(), 5000);
-    return () => window.clearInterval(timer);
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      setCashBalance(null);
-      return;
-    }
-
-    let active = true;
-
-    void supabase
-      .from("portfolios")
-      .select("cash_balance")
-      .eq("name", "Main Paper Account")
-      .eq("portfolio_type", "paper")
-      .eq("is_active", true)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          console.error("Failed to load paper buying power:", error);
-          return;
-        }
-        setCashBalance(data?.cash_balance == null ? null : Number(data.cash_balance));
-      });
+    void loadPaperAccount();
 
     return () => {
       active = false;
@@ -429,9 +354,23 @@ function TradePage() {
   }, [user]);
 
   const submitOrder = async () => {
+    if (!market) {
+      toast.info("Waiting for live MT5 markets", {
+        description: "The Paper Trader only uses instruments with a current MT5 quote.",
+      });
+      return;
+    }
+
     if (!user) {
       toast.error("Sign in required", {
         description: "Sign in to place a paper order.",
+      });
+      return;
+    }
+
+    if (!paperAccountActive) {
+      toast.info("Activate Paper Trading first", {
+        description: "Open Paper Trading and activate your virtual account before placing orders.",
       });
       return;
     }
@@ -443,18 +382,44 @@ function TradePage() {
       return;
     }
 
-    // Keep the order button visually stable, but never execute a paper order
-    // from an expired quote.
-    if (!executionQuoteFresh || !liveQuote || liveQuote.provider !== "mt5") {
+    // Refresh the selected instrument immediately before execution. The
+    // screen polls every 5 seconds, but the user can click between polls.
+    // Execution must use the freshest MT5 bid/ask available at click time.
+    let executionQuote = liveQuote;
+    try {
+      const latestQuotes = await loadLiveMarketQuotes();
+      const latestQuote = latestQuotes.get(market.id);
+      if (latestQuote) {
+        executionQuote = latestQuote;
+        setLiveQuotes(latestQuotes);
+      }
+    } catch (error) {
+      console.error("Failed to refresh MT5 quote before paper execution:", error);
+    }
+
+    if (
+      !executionQuote ||
+      executionQuote.provider !== "mt5" ||
+      !isQuoteFresh(executionQuote, 60_000)
+    ) {
       toast.info("Waiting for a fresh MT5 quote", {
         description: "The order ticket is ready; execution will resume automatically when the latest MT5 bid/ask arrives.",
       });
       return;
     }
 
-    if (side === "BUY" && cashBalance !== null && notional > cashBalance) {
+    const executionPrice = side === "BUY" ? executionQuote.ask : executionQuote.bid;
+    if (executionPrice == null || executionPrice <= 0) {
+      toast.info("Waiting for a valid MT5 price", {
+        description: "A valid MT5 bid/ask is required before a paper order can execute.",
+      });
+      return;
+    }
+
+    const executionNotional = quantity * executionPrice;
+    if (side === "BUY" && cashBalance !== null && executionNotional > cashBalance) {
       toast.error("Insufficient paper buying power", {
-        description: `Available $${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} · Required $${notional.toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
+        description: `Available $${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} · Required $${executionNotional.toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
       });
       return;
     }
@@ -465,10 +430,9 @@ function TradePage() {
       p_market_symbol: market.symbol,
       p_side: side.toLowerCase(),
       p_quantity: quantity,
-      p_execution_price: side === "BUY" ? liveQuote?.ask ?? 0 : liveQuote?.bid ?? 0,
+      p_execution_price: executionPrice,
       p_client_order_id: crypto.randomUUID(),
     });
-
     setSubmitting(false);
 
     if (error) {
@@ -491,9 +455,37 @@ function TradePage() {
     setCashBalance(result.cash_balance == null ? cashBalance : Number(result.cash_balance));
 
     toast.success(`${side} ${market.symbol} filled`, {
-      description: `${quantity} @ ${(side === "BUY" ? liveQuote?.ask ?? 0 : liveQuote?.bid ?? 0).toFixed(5)} · Paper account equity ${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
+      description: `${quantity} @ ${executionPrice.toFixed(5)} · Paper account equity ${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
     });
   };
+
+  if (!market) {
+    return (
+      <AppShell>
+        <PageHeader
+          eyebrow="Order ticket"
+          title="Paper trade"
+          description="Waiting for live MT5 markets. The Paper Trader shows only instruments with a current MT5 quote."
+          actions={
+            <div className="flex items-center gap-2">
+              <span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Waiting for MT5
+              </span>
+              <PaperTradingBadge />
+            </div>
+          }
+        />
+        <GlassCard className="mt-6 flex min-h-64 items-center justify-center px-6 text-center">
+          <div>
+            <p className="font-semibold text-foreground">No live MT5 instruments available</p>
+            <p className="mt-2 max-w-md text-sm text-muted-foreground">
+              Keep the MT5 bridge running. As soon as it publishes a fresh quote, the live instruments will appear here automatically.
+            </p>
+          </div>
+        </GlassCard>
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -505,92 +497,12 @@ function TradePage() {
           <div className="flex flex-wrap items-center gap-2">
             <span className="hidden text-xs text-muted-foreground sm:inline">{getMarketCalendarLabel()}</span>
             <span className="rounded-full border border-border px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {liveData ? "Live quotes" : "Simulated fallback"}
+              {liveData ? "MT5 live quotes" : "Waiting for MT5"}
             </span>
             <PaperTradingBadge />
           </div>
         }
       />
-
-      {mt5Account && (
-        <GlassCard className="mb-4 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="size-2 rounded-full bg-success" />
-                <span className="text-sm font-bold text-foreground">MT5 Account</span>
-                <span className="rounded-full border border-border px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-                  {mt5Account.environment}
-                </span>
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">{mt5Account.brokerName} · {mt5Account.server}</p>
-            </div>
-            <Button variant="outline" size="sm" onClick={() => void refreshMt5Account()} disabled={mt5AccountLoading}>
-              <RefreshCw className={cn("mr-2 size-3.5", mt5AccountLoading && "animate-spin")} />
-              Refresh
-            </Button>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-4">
-            {[
-              ["Balance", mt5Account.balance],
-              ["Equity", mt5Account.equity],
-              ["Margin", mt5Account.margin],
-              ["Free Margin", mt5Account.freeMargin],
-            ].map(([label, value]) => (
-              <div key={String(label)} className="rounded-xl bg-muted/40 p-3">
-                <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</p>
-                <p className="num mt-1 font-semibold text-foreground">{mt5Account.currency} {Number(value).toLocaleString("en-US", { maximumFractionDigits: 2 })}</p>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>{mt5Account.status === "connected" ? "● Connected" : "● Registered"}</span>
-            <span>{mt5Account.lastSync ? "Last sync " + new Date(mt5Account.lastSync).toLocaleTimeString() : "Waiting for sync"}</span>
-          </div>
-        </GlassCard>
-      )}
-
-      <div className="mb-4">
-        <GlassCard className="p-4">
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-bold text-foreground">MT5 Open Positions</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Read-only view of positions synchronized from MetaTrader 5.</p>
-            </div>
-            <span className="rounded-full border border-border px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              {mt5Positions.length} {mt5Positions.length === 1 ? "position" : "positions"}
-            </span>
-          </div>
-          {mt5Positions.length === 0 ? (
-            <div className="mt-4 rounded-xl border border-dashed border-border p-5 text-center text-xs text-muted-foreground">
-              No open MT5 positions.
-            </div>
-          ) : (
-            <div className="mt-4 overflow-x-auto">
-              <table className="w-full min-w-[720px] text-left text-xs">
-                <thead className="border-b border-border text-[10px] uppercase tracking-wide text-muted-foreground">
-                  <tr>
-                    <th className="pb-2">Symbol</th><th className="pb-2">Side</th><th className="pb-2">Volume</th><th className="pb-2">Open</th><th className="pb-2">Current</th><th className="pb-2">SL / TP</th><th className="pb-2 text-right">P&L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {mt5Positions.map((position) => (
-                    <tr key={position.mt5_ticket} className="border-b border-border/60 last:border-0">
-                      <td className="py-3 font-semibold text-foreground">{position.symbol}</td>
-                      <td className={cn("py-3 font-semibold uppercase", position.side === "long" ? "text-success" : "text-danger")}>{position.side}</td>
-                      <td className="num py-3 text-muted-foreground">{position.volume}</td>
-                      <td className="num py-3 text-muted-foreground">{position.open_price.toLocaleString("en-US", { maximumFractionDigits: 8 })}</td>
-                      <td className="num py-3 text-muted-foreground">{position.current_price == null ? "—" : position.current_price.toLocaleString("en-US", { maximumFractionDigits: 8 })}</td>
-                      <td className="num py-3 text-muted-foreground">{position.stop_loss ?? "—"} / {position.take_profit ?? "—"}</td>
-                      <td className={cn("num py-3 text-right font-semibold", position.profit >= 0 ? "text-success" : "text-danger")}>{position.profit >= 0 ? "+" : ""}{position.profit.toLocaleString("en-US", { maximumFractionDigits: 2 })}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </GlassCard>
-      </div>
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1fr_380px]">
         <ChartCard
@@ -889,13 +801,19 @@ function TradePage() {
 
           {!user && (
             <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
-              Sign in to access your $100,000 paper account and place orders.
+              Sign in to access Paper Trading and activate your $100,000 virtual account.
+            </div>
+          )}
+
+          {!paperAccountActive && user && (
+            <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-xs text-muted-foreground">
+              Paper Trading is not activated yet. <Link to="/portfolio" className="font-semibold text-primary hover:underline">Activate your Paper Trading Account</Link> to receive $100,000 virtual USD.
             </div>
           )}
 
           <Button
             className="mt-4 w-full"
-            disabled={submitting || !user}
+            disabled={submitting || !user || !paperAccountActive}
             onClick={() => void submitOrder()}
           >
             {submitting ? "Executing…" : `${side} ${market.symbol}`}
@@ -904,7 +822,7 @@ function TradePage() {
           <p className="mt-3 text-center text-[11px] text-muted-foreground">
             {user
               ? "Execution is atomic: order, fill, position, cash and P&L update together."
-              : "Sign in to place a database-backed paper order."}
+              : "Activate Paper Trading to place a database-backed paper order."}
           </p>
 
           {user && (

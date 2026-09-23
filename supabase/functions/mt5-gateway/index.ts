@@ -54,7 +54,7 @@ type BrokerMarketMappingSnapshot = {
 type MarketUniverseSnapshot = {
   symbol: string;
   name: string;
-  asset_class: "crypto" | "forex" | "stocks" | "etf" | "index" | "commodity" | "futures" | "options";
+  asset_class: "crypto" | "forex" | "stocks" | "etf" | "index" | "metals" | "commodity" | "futures" | "options";
   exchange?: string | null;
   quote_currency?: string | null;
   base_currency?: string | null;
@@ -205,40 +205,51 @@ export default {
     const marketIdByProviderSymbol = new Map<string, string>();
 
     if (body.market_universe?.length) {
-      // The MT5 bridge is the source of truth for the development universe.
-      // Deactivate the old prototype/simulated catalog before applying the
-      // currently discovered MT5 instruments.
+      // The connected MT5 terminal is the source of truth for the
+      // development trading universe. Remove every active catalog row that is
+      // not part of the current MT5 universe, including legacy mock/prototype
+      // rows. This prevents stale symbols such as old HK equities from leaking
+      // into the live market board and Paper Trader.
       const providerSymbols = body.market_universe
         .map((market) => market.broker_symbol)
         .filter(Boolean);
 
-      // The fixed Alphentra universe is the source of truth for MT5 markets.
-      // Deactivate previously synchronized MT5 instruments that are no longer
-      // in the configured list, while leaving other future provider records
-      // untouched.
-      const { data: existingMt5Markets, error: existingMt5Error } = await ctx.supabaseAdmin
-        .from("markets")
-        .select("id,broker_symbol,metadata")
-        .eq("status", "active");
+      // Supabase/PostgREST can cap a single SELECT at 1,000 rows. Page through
+      // the full active catalog so legacy markets beyond the first page cannot
+      // survive the MT5-universe cleanup.
+      const existingActiveMarkets: Array<{ id: string; broker_symbol: string | null }> = [];
+      const activePageSize = 500;
 
-      if (existingMt5Error) {
-        return Response.json({ error: existingMt5Error.message }, { status: 500, headers: corsHeaders() });
+      for (let offset = 0; ; offset += activePageSize) {
+        const { data: page, error: existingActiveError } = await ctx.supabaseAdmin
+          .from("markets")
+          .select("id,broker_symbol")
+          .eq("status", "active")
+          .range(offset, offset + activePageSize - 1);
+
+        if (existingActiveError) {
+          return Response.json({ error: existingActiveError.message }, { status: 500, headers: corsHeaders() });
+        }
+
+        const rows = page ?? [];
+        existingActiveMarkets.push(...rows);
+
+        if (rows.length < activePageSize) break;
       }
 
       const allowedProviderSymbols = new Set(
         providerSymbols.map((symbol) => String(symbol).toUpperCase()),
       );
 
-      const staleMt5Ids = (existingMt5Markets ?? [])
+      const staleMarketIds = existingActiveMarkets
         .filter((market) =>
-          (market.metadata as Record<string, unknown> | null)?.provider === "mt5"
-          && market.broker_symbol
-          && !allowedProviderSymbols.has(String(market.broker_symbol).toUpperCase())
+          !market.broker_symbol
+          || !allowedProviderSymbols.has(String(market.broker_symbol).toUpperCase())
         )
         .map((market) => market.id);
 
-      for (let start = 0; start < staleMt5Ids.length; start += 100) {
-        const chunk = staleMt5Ids.slice(start, start + 100);
+      for (let start = 0; start < staleMarketIds.length; start += 100) {
+        const chunk = staleMarketIds.slice(start, start + 100);
         const { error: deactivateError } = await ctx.supabaseAdmin
           .from("markets")
           .update({ status: "inactive", is_tradable: false, updated_at: now })

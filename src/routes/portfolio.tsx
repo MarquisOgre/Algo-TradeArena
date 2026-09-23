@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { Wallet, RefreshCw } from "lucide-react";
+import { Wallet, RefreshCw, RotateCcw } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageHeader } from "@/components/common/PageHeader";
 import { GlassCard } from "@/components/common/GlassCard";
@@ -11,6 +11,17 @@ import { DataTable, type Column } from "@/components/common/DataTable";
 import { Delta, formatMoney } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/lib/supabase";
 import { refreshPaperPortfolioMarks } from "@/lib/marketData";
@@ -32,6 +43,8 @@ type Portfolio = {
   initial_cash: number | string;
   cash_balance: number | string;
   equity: number | string;
+  account_status: "not_activated" | "active" | "paused" | "closed";
+  activated_at: string | null;
   realized_pnl: number | string;
   unrealized_pnl: number | string;
 };
@@ -90,6 +103,15 @@ function PortfolioPage() {
   const [snapshots, setSnapshots] = useState<DbSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [activating, setActivating] = useState(false);
+  const [activationError, setActivationError] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.sessionStorage.getItem("alphentra-paper-wallet-reset-success") === "true";
+  });
+  const [resetError, setResetError] = useState<string | null>(null);
 
   const loadPortfolio = async (silent = false) => {
     if (!user) {
@@ -104,15 +126,9 @@ function PortfolioPage() {
     if (silent) setRefreshing(true);
     else setLoading(true);
 
-    try {
-      await refreshPaperPortfolioMarks();
-    } catch (error) {
-      console.error("Failed to refresh live paper marks:", error);
-    }
-
     const { data: account, error: accountError } = await supabase
       .from("portfolios")
-      .select("id, initial_cash, cash_balance, equity, realized_pnl, unrealized_pnl")
+      .select("id, initial_cash, cash_balance, equity, account_status, activated_at, realized_pnl, unrealized_pnl")
       .eq("name", "Main Paper Account")
       .eq("portfolio_type", "paper")
       .eq("is_active", true)
@@ -133,6 +149,22 @@ function PortfolioPage() {
       setLoading(false);
       setRefreshing(false);
       return;
+    }
+
+    if (account.account_status !== "active") {
+      setPortfolio(account as Portfolio);
+      setPositions([]);
+      setExecutions([]);
+      setSnapshots([]);
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+
+    try {
+      await refreshPaperPortfolioMarks();
+    } catch (error) {
+      console.error("Failed to refresh live paper marks:", error);
     }
 
     const [positionsResult, executionsResult, snapshotsResult] = await Promise.all([
@@ -171,6 +203,49 @@ function PortfolioPage() {
   useEffect(() => {
     if (!authLoading) void loadPortfolio();
   }, [authLoading, user]);
+
+  const activatePaperAccount = async () => {
+    if (!user || activating) return;
+    setActivationError(null);
+    setActivating(true);
+    const { data, error } = await supabase.rpc("activate_paper_account");
+    setActivating(false);
+
+    if (error) {
+      console.error("Failed to activate paper account:", error);
+      setActivationError(error.message || "We could not activate your Paper Trading Account. Please try again.");
+      return;
+    }
+
+    const result = (data ?? {}) as { status?: string; cash_balance?: number };
+    if (result.status === "activated" || result.status === "already_active") {
+      await loadPortfolio();
+    }
+  };
+
+  const resetPaperAccount = async () => {
+    if (!user || resetting) return;
+
+    setResetError(null);
+    setResetSuccess(false);
+    window.sessionStorage.removeItem("alphentra-paper-wallet-reset-success");
+    setResetDialogOpen(false);
+    setResetting(true);
+
+    const { error } = await supabase.rpc("reset_paper_account");
+
+    setResetting(false);
+
+    if (error) {
+      console.error("Failed to reset paper account:", error);
+      setResetError(error.message || "We could not reset your Paper Trading Account. Please try again.");
+      return;
+    }
+
+    await loadPortfolio();
+    setResetSuccess(true);
+    window.sessionStorage.setItem("alphentra-paper-wallet-reset-success", "true");
+  };
 
   const account = portfolio
     ? {
@@ -273,9 +348,9 @@ function PortfolioPage() {
   if (!user && !authLoading) {
     return (
       <AppShell wide>
-        <PageHeader eyebrow="Paper Trading Account" title="Portfolio" description="Your ALPHENTRA paper account will appear here after sign in." />
+        <PageHeader eyebrow="Paper Trading Account" title="Paper Trading Account" description="Your ALPHENTRA paper account will appear here after sign in." />
         <GlassCard className="mt-6 p-8 text-center">
-          <p className="text-lg font-semibold text-foreground">Sign in to view your paper portfolio</p>
+          <p className="text-lg font-semibold text-foreground">Sign in to access Paper Trading</p>
           <p className="mt-2 text-sm text-muted-foreground">Your paper account and trading history are private to your ALPHENTRA account.</p>
           <Button asChild className="mt-5"><Link to="/login">Sign in</Link></Button>
         </GlassCard>
@@ -287,32 +362,106 @@ function PortfolioPage() {
     <AppShell wide>
       <PageHeader
         eyebrow="Paper Trading Account"
-        title="Portfolio"
-        description="Live account state from ALPHENTRA's paper-trading database. Nothing here settles with a broker or exchange."
+        title="Paper Trading Account"
+        description="Create your ALPHENTRA Paper Trading Account with $100,000 in virtual USD. No broker account is required."
         actions={
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => void loadPortfolio(true)} disabled={refreshing}>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button variant="outline" onClick={() => void loadPortfolio(true)} disabled={refreshing || resetting}>
               <RefreshCw className={cn("size-4", refreshing && "animate-spin")} /> Refresh
             </Button>
+            <AlertDialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="border-danger/30 text-danger hover:bg-danger/10 hover:text-danger"
+                  disabled={resetting || !account}
+                >
+                  <RotateCcw className={cn("size-4", resetting && "animate-spin")} /> Reset Wallet
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Reset Paper Trading Wallet?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This permanently deletes all paper Buy/Sell orders, executions, open positions, trade history and equity snapshots for this account. Your Paper Trading Account stays active and is restored to exactly $100,000 virtual USD.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel disabled={resetting}>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className="bg-danger text-danger-foreground hover:bg-danger/90"
+                    disabled={resetting}
+                    onClick={(event) => {
+                      event.preventDefault();
+                      void resetPaperAccount();
+                    }}
+                  >
+                    {resetting ? "Resetting…" : "Reset Wallet"}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
             <Button asChild><Link to="/trade"><Wallet className="size-4" /> Place a paper trade</Link></Button>
           </div>
         }
       />
 
-      {loading ? (
+      {resetSuccess ? (
+        <GlassCard className="mt-6 border-success/30 p-5">
+          <p className="text-sm font-semibold text-success">Paper Wallet Reset Successfully</p>
+          <p className="mt-1 text-sm text-muted-foreground">Your Paper Trading Account has been restored to $100,000 virtual USD.</p>
+        </GlassCard>
+      ) : null}
+
+      {resetError ? (
+        <GlassCard className="mt-6 border-danger/30 p-5">
+          <p className="text-sm font-semibold text-danger">Paper Trading Account reset failed</p>
+          <p className="mt-1 text-sm text-muted-foreground">{resetError}</p>
+          <Button className="mt-4" variant="outline" onClick={() => setResetError(null)}>Dismiss</Button>
+        </GlassCard>
+      ) : null}
+
+      {activationError ? (
+        <GlassCard className="mt-6 border-danger/30 p-5">
+          <p className="text-sm font-semibold text-danger">Paper Trading Account activation failed</p>
+          <p className="mt-1 text-sm text-muted-foreground">{activationError}</p>
+          <Button className="mt-4" onClick={() => void activatePaperAccount()} disabled={activating}>
+            <Wallet className="size-4" /> {activating ? "Activating…" : "Try Again"}
+          </Button>
+        </GlassCard>
+      ) : loading ? (
         <GlassCard className="mt-6 p-8 text-center text-sm text-muted-foreground">Loading your paper account…</GlassCard>
       ) : !account ? (
         <GlassCard className="mt-6 p-8 text-center">
-          <p className="font-semibold text-foreground">Paper account not found</p>
-          <p className="mt-2 text-sm text-muted-foreground">Your Main Paper Account has not been provisioned yet.</p>
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Wallet className="size-7" /></div>
+          <p className="mt-4 text-xl font-bold text-foreground">Activate Paper Trading</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Create your ALPHENTRA virtual Paper Trading Account with $100,000 in virtual USD. Paper orders are handled by the ALPHENTRA paper engine.</p>
+          <div className="mx-auto mt-5 grid max-w-md grid-cols-3 gap-2 text-left">
+            <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Starting capital</p><p className="num mt-1 font-bold text-foreground">$100,000</p></div>
+            <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Real money</p><p className="mt-1 font-bold text-foreground">None</p></div>
+            <div className="rounded-xl border border-border bg-muted/30 p-3"><p className="text-[10px] uppercase tracking-wide text-muted-foreground">Execution</p><p className="mt-1 font-bold text-foreground">ALPHENTRA</p></div>
+          </div>
+          <Button className="mt-6" onClick={() => void activatePaperAccount()} disabled={activating}>
+            <Wallet className="size-4" /> {activating ? "Activating…" : "Create / Activate Paper Account"}
+          </Button>
+          <p className="mt-3 text-xs text-muted-foreground">Activation creates your ALPHENTRA virtual account. Market prices can come from MT5, but no broker account is required for Paper Trading.</p>
+        </GlassCard>
+      ) : portfolio?.account_status !== "active" ? (
+        <GlassCard className="mt-6 p-8 text-center">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><Wallet className="size-7" /></div>
+          <p className="mt-4 text-xl font-bold text-foreground">Activate Paper Trading</p>
+          <p className="mx-auto mt-2 max-w-lg text-sm text-muted-foreground">Your ALPHENTRA Paper Trading Account is not active. Activate it to receive $100,000 in virtual USD.</p>
+          <Button className="mt-6" onClick={() => void activatePaperAccount()} disabled={activating}>
+            <Wallet className="size-4" /> {activating ? "Activating…" : "Activate Paper Trading Account"}
+          </Button>
         </GlassCard>
       ) : (
         <>
           <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <StatCard label="Account value" value={formatMoney(account.equity)} hint="current equity" />
-            <StatCard label="Total P&L" value={formatMoney(totalPnl)} delta={totalPnlPct} hint="since $100k funding" />
-            <StatCard label="Cash" value={formatMoney(account.cash)} hint="settled virtual cash" />
-            <StatCard label="Buying power" value={formatMoney(account.cash)} hint="no simulated margin yet" />
+            <StatCard label="Total P&L" value={formatMoney(totalPnl)} delta={totalPnlPct} hint="since account activation" />
+            <StatCard label="Cash" value={formatMoney(account.cash)} hint="available virtual cash" />
+            <StatCard label="Buying power" value={formatMoney(account.cash)} hint="virtual buying power" />
           </div>
 
           <div className="mt-4 grid gap-4 xl:grid-cols-[2fr_1fr]">

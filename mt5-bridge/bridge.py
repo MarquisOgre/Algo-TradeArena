@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any
 
 import MetaTrader5 as mt5
@@ -30,15 +30,38 @@ CANDLE_REQUEST_MAX_BARS = int(os.getenv("CANDLE_REQUEST_MAX_BARS", "240"))
 CANDLE_CHUNK_SIZE = int(os.getenv("CANDLE_CHUNK_SIZE", "500"))
 UNIVERSE_REFRESH_SECONDS = float(os.getenv("UNIVERSE_REFRESH_SECONDS", "300"))
 LIVE_STATUS_REFRESH_SECONDS = float(os.getenv("LIVE_STATUS_REFRESH_SECONDS", "30"))
+MT5_ROLE = os.getenv("MT5_ROLE", "paper_demo").lower()
 ALLOW_LIVE = os.getenv("ALLOW_LIVE", "false").lower() == "true"
+MT5_TIME_OFFSET_SECONDS = 0
 
 REST_HEADERS = {"apikey": SUPABASE_PUBLISHABLE_KEY, "Accept": "application/json"}
 GATEWAY_HEADERS = {"apikey": MT5_GATEWAY_SECRET, "Content-Type": "application/json"}
 
-def iso_from_seconds(value: Any) -> str | None:
-    if value is None: return None
-    try: return datetime.fromtimestamp(float(value), tz=timezone.utc).isoformat()
-    except (TypeError, ValueError, OSError): return None
+def iso_from_seconds(value: Any, offset_seconds: int | None = None) -> str | None:
+    if value is None:
+        return None
+    try:
+        seconds = float(value)
+        offset = MT5_TIME_OFFSET_SECONDS if offset_seconds is None else offset_seconds
+        dt = datetime.fromtimestamp(seconds - offset, tz=timezone.utc)
+        return dt.isoformat()
+    except (TypeError, ValueError, OSError):
+        return None
+
+def detect_mt5_time_offset_seconds(tick_time: Any) -> int:
+    try:
+        raw_seconds = float(tick_time)
+        delta = raw_seconds - time.time()
+        # MT5 broker/server timestamps can be represented as wall-clock
+        # seconds. Infer only a whole-hour offset from the current tick.
+        if abs(delta) >= 60:
+            hours = round(delta / 3600)
+            if -12 <= hours <= 12 and abs(delta - hours * 3600) <= 120:
+                return int(hours * 3600)
+    except (TypeError, ValueError):
+        pass
+    return 0
+
 
 def initialize_mt5() -> None:
     kwargs: dict[str, Any] = {"login": MT5_LOGIN, "password": MT5_PASSWORD, "server": MT5_SERVER}
@@ -47,7 +70,11 @@ def initialize_mt5() -> None:
     account = mt5.account_info()
     if account is None: raise RuntimeError(f"MT5 account_info failed: {mt5.last_error()}")
     environment = os.getenv("MT5_ENVIRONMENT", "demo").lower()
-    if environment == "live" and not ALLOW_LIVE: raise RuntimeError("MT5_ENVIRONMENT=live but ALLOW_LIVE is not true. Validate with demo first.")
+    if MT5_ROLE not in {"paper_demo", "live"}: raise RuntimeError("MT5_ROLE must be paper_demo or live.")
+    expected_environment = "demo" if MT5_ROLE == "paper_demo" else "live"
+    if environment != expected_environment: raise RuntimeError(f"MT5_ROLE={MT5_ROLE} requires MT5_ENVIRONMENT={expected_environment}.")
+    if MT5_ROLE == "live" and not ALLOW_LIVE: raise RuntimeError("Live MT5 role requested but ALLOW_LIVE is not true.")
+    print(f"MT5 role={MT5_ROLE} environment={environment}")
     print(f"Connected to MT5 login={account.login} server={account.server} balance={account.balance:.2f} equity={account.equity:.2f}")
 
 def normalize_symbol(value: str) -> str:
@@ -55,35 +82,72 @@ def normalize_symbol(value: str) -> str:
 
 
 def classify_mt5_asset(info: Any) -> str | None:
-    name = str(getattr(info, "name", "") or "").upper()
+    # Prefer broker-provided classification metadata, then fall back to the
+    # MT5 symbol tree/description and calculation mode. No symbol names are
+    # hardcoded; the connected terminal remains the source of truth.
     description = str(getattr(info, "description", "") or "").upper()
     path = str(getattr(info, "path", "") or "").upper()
-    haystack = f"{name} {description} {path}"
+    category = str(getattr(info, "category", "") or "").upper()
+    sector = str(getattr(info, "sector", "") or "").upper()
+    industry = str(getattr(info, "industry", "") or "").upper()
+    metadata_text = " ".join((path, category, sector, industry, description))
 
-    if "CRYPTOCURRENCIES" in path or "CRYPTO" in path or "DIGITAL ASSETS" in path:
+    if any(token in metadata_text for token in (
+        "CRYPTOCURRENCIES", "CRYPTO", "DIGITAL ASSETS", "CURRENCY_CRYPTO",
+        "CRYPTOCURRENCY",
+    )):
         return "crypto"
 
-    if "FOREX" in path or "\\CURRENCIES\\" in path:
+    if (
+        "FOREX" in metadata_text
+        or "CURRENCIES" in metadata_text
+        or "FOREIGN EXCHANGE" in metadata_text
+        or sector in {"CURRENCY", "CURRENCIES"}
+    ):
         return "forex"
 
-    if any(token in path for token in ("\\STOCKS\\", "\\SHARES\\", "\\EQUITIES\\")):
-        if "ETF" in path or "ETF" in description:
-            return "etf"
-        return "stocks"
-
-    if any(token in path for token in ("\\ETF\\", "\\ETFS\\")) or " ETF" in description:
+    if any(token in metadata_text for token in (
+        "ETF", "EXCHANGE TRADED FUND", "EXCHANGE-TRADED FUND",
+    )):
         return "etf"
 
-    if any(token in path for token in (
-        "\\COMMODITIES\\",
-        "\\METALS\\",
-        "\\ENERGY\\",
-        "\\GOLD\\",
-        "\\SILVER\\",
-        "\\OIL\\",
-        "\\NATURAL GAS\\",
+    if any(token in metadata_text for token in (
+        "INDICES", "INDEX", "INDEXES", "CFD INDEX",
+        "DOW JONES", "NASDAQ", "S&P 500", "DAX", "FTSE", "NIKKEI",
+    )):
+        return "index"
+
+    if any(token in metadata_text for token in (
+        "METALS", "PRECIOUS METALS", "GOLD", "SILVER", "COPPER",
+        "PLATINUM", "PALLADIUM",
+    )):
+        return "metals"
+
+    if any(token in metadata_text for token in (
+        "COMMODITIES", "ENERGY", "BRENT", "CRUDE", "OIL",
+        "NATURAL GAS", "AGRICULTURAL",
     )):
         return "commodity"
+
+    # MT5 exposes contract calculation modes. Use the broker's calculation
+    # mode as a metadata fallback when the symbol tree is not descriptive.
+    calc_mode = getattr(info, "trade_calc_mode", None)
+    forex_modes = {
+        getattr(mt5, "SYMBOL_CALC_MODE_FOREX", -1),
+        getattr(mt5, "SYMBOL_CALC_MODE_FOREX_NO_LEVERAGE", -2),
+    }
+    exchange_stock_mode = getattr(mt5, "SYMBOL_CALC_MODE_EXCH_STOCKS", -999)
+
+    if calc_mode in forex_modes:
+        return "forex"
+
+    if calc_mode == exchange_stock_mode:
+        return "stocks"
+
+    if any(token in metadata_text for token in (
+        "STOCKS", "SHARES", "EQUITIES", "EQUITY", "SECURITIES",
+    )):
+        return "stocks"
 
     return None
 
@@ -96,47 +160,61 @@ def is_tradable_mt5(info: Any) -> bool:
     return trade_mode in {1, 2, 3}
 
 
-# Alphentra's initial MT5 trading universe is intentionally limited.
-# These are the only canonical instruments Alphentra will synchronize.
-# The terminal must expose the exact symbol; unavailable instruments are
-# skipped rather than replaced with another provider or synthetic price.
-ALPHENTRA_INSTRUMENTS: tuple[tuple[str, str], ...] = (
-    ("EURUSD", "forex"), ("GBPUSD", "forex"), ("USDJPY", "forex"),
-    ("USDCHF", "forex"), ("USDCAD", "forex"), ("AUDUSD", "forex"),
-    ("NZDUSD", "forex"), ("EURGBP", "forex"), ("EURJPY", "forex"),
-    ("GBPJPY", "forex"),
-    ("BTCUSD", "crypto"), ("ETHUSD", "crypto"), ("LTCUSD", "crypto"),
-    ("XRPUSD", "crypto"),
-    ("XAUUSD", "commodity"), ("XAGUSD", "commodity"), ("XBRUSD", "commodity"),
-    ("XTIUSD", "commodity"), ("NATGAS", "commodity"), ("COPPER", "commodity"),
-    ("US30", "index"), ("US500", "index"), ("NAS100", "index"),
-    ("GER40", "index"), ("UK100", "index"), ("JP225", "index"),
-    ("AAPL", "stocks"), ("AMZN", "stocks"), ("GOOGL", "stocks"),
-    ("META", "stocks"), ("MSFT", "stocks"), ("NVDA", "stocks"),
-    ("TSLA", "stocks"), ("AMD", "stocks"), ("NFLX", "stocks"),
-    ("INTC", "stocks"), ("AVGO", "stocks"), ("JPM", "stocks"),
-    ("BAC", "stocks"), ("COIN", "stocks"), ("UBER", "stocks"),
-    ("SPY", "etf"), ("QQQ", "etf"), ("IWM", "etf"), ("DIA", "etf"),
-    ("GLD", "etf"),
-)
+# Testing universe size. This is a limit, not an instrument list.
+# The actual instruments are discovered from the connected MT5 terminal.
+MT5_TEST_UNIVERSE_SIZE = max(1, int(os.getenv("MT5_TEST_UNIVERSE_SIZE", "25")))
+
+
+def mt5_activity_score(info: Any, tick: Any) -> tuple[float, float, float, float]:
+    # Fresh, usable MT5 ticks are the primary eligibility requirement.
+    # Among eligible markets, prefer the freshest quote and then broker-reported activity.
+    tick_time = float(getattr(tick, "time", 0) or 0) if tick is not None else 0.0
+    session_volume = float(getattr(info, "session_volume", 0) or 0)
+    session_deals = float(getattr(info, "session_deals", 0) or 0)
+    tick_volume = float(getattr(tick, "volume", 0) or 0) if tick is not None else 0.0
+    return (tick_time, session_deals, session_volume, tick_volume)
 
 
 def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
-    available_by_name = {
-        str(getattr(info, "name", "") or "").strip().upper(): info
-        for info in symbols
-        if str(getattr(info, "name", "") or "").strip()
-    }
+    candidates: list[tuple[tuple[float, float, float], str, Any, str]] = []
 
-    universe: list[dict[str, Any]] = []
-    missing: list[str] = []
-
-    for canonical_symbol, asset_class in ALPHENTRA_INSTRUMENTS:
-        info = available_by_name.get(canonical_symbol)
-        if info is None:
-            missing.append(canonical_symbol)
+    for info in symbols:
+        broker_symbol = str(getattr(info, "name", "") or "").strip()
+        if not broker_symbol or not is_tradable_mt5(info):
             continue
 
+        asset_class = classify_mt5_asset(info)
+        if asset_class is None:
+            continue
+
+        tick = mt5.symbol_info_tick(broker_symbol)
+        if tick is None or float(getattr(tick, "bid", 0) or 0) <= 0 or float(getattr(tick, "ask", 0) or 0) <= 0:
+            continue
+
+        tick_time = float(getattr(tick, "time", 0) or 0)
+        # Universe eligibility requires a real MT5 bid/ask tick, but the
+        # instrument does not need to be actively trading right now. Closed
+        # markets retain their last valid MT5 tick and remain in the 25-market
+        # catalog; collect_market_statuses/collect_quotes determine whether
+        # that tick is currently fresh and the market is open.
+        if tick_time <= 0:
+            continue
+
+        candidates.append((
+            mt5_activity_score(info, tick),
+            broker_symbol.upper(),
+            info,
+            asset_class,
+        ))
+
+    # Highest current-session activity first. The broker's live MT5 metadata
+    # determines the ranking; no Alphentra symbol names are hardcoded.
+    candidates.sort(key=lambda row: (row[0][0], row[0][1], row[0][2], row[0][3], row[1]), reverse=True)
+
+    selected = candidates[:MT5_TEST_UNIVERSE_SIZE]
+    universe: list[dict[str, Any]] = []
+
+    for _, broker_symbol_upper, info, asset_class in selected:
         broker_symbol = str(getattr(info, "name", "") or "").strip()
         description = str(getattr(info, "description", "") or broker_symbol).strip()
         path = str(getattr(info, "path", "") or "").strip()
@@ -145,8 +223,8 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
         quote_currency = str(getattr(info, "currency_profit", "") or "").strip().upper() or "USD"
 
         universe.append({
-            "symbol": canonical_symbol,
-            "name": description or canonical_symbol,
+            "symbol": broker_symbol,
+            "name": description or broker_symbol,
             "asset_class": asset_class,
             "exchange": exchange,
             "quote_currency": quote_currency,
@@ -156,10 +234,10 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
             "quantity_precision": 8,
             "min_quantity": float(getattr(info, "volume_min", 0) or 0) or None,
             "contract_size": float(getattr(info, "trade_contract_size", 1) or 1),
-            "is_tradable": is_tradable_mt5(info),
+            "is_tradable": True,
             "metadata": {
                 "provider": "mt5",
-                "canonical_symbol": canonical_symbol,
+                "canonical_symbol": broker_symbol,
                 "path": path,
                 "description": description,
                 "currency_base": base_currency,
@@ -175,12 +253,24 @@ def build_limited_market_universe(symbols: list[Any]) -> list[dict[str, Any]]:
                 "volume_step": float(getattr(info, "volume_step", 0) or 0),
                 "trade_mode": int(getattr(info, "trade_mode", 0) or 0),
                 "trade_calc_mode": int(getattr(info, "trade_calc_mode", 0) or 0),
+                "category": str(getattr(info, "category", "") or "").strip(),
+                "sector": str(getattr(info, "sector", "") or "").strip(),
+                "industry": str(getattr(info, "industry", "") or "").strip(),
+                "activity_session_volume": float(getattr(info, "session_volume", 0) or 0),
+                "activity_session_deals": float(getattr(info, "session_deals", 0) or 0),
             },
         })
 
-    print(f"Alphentra fixed MT5 universe: {len(universe)}/{len(ALPHENTRA_INSTRUMENTS)} available")
-    if missing:
-        print("Unavailable configured instruments: " + ", ".join(missing))
+    by_class: dict[str, int] = {}
+    for market in universe:
+        by_class[market["asset_class"]] = by_class.get(market["asset_class"], 0) + 1
+
+    print(
+        f"Alphentra dynamic MT5 universe: {len(universe)}/{MT5_TEST_UNIVERSE_SIZE} selected "
+        f"from {len(symbols)} terminal symbols"
+    )
+    if by_class:
+        print("  " + " | ".join(f"{key}={value}" for key, value in sorted(by_class.items())))
 
     return universe
 
@@ -260,9 +350,20 @@ def collect_quotes(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if current_daily is not None and len(current_daily) > 0:
             session_volume = float(current_daily[0]["tick_volume"])
 
+        global MT5_TIME_OFFSET_SECONDS
         tick_time = float(getattr(tick, "time", 0) or 0)
-        quote_age_seconds = max(0.0, time.time() - tick_time) if tick_time > 0 else float("inf")
+        detected_offset = detect_mt5_time_offset_seconds(tick_time)
+        if detected_offset:
+            MT5_TIME_OFFSET_SECONDS = detected_offset
+
+        # Use the bridge receipt time as the canonical live quote timestamp.
+        # MT5 broker/server tick timestamps can use a different wall-clock offset
+        # from UTC. The quote has just been received by ALPHENTRA, so receipt time
+        # is unambiguous for freshness checks and live market display.
+        normalized_tick_time = tick_time - MT5_TIME_OFFSET_SECONDS if tick_time > 0 else 0
+        quote_age_seconds = max(0.0, time.time() - normalized_tick_time) if normalized_tick_time > 0 else float("inf")
         is_market_open = quote_age_seconds <= max(120.0, POLL_SECONDS * 10.0)
+        received_at = datetime.now(timezone.utc).isoformat()
 
         quotes.append({
             "symbol": market["symbol"],
@@ -273,12 +374,15 @@ def collect_quotes(universe: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "change": change,
             "percent_change": change_pct,
             "previous_close": previous_close,
-            "quote_time": iso_from_seconds(getattr(tick, "time", None)),
+            "quote_time": received_at,
             "volume": session_volume,
             "is_market_open": is_market_open,
             "metadata": {
                 **market["metadata"],
                 "mt5_time_msc": getattr(tick, "time_msc", None),
+                "mt5_tick_time": tick_time,
+                "mt5_time_offset_seconds": MT5_TIME_OFFSET_SECONDS,
+                "quote_received_at": received_at,
                 "volume_type": "tick_volume",
                 "reference": "previous_completed_d1_close",
                 "synced_at": datetime.now(timezone.utc).isoformat(),
@@ -391,7 +495,13 @@ def collect_requested_candles(
             continue
 
         for rate in rates:
-            candle_time = iso_from_seconds(rate["time"])
+            # MT5 bar timestamps are delivered in UTC. Do not apply the
+            # broker tick/server offset used for live tick normalization.
+            # Applying that offset here shifts daily bars onto the wrong date.
+            candle_time = datetime.fromtimestamp(
+                float(rate["time"]),
+                tz=timezone.utc,
+            ).isoformat()
             if not candle_time:
                 continue
 

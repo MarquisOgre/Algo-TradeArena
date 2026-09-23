@@ -7,7 +7,6 @@ import { DataTable, type Column } from "@/components/common/DataTable";
 import { Sparkline } from "@/components/common/Sparkline";
 import { Delta } from "@/components/common/Delta";
 import { Button } from "@/components/ui/button";
-import { marketIndices, mockMarkets } from "@/data/mockMarkets";
 import type { Market } from "@/data/types";
 import { cn } from "@/lib/utils";
 import { getMarketCalendarLabel, getMarketSessions } from "@/lib/marketCalendar";
@@ -23,17 +22,17 @@ export const Route = createFileRoute("/markets")({
           "Simulated market board with prices, movement and AI signal confidence across equities, ETFs, FX and commodities.",
       },
       { property: "og:title", content: "Markets — ALPHENTRA" },
-      { property: "og:description", content: "Simulated market board with AI signals." },
+      { property: "og:description", content: "Live MT5 market board with 30-session price history." },
     ],
   }),
   component: MarketsPage,
 });
 
-const filters = ["All", "FX", "Crypto", "Metals", "Equity", "ETF"] as const;
+const filters = ["All", "FX", "Crypto", "Metals", "Equity", "ETF", "Index", "Commodity"] as const;
 
 function MarketsPage() {
   const [filter, setFilter] = useState<(typeof filters)[number]>("All");
-  const [markets, setMarkets] = useState(mockMarkets);
+  const [markets, setMarkets] = useState<Market[]>([]);
   const [liveData, setLiveData] = useState(false);
 
   useEffect(() => {
@@ -133,14 +132,14 @@ function MarketsPage() {
       align: "right",
       cell: (m) => (
         <div className="ml-auto w-24">
-          <Sparkline data={m.spark} height={30} />
+          {m.spark.length >= 2 ? <Sparkline data={m.spark} height={30} /> : <span className="text-xs text-muted-foreground">—</span>}
         </div>
       ),
     },
     { key: "vol", header: "Tick Volume", align: "right", cell: (m) => <span className="num text-muted-foreground">{m.volume}</span> },
     {
       key: "signal",
-      header: "AI signal",
+      header: "AI signal (prototype)",
       align: "right",
       cell: (m) => (
         <div className="inline-flex flex-col items-end">
@@ -156,7 +155,7 @@ function MarketsPage() {
           >
             {m.aiSignal}
           </span>
-          <span className="num mt-1 text-[11px] text-muted-foreground">{m.aiConfidence}% conf.</span>
+          <span className="num mt-1 text-[11px] text-muted-foreground">{m.aiConfidence > 0 ? `${m.aiConfidence}% conf.` : "Prototype"}</span>
         </div>
       ),
     },
@@ -167,19 +166,27 @@ function MarketsPage() {
       <PageHeader
         eyebrow="Market board"
         title="Markets"
-        description="Live market data powered by MetaTrader 5 with bid, ask, spread, change and quote activity."
+        description="Live market data powered by MetaTrader 5 with bid, ask, spread, market status and real 30-session price history."
       />
 
-      <div className="mt-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {marketIndices.map((i) => (
-          <GlassCard key={i.label} className="px-4 py-3">
-            <p className="text-xs text-muted-foreground">{i.label}</p>
-            <div className="mt-1 flex items-baseline justify-between gap-2">
-              <p className="num text-lg font-bold text-foreground">{i.value}</p>
-              <Delta value={i.changePct} showIcon={false} className="text-xs" />
-            </div>
-          </GlassCard>
-        ))}
+      <div className="mt-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <GlassCard className="px-4 py-3">
+          <p className="text-xs text-muted-foreground">Live instruments</p>
+          <p className="num mt-1 text-lg font-bold text-foreground">{markets.length}</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Dynamically selected from MT5</p>
+        </GlassCard>
+        <GlassCard className="px-4 py-3">
+          <p className="text-xs text-muted-foreground">Open instruments</p>
+          <p className="num mt-1 text-lg font-bold text-foreground">
+            {markets.filter((market) => market.isMarketOpen).length}
+          </p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">Based on current MT5 quote activity</p>
+        </GlassCard>
+        <GlassCard className="px-4 py-3">
+          <p className="text-xs text-muted-foreground">Market source</p>
+          <p className="mt-1 text-lg font-bold text-foreground">MT5</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">25-instrument MT5 universe</p>
+        </GlassCard>
       </div>
 
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
@@ -203,7 +210,7 @@ function MarketsPage() {
 
       <div className="mt-2 text-xs text-muted-foreground">
         <div className="flex flex-wrap items-center gap-2">
-          <span>{getMarketCalendarLabel()} · Prototype calendar</span>
+          <span>{getMarketCalendarLabel()} · Session calendar</span>
           <span className="rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide">
             {liveData ? "MT5 live quotes" : "No live quotes"}
           </span>

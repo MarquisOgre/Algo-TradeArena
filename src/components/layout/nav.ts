@@ -29,7 +29,9 @@ export interface NavItem {
 export const primaryNav: NavItem[] = [
   { label: "Home", to: "/", icon: Home },
   { label: "Markets", to: "/markets", icon: LineChart },
-  { label: "Trade", to: "/trade", icon: Radio },
+  { label: "Paper Trading", to: "/portfolio", icon: Wallet },
+  { label: "Trade", to: "/trade", icon: LineChart },
+  { label: "Live Trading", to: "/live", icon: Radio },
   { label: "Strategy Lab", to: "/lab", icon: FlaskConical, badge: "NEW" },
   { label: "Strategies", to: "/strategies", icon: Store },
   { label: "Copy Trading", to: "/copy", icon: Copy, badge: "NEW" },
@@ -38,7 +40,6 @@ export const primaryNav: NavItem[] = [
   { label: "Competitions", to: "/tournaments", icon: Trophy },
   { label: "Discover", to: "/discover", icon: Compass },
   { label: "Leaderboard", to: "/leaderboard", icon: Medal },
-  { label: "Portfolio", to: "/portfolio", icon: Wallet },
   { label: "Wallet", to: "/wallet", icon: Wallet, badge: "ALPH" },
   { label: "AI Copilot", to: "/ai", icon: Sparkles },
 ];
@@ -53,7 +54,9 @@ export const secondaryNav: NavItem[] = [
 export const mobileNav: NavItem[] = [
   { label: "Home", to: "/", icon: Home },
   { label: "Markets", to: "/markets", icon: LineChart },
-  { label: "Trade", to: "/trade", icon: Radio },
+  { label: "Paper Trading", to: "/portfolio", icon: Wallet },
+  { label: "Trade", to: "/trade", icon: LineChart },
+  { label: "Live Trading", to: "/live", icon: Radio },
   { label: "Copy", to: "/copy", icon: Copy },
   { label: "Arena", to: "/battle", icon: Swords },
 ];

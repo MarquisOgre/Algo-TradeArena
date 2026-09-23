@@ -1,4 +1,3 @@
-import { mockMarkets } from "@/data/mockMarkets";
 import type { Market } from "@/data/types";
 import { supabase } from "@/lib/supabase";
 
@@ -80,8 +79,10 @@ function assetClassLabel(value: string): Market["assetClass"] {
       return "FX";
     case "crypto":
       return "Crypto";
-    case "commodity":
+    case "metals":
       return "Metals";
+    case "commodity":
+      return "Commodity";
     default:
       return "Commodity";
   }
@@ -125,38 +126,30 @@ async function loadAllActiveMarkets(tradableOnly = false): Promise<MarketRow[]> 
   return rows;
 }
 
-async function loadAllMt5Quotes(): Promise<QuoteRow[]> {
-  const rows: QuoteRow[] = [];
-  const pageSize = 1000;
-  let from = 0;
+async function loadMt5QuotesForMarkets(
+  markets: MarketRow[],
+): Promise<QuoteRow[]> {
+  if (markets.length === 0) return [];
 
-  while (true) {
-    const { data, error } = await supabase
-      .from("market_quotes")
-      .select(
-        "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread, metadata",
-      )
-      .eq("provider", "mt5")
-      .order("quote_time", { ascending: false })
-      .range(from, from + pageSize - 1);
+  const marketIds = markets.map((market) => market.id);
+  const { data, error } = await supabase
+    .from("market_quotes")
+    .select(
+      "market_id, provider, quote_time, price, change, percent_change, previous_close, volume, is_market_open, bid, ask, spread, metadata",
+    )
+    .eq("provider", "mt5")
+    .in("market_id", marketIds)
+    .order("quote_time", { ascending: false });
 
-    if (error) throw error;
+  if (error) throw error;
 
-    const page = (data ?? []) as QuoteRow[];
-    rows.push(...page);
-
-    if (page.length < pageSize) break;
-    from += pageSize;
-  }
-
-  return rows;
+  return (data ?? []) as QuoteRow[];
 }
 
-export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuote>> {
-  const [markets, quotes] = await Promise.all([
-    loadAllActiveMarkets(),
-    loadAllMt5Quotes(),
-  ]);
+async function loadLiveMarketQuotesForMarkets(
+  markets: MarketRow[],
+): Promise<Map<string, LiveMarketQuote>> {
+  const quotes = await loadMt5QuotesForMarkets(markets);
 
   const marketById = new Map(
     markets.map((market) => [market.id, market]),
@@ -189,6 +182,11 @@ export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuot
   }
 
   return latestByMarket;
+}
+
+export async function loadLiveMarketQuotes(): Promise<Map<string, LiveMarketQuote>> {
+  const markets = await loadAllActiveMarkets(true);
+  return loadLiveMarketQuotesForMarkets(markets);
 }
 
 export async function loadBrokerMarketMappings(): Promise<Map<string, MarketStatus>> {
@@ -251,54 +249,148 @@ export async function loadMarketStatuses(): Promise<Map<string, MarketStatus>> {
   return latestByMarket;
 }
 
+const MARKET_HISTORY_TTL_MS = 60_000;
+const MARKET_HISTORY_EMPTY_RETRY_MS = 5_000;
+const MARKET_HISTORY_REQUEST_COOLDOWN_MS = 30_000;
+
+const marketHistoryCache = new Map<
+  string,
+  { values: number[]; expiresAt: number }
+>();
+const marketHistoryRequestedAt = new Map<string, number>();
+
+async function loadBoardSparks(
+  marketIds: string[],
+): Promise<Map<string, number[]>> {
+  const result = new Map<string, number[]>();
+  if (marketIds.length === 0) return result;
+
+  // The market board only needs the latest 30 daily closes for each active
+  // instrument. Fetch the existing MT5 history in one request rather than
+  // starting 25 independent request/response cycles from the browser.
+  const { data, error } = await supabase
+    .from("market_data")
+    .select("market_id, candle_time, close")
+    .in("market_id", marketIds)
+    .eq("timeframe", "1d")
+    .eq("source", "mt5")
+    .order("candle_time", { ascending: false })
+    .limit(Math.max(30, marketIds.length * 60));
+
+  if (error) throw error;
+
+  const grouped = new Map<string, number[]>();
+  for (const row of data ?? []) {
+    const close = Number(row.close);
+    if (!Number.isFinite(close)) continue;
+
+    const values = grouped.get(row.market_id) ?? [];
+    if (values.length < 30) values.push(close);
+    grouped.set(row.market_id, values);
+  }
+
+  for (const marketId of marketIds) {
+    const values = (grouped.get(marketId) ?? []).reverse();
+    result.set(marketId, values);
+  }
+
+  return result;
+}
+
+async function requestMissingBoardHistory(marketIds: string[], sparks: Map<string, number[]>) {
+  for (const marketId of marketIds) {
+    if ((sparks.get(marketId)?.length ?? 0) >= 2) continue;
+
+    try {
+      await requestMarketHistory(marketId, "1d", 30);
+    } catch (error) {
+      console.error("Failed to request MT5 market history:", error);
+    }
+  }
+}
+
 export async function loadMarketBoard(): Promise<Market[]> {
-  const [liveQuotes, statuses] = await Promise.all([
-    loadLiveMarketQuotes(),
-    loadMarketStatuses(),
+  const [marketRows, statuses] = await Promise.all([
+    loadAllActiveMarkets(true),
+    loadMarketStatuses().catch((error) => {
+      // Provider status is auxiliary. Keep the MT5 quote board visible even if
+      // the status table is temporarily unavailable to the browser.
+      console.error("Failed to load MT5 provider statuses:", error);
+      return new Map<string, MarketStatus>();
+    }),
   ]);
-  const marketRows = await loadAllActiveMarkets(true);
 
-  const mockBySymbol = new Map(mockMarkets.map((market) => [market.symbol.toUpperCase(), market]));
-  const bySymbol = new Map(
-    [...liveQuotes.values()].map((quote) => [quote.symbol.toUpperCase(), quote]),
-  );
+  // Load quotes only for the active MT5 universe. This is deliberately keyed
+  // by market_id rather than symbol so broker/provider suffixes cannot break the
+  // join between the canonical market and its MT5 quote.
+  const [liveQuotes, sparks] = await Promise.all([
+    loadLiveMarketQuotesForMarkets(marketRows),
+    loadBoardSparks(marketRows.map((market) => market.id)),
+  ]);
 
-  return ((marketRows ?? []) as MarketRow[]).map((row) => {
-    const live = bySymbol.get(row.symbol.toUpperCase());
-    const status = statuses.get(row.id);
-    const fallback = mockBySymbol.get(row.symbol.toUpperCase());
-    const liveQuoteFresh = isQuoteFresh(live);
-    const providerStatus: MarketProviderStatus =
-      liveQuoteFresh
-        ? "live"
-        : status?.status ?? (live ? "no_quote" : "unsupported");
-    const price = providerStatus === "live" && live ? live.price : 0;
+  const missingHistoryIds = marketRows
+    .map((market) => market.id)
+    .filter((marketId) => (sparks.get(marketId)?.length ?? 0) < 2);
 
-    return {
+  // Existing history is rendered immediately. Missing history is requested
+  // asynchronously for the bridge; it will appear on the next board refresh.
+  if (missingHistoryIds.length > 0) {
+    void requestMissingBoardHistory(missingHistoryIds, sparks);
+  }
+
+  const byMarketId = liveQuotes;
+
+  // The MT5 bridge is the source of truth for the trading universe.
+  // A selected instrument remains visible after its session closes, using
+  // the last MT5 quote. Fresh/open checks belong to trade execution, not
+  // to the market-board catalog.
+  const visibleRows = ((marketRows ?? []) as MarketRow[])
+    .map((row) => {
+      const live = byMarketId.get(row.id);
+      if (!live) return null;
+
+      return {
+        row,
+        live,
+        status: statuses.get(row.id),
+      };
+    })
+    .filter(
+      (
+        item,
+      ): item is {
+        row: MarketRow;
+        live: LiveMarketQuote;
+        status: MarketStatus | undefined;
+      } => item !== null,
+    );
+
+  return await Promise.all(
+    visibleRows.map(async ({ row, live, status }) => ({
       id: row.id,
       symbol: row.symbol,
       name: row.name,
       assetClass: assetClassLabel(row.asset_class),
-      price,
-      change: providerStatus === "live" ? live?.change ?? 0 : 0,
-      changePct: providerStatus === "live" ? live?.changePct ?? 0 : 0,
-      volume: providerStatus === "live" ? formatVolume(live?.volume ?? null) : "—",
-      bid: providerStatus === "live" ? live?.bid ?? null : null,
-      ask: providerStatus === "live" ? live?.ask ?? null : null,
-      spread: providerStatus === "live" ? live?.spread ?? null : null,
-      isMarketOpen: providerStatus === "live" ? live?.isMarketOpen ?? null : false,
-      marketCap: fallback?.marketCap ?? "—",
-      spark: providerStatus === "live" ? fallback?.spark ?? Array.from({ length: 30 }, () => price) : Array.from({ length: 30 }, () => 0),
-      aiSignal: fallback?.aiSignal ?? "Neutral",
-      aiConfidence: fallback?.aiConfidence ?? 50,
-      providerStatus,
+      price: live.price,
+      change: live.change,
+      changePct: live.changePct,
+      volume: formatVolume(live.volume),
+      bid: live.bid,
+      ask: live.ask,
+      spread: live.spread,
+      isMarketOpen: live.isMarketOpen,
+      marketCap: "—",
+      spark: sparks.get(row.id) ?? [],
+      aiSignal: "Neutral",
+      aiConfidence: 0,
+      providerStatus: "live" as const,
       providerSymbol:
         status?.providerSymbol ??
-        (typeof live?.metadata?.broker_symbol === "string"
+        (typeof live.metadata?.broker_symbol === "string"
           ? live.metadata.broker_symbol
           : null),
-    };
-  });
+    })),
+  );
 }
 
 export type MarketCandle = {

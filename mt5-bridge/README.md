@@ -5,6 +5,10 @@ The MT5 bridge is the first real connector layer between a MetaTrader 5 terminal
 Architecture:
 MetaTrader 5 terminal -> Python MetaTrader5 package -> mt5-bridge -> Supabase Edge Function mt5-gateway -> Supabase.
 
+Account roles:
+- Paper Trading: Pepperstone MT5 Demo (`MT5_ROLE=paper_demo`, `MT5_ENVIRONMENT=demo`). Paper account balance, equity, positions and executions are sourced from the broker demo account; Alphentra does not manufacture a separate virtual cash ledger.
+- Live Trading: Pepperstone MT5 Live (`MT5_ROLE=live`, `MT5_ENVIRONMENT=live`). Live execution is a separate environment and remains disabled until explicit live authorization is implemented.
+
 The bridge reads quotes, account state and open positions from the local MT5 terminal and sends normalized snapshots to the gateway. MT5 credentials never enter the browser.
 
 Windows setup:
@@ -12,7 +16,7 @@ Windows setup:
 2. Create or use a demo MT5 account first.
 3. Install Python 3.11+.
 4. In PowerShell: python -m venv .venv, then .\\.venv\\Scripts\\Activate.ps1, then pip install -r requirements.txt.
-5. Create a local .env using the variable names listed below.
+5. Create a local .env using the variable names listed below. For Phase 3, use the Pepperstone MT5 Demo account shown in the MT5 terminal.
 6. Run: python bridge.py
 
 Required environment variables:
@@ -27,6 +31,7 @@ MT5_PASSWORD
 MT5_SERVER
 MT5_PATH
 MT5_ENVIRONMENT=demo
+MT5_ROLE=paper_demo
 ALLOW_LIVE=false
 POLL_SECONDS=2
 
@@ -37,7 +42,7 @@ Security:
 - The gateway accepts only the named mt5-gateway Supabase secret.
 - The browser never receives MT5 credentials.
 
-Live order routing is intentionally not enabled in this first connector milestone. After quote/account/position synchronization is validated, we will add order_check/order_send, reconciliation, SL/TP, close/modify and copy-trading execution.
+Paper order routing must target the connected Pepperstone MT5 Demo account. Live order routing must target a separate Pepperstone MT5 Live account and remain disabled while `ALLOW_LIVE=false`. The bridge never forwards MT5 credentials to the browser. After quote/account/position synchronization is validated, we will add order_check/order_send, reconciliation, SL/TP, close/modify and copy-trading execution.
 
 
 Candle history:
