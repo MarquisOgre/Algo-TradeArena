@@ -382,18 +382,44 @@ function TradePage() {
       return;
     }
 
-    // Keep the order button visually stable, but never execute a paper order
-    // from an expired quote.
-    if (!executionQuoteFresh || !liveQuote || liveQuote.provider !== "mt5") {
+    // Refresh the selected instrument immediately before execution. The
+    // screen polls every 5 seconds, but the user can click between polls.
+    // Execution must use the freshest MT5 bid/ask available at click time.
+    let executionQuote = liveQuote;
+    try {
+      const latestQuotes = await loadLiveMarketQuotes();
+      const latestQuote = latestQuotes.get(market.id);
+      if (latestQuote) {
+        executionQuote = latestQuote;
+        setLiveQuotes(latestQuotes);
+      }
+    } catch (error) {
+      console.error("Failed to refresh MT5 quote before paper execution:", error);
+    }
+
+    if (
+      !executionQuote ||
+      executionQuote.provider !== "mt5" ||
+      !isQuoteFresh(executionQuote, 15_000)
+    ) {
       toast.info("Waiting for a fresh MT5 quote", {
         description: "The order ticket is ready; execution will resume automatically when the latest MT5 bid/ask arrives.",
       });
       return;
     }
 
-    if (side === "BUY" && cashBalance !== null && notional > cashBalance) {
+    const executionPrice = side === "BUY" ? executionQuote.ask : executionQuote.bid;
+    if (executionPrice == null || executionPrice <= 0) {
+      toast.info("Waiting for a valid MT5 price", {
+        description: "A valid MT5 bid/ask is required before a paper order can execute.",
+      });
+      return;
+    }
+
+    const executionNotional = quantity * executionPrice;
+    if (side === "BUY" && cashBalance !== null && executionNotional > cashBalance) {
       toast.error("Insufficient paper buying power", {
-        description: `Available $${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} · Required $${notional.toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
+        description: `Available $${cashBalance.toLocaleString("en-US", { maximumFractionDigits: 2 })} · Required $${executionNotional.toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
       });
       return;
     }
@@ -404,10 +430,9 @@ function TradePage() {
       p_market_symbol: market.symbol,
       p_side: side.toLowerCase(),
       p_quantity: quantity,
-      p_execution_price: side === "BUY" ? liveQuote?.ask ?? 0 : liveQuote?.bid ?? 0,
+      p_execution_price: executionPrice,
       p_client_order_id: crypto.randomUUID(),
     });
-
     setSubmitting(false);
 
     if (error) {
@@ -430,7 +455,7 @@ function TradePage() {
     setCashBalance(result.cash_balance == null ? cashBalance : Number(result.cash_balance));
 
     toast.success(`${side} ${market.symbol} filled`, {
-      description: `${quantity} @ ${(side === "BUY" ? liveQuote?.ask ?? 0 : liveQuote?.bid ?? 0).toFixed(5)} · Paper account equity ${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
+      description: `${quantity} @ ${executionPrice.toFixed(5)} · Paper account equity ${Number(result.equity ?? 0).toLocaleString("en-US", { maximumFractionDigits: 2 })}`,
     });
   };
 
