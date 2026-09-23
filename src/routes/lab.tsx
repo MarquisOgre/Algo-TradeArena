@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
 import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
+import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -78,10 +79,12 @@ function StrategyLabPage() {
   });
 
   const current = steps[step];
+  const ruleValidation = validateStrategyDefinition(rules);
 
   const progress = useMemo(() => Math.round((step / (steps.length - 1)) * 100), [step]);
 
   function nextStep() {
+    if (step === 0 && !ruleValidation.valid) return;
     setCompleted((items) => (items.includes(step) ? items : [...items, step]));
     setStep((value) => Math.min(value + 1, steps.length - 1));
   }
@@ -187,7 +190,12 @@ function StrategyLabPage() {
 
                   <StrategyRuleBuilder value={rules} onChange={setRules} />
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={nextStep}><Sparkles />Generate Strategy</Button>
+                    <Button onClick={nextStep} disabled={!ruleValidation.valid}><Sparkles />Generate Strategy</Button>
+                    {!ruleValidation.valid && (
+                      <div className="w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
+                        {ruleValidation.errors.map((error) => <p key={error}>{error}</p>)}
+                      </div>
+                    )}
                     <Button variant="outline" onClick={() => setPrompt("")}>Clear</Button>
                   </div>
                 </div>
