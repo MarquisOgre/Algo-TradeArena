@@ -50,8 +50,8 @@ Deno.serve(async (req: Request) => {
 
     const configuredModel = Deno.env.get("OPENROUTER_STRATEGY_MODEL");
     const freeFallbackModels = [
-      "google/gemma-4-26b-a4b-it:free",
       "google/gemma-4-31b-it:free",
+      "google/gemma-4-26b-a4b-it:free",
     ];
     const models = configuredModel &&
       configuredModel !== "openrouter/free" &&
