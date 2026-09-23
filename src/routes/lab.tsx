@@ -5,6 +5,7 @@ import {
   Check,
   ChevronRight,
   FlaskConical,
+  Gauge,
   LineChart,
   Save,
   ShieldCheck,
@@ -21,7 +22,11 @@ import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
 import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
 import { BacktestResults } from "@/components/strategy/BacktestResults";
-import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";\nimport { supabase } from "@/lib/supabase";\nimport type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";\nimport { runStrategyStressTest, type StressTestResult } from "@/lib/strategy/stress-test";\nimport { runForwardTestCycle, startForwardTest } from "@/lib/strategy/forward-test";
+import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";
+import { supabase } from "@/lib/supabase";
+import type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";
+import { runStrategyStressTest, type StressTestResult } from "@/lib/strategy/stress-test";
+import { runForwardTestCycle, startForwardTest } from "@/lib/strategy/forward-test";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -53,7 +58,18 @@ function StrategyLabPage() {
     "Build a momentum strategy for major FX pairs using trend confirmation, volatility-aware position sizing, and a strict 1% risk limit per trade.",
   );
   const [completed, setCompleted] = useState<number[]>([]);
-  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);\n  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);\n  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);\n  const [stressResult, setStressResult] = useState<StressTestResult | null>(null);\n  const [backtestMarketId, setBacktestMarketId] = useState<string | null>(null);\n  const [backtestTimeframe, setBacktestTimeframe] = useState<"5m" | "15m" | "1h" | "4h" | "1d">("5m");\n  const [stressRunning, setStressRunning] = useState(false);\n  const [forwardTestId, setForwardTestId] = useState<string | null>(null);\n  const [forwardRunning, setForwardRunning] = useState(false);\n  const [forwardEvent, setForwardEvent] = useState<{ signal: string; action: string; price: number } | null>(null);\n  const [aiRunning, setAiRunning] = useState(false);\n  const [aiError, setAiError] = useState<string | null>(null);
+  const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);
+  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);
+  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
+  const [stressResult, setStressResult] = useState<StressTestResult | null>(null);
+  const [backtestMarketId, setBacktestMarketId] = useState<string | null>(null);
+  const [backtestTimeframe, setBacktestTimeframe] = useState<"5m" | "15m" | "1h" | "4h" | "1d">("5m");
+  const [stressRunning, setStressRunning] = useState(false);
+  const [forwardTestId, setForwardTestId] = useState<string | null>(null);
+  const [forwardRunning, setForwardRunning] = useState(false);
+  const [forwardEvent, setForwardEvent] = useState<{ signal: string; action: string; price: number } | null>(null);
+  const [aiRunning, setAiRunning] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
   const [rules, setRules] = useState<StrategyRuleDefinition>({
     entryOperator: "AND",
     entry: [
@@ -148,7 +164,8 @@ function StrategyLabPage() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => { if (canEnterStep(index)) setStep(index); }}\n                    disabled={!canEnterStep(index)}
+                    onClick={() => { if (canEnterStep(index)) setStep(index); }}
+                    disabled={!canEnterStep(index)}
                     className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                       active
                         ? "bg-primary text-primary-foreground"
@@ -194,8 +211,10 @@ function StrategyLabPage() {
 
                   <StrategyRuleBuilder value={rules} onChange={setRules} />
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={async () => { await generateWithAI(); }} disabled={aiRunning || !prompt.trim()}><Sparkles />{aiRunning ? "Generating with AI…" : "Generate with AI"}</Button>\n                    <Button onClick={nextStep} disabled={!ruleValidation.valid}><ArrowRight />Use Current Rules</Button>
-                    {aiError && <div className="w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">{aiError}</div>}\n                    {!ruleValidation.valid && (
+                    <Button onClick={async () => { await generateWithAI(); }} disabled={aiRunning || !prompt.trim()}><Sparkles />{aiRunning ? "Generating with AI…" : "Generate with AI"}</Button>
+                    <Button onClick={nextStep} disabled={!ruleValidation.valid}><ArrowRight />Use Current Rules</Button>
+                    {aiError && <div className="w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">{aiError}</div>}
+                    {!ruleValidation.valid && (
                       <div className="w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
                         {ruleValidation.errors.map((error) => <p key={error}>{error}</p>)}
                       </div>
