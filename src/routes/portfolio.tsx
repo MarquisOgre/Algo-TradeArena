@@ -107,7 +107,10 @@ function PortfolioPage() {
   const [activationError, setActivationError] = useState<string | null>(null);
   const [resetting, setResetting] = useState(false);
   const [resetDialogOpen, setResetDialogOpen] = useState(false);
-  const [resetSuccess, setResetSuccess] = useState(false);
+  const [resetSuccess, setResetSuccess] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.sessionStorage.getItem("alphentra-paper-wallet-reset-success") === "true";
+  });
   const [resetError, setResetError] = useState<string | null>(null);
 
   const loadPortfolio = async (silent = false) => {
@@ -225,6 +228,7 @@ function PortfolioPage() {
 
     setResetError(null);
     setResetSuccess(false);
+    window.sessionStorage.removeItem("alphentra-paper-wallet-reset-success");
     setResetDialogOpen(false);
     setResetting(true);
 
@@ -240,6 +244,7 @@ function PortfolioPage() {
 
     await loadPortfolio();
     setResetSuccess(true);
+    window.sessionStorage.setItem("alphentra-paper-wallet-reset-success", "true");
   };
 
   const account = portfolio
