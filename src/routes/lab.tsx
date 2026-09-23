@@ -7,7 +7,6 @@ import {
   FlaskConical,
   Gauge,
   LineChart,
-  Play,
   Save,
   ShieldCheck,
   Sparkles,
@@ -21,6 +20,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
+import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
+import { BacktestResults } from "@/components/strategy/BacktestResults";
+import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";
+import { supabase } from "@/lib/supabase";
+import type { BacktestResult } from "@/lib/strategy/backtest-engine-v2";
+import { runStrategyStressTest, type StressTestResult } from "@/lib/strategy/stress-test";
+import { runForwardTestCycle, startForwardTest } from "@/lib/strategy/forward-test";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -43,12 +49,7 @@ const steps = [
   { id: "publish", label: "Publish", icon: Save },
 ] as const;
 
-const backtestStats = [
-  { label: "Net return", value: "+24.8%", note: "simulated" },
-  { label: "Max drawdown", value: "-8.6%", note: "peak to trough" },
-  { label: "Win rate", value: "61.4%", note: "184 trades" },
-  { label: "Sharpe", value: "1.72", note: "annualized" },
-];
+
 
 function StrategyLabPage() {
   const [step, setStep] = useState(0);
@@ -56,15 +57,91 @@ function StrategyLabPage() {
   const [prompt, setPrompt] = useState(
     "Build a momentum strategy for major FX pairs using trend confirmation, volatility-aware position sizing, and a strict 1% risk limit per trade.",
   );
-  const [running, setRunning] = useState(false);
   const [completed, setCompleted] = useState<number[]>([]);
   const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);
+  const [backtestRunId, setBacktestRunId] = useState<string | null>(null);
+  const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
+  const [stressResult, setStressResult] = useState<StressTestResult | null>(null);
+  const [backtestMarketId, setBacktestMarketId] = useState<string | null>(null);
+  const [backtestTimeframe, setBacktestTimeframe] = useState<"5m" | "15m" | "1h" | "4h" | "1d">("5m");
+  const [stressRunning, setStressRunning] = useState(false);
+  const [forwardTestId, setForwardTestId] = useState<string | null>(null);
+  const [forwardRunning, setForwardRunning] = useState(false);
+  const [forwardEvent, setForwardEvent] = useState<{ signal: string; action: string; price: number } | null>(null);
+  const [aiRunning, setAiRunning] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [rules, setRules] = useState<StrategyRuleDefinition>({
+    entryOperator: "AND",
+    entry: [
+      { indicator: "EMA", period: 20, comparator: "gt", value: "EMA(50)" },
+      { indicator: "PRICE", comparator: "crosses_above", value: "HIGH(20)" },
+    ],
+    exitOperator: "OR",
+    exit: [
+      { indicator: "PRICE", comparator: "lt", value: "EMA(20)" },
+    ],
+    stopLossPct: 1,
+    takeProfitPct: 2,
+    trailingStopPct: 0,
+    riskPerTradePct: 1,
+    positionSizing: "risk_percent",
+  });
 
   const current = steps[step];
+  const ruleValidation = validateStrategyDefinition({
+    entry: { operator: rules.entryOperator, conditions: rules.entry },
+    exit: { operator: rules.exitOperator, conditions: rules.exit },
+    stopLossPct: rules.stopLossPct,
+    takeProfitPct: rules.takeProfitPct,
+    trailingStopPct: rules.trailingStopPct,
+    riskPerTradePct: rules.riskPerTradePct,
+    positionSizing: rules.positionSizing,
+  });
+
+  async function generateWithAI() {
+    setAiRunning(true);
+    setAiError(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("ai-strategy-builder", { body: { prompt } });
+      if (error) throw error;
+      if (data?.error) {
+        let detail = String(data.error);
+        if (data.provider_status) detail += ` (provider status ${data.provider_status})`;
+        if (data.model) detail += ` — model: ${data.model}`;
+        throw new Error(detail);
+      }
+      const generated = data?.definition as StrategyRuleDefinition | undefined;
+      if (!generated) throw new Error("AI returned no strategy definition.");
+      const validation = validateStrategyDefinition({
+        entry: { operator: generated.entryOperator, conditions: generated.entry },
+        exit: { operator: generated.exitOperator, conditions: generated.exit },
+        stopLossPct: generated.stopLossPct,
+        takeProfitPct: generated.takeProfitPct,
+        trailingStopPct: generated.trailingStopPct,
+        riskPerTradePct: generated.riskPerTradePct,
+        positionSizing: generated.positionSizing,
+      });
+      if (!validation.valid) throw new Error(validation.errors.join(" "));
+      setRules(generated);
+      setCompleted((items) => items.filter((item) => item !== 0));
+    } catch (error) {
+      setAiError(error instanceof Error ? error.message : "AI strategy generation failed.");
+    } finally {
+      setAiRunning(false);
+    }
+  }
 
   const progress = useMemo(() => Math.round((step / (steps.length - 1)) * 100), [step]);
+  const canEnterStep = (index: number) => {
+    if (index === 0) return true;
+    if (index === 1) return ruleValidation.valid;
+    if (index === 2) return Boolean(backtestResult);
+    if (index === 3) return Boolean(stressResult);
+    return Boolean(forwardTestId && forwardEvent);
+  };
 
   function nextStep() {
+    if (step === 0 && !ruleValidation.valid) return;
     setCompleted((items) => (items.includes(step) ? items : [...items, step]));
     setStep((value) => Math.min(value + 1, steps.length - 1));
   }
@@ -77,27 +154,13 @@ function StrategyLabPage() {
       style: "Momentum",
       markets: ["Forex"],
       riskLimit: 1,
-      status: "Published",
-      backtest: {
-        returnPct: 24.8,
-        maxDrawdownPct: -8.6,
-        winRatePct: 61.4,
-        sharpe: 1.72,
-        trades: 184,
-      },
+      status: "Draft",
+      definition: rules,
     });
     setSavedStrategyId(saved.id);
     setCompleted((items) => (items.includes(4) ? items : [...items, 4]));
   }
 
-  function runBacktest() {
-    setRunning(true);
-    window.setTimeout(() => {
-      setRunning(false);
-      setCompleted((items) => (items.includes(1) ? items : [...items, 1]));
-      setStep(2);
-    }, 700);
-  }
 
   return (
     <AppShell wide>
@@ -108,7 +171,7 @@ function StrategyLabPage() {
           description="Turn an idea into a measurable strategy, then prepare it for forward testing and the ALPHENTRA Arena."
           actions={
             <Badge variant="outline" className="border-primary/30 bg-primary/5 text-primary">
-              Prototype workflow
+              MT5 Strategy Lab
             </Badge>
           }
         />
@@ -123,7 +186,8 @@ function StrategyLabPage() {
                 return (
                   <button
                     key={item.id}
-                    onClick={() => setStep(index)}
+                    onClick={() => { if (canEnterStep(index)) setStep(index); }}
+                    disabled={!canEnterStep(index)}
                     className={`flex shrink-0 items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold transition-colors ${
                       active
                         ? "bg-primary text-primary-foreground"
@@ -166,8 +230,17 @@ function StrategyLabPage() {
                       <Badge key={tag} variant="outline" className="border-border bg-surface">{tag}</Badge>
                     ))}
                   </div>
+
+                  <StrategyRuleBuilder value={rules} onChange={setRules} />
                   <div className="flex flex-wrap gap-2">
-                    <Button onClick={nextStep}><Sparkles />Generate Strategy</Button>
+                    <Button onClick={async () => { await generateWithAI(); }} disabled={aiRunning || !prompt.trim()}><Sparkles />{aiRunning ? "Generating with AI…" : "Generate with AI"}</Button>
+                    <Button onClick={nextStep} disabled={!ruleValidation.valid}><ArrowRight />Use Current Rules</Button>
+                    {aiError && <div className="w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">{aiError}</div>}
+                    {!ruleValidation.valid && (
+                      <div className="w-full rounded-xl border border-destructive/20 bg-destructive/5 p-3 text-xs text-destructive">
+                        {ruleValidation.errors.map((error) => <p key={error}>{error}</p>)}
+                      </div>
+                    )}
                     <Button variant="outline" onClick={() => setPrompt("")}>Clear</Button>
                   </div>
                 </div>
@@ -180,7 +253,7 @@ function StrategyLabPage() {
                     <div>
                       <p className="font-semibold">AI Strategy Builder</p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        The prototype converts your description into a structured strategy specification. A live model can plug into this step later.
+                        The AI Strategy Builder converts your natural-language idea into validated, backtestable rules. It does not promise profitability; generated strategies must still pass backtest, stress, and paper forward gates.
                       </p>
                     </div>
                   </div>
@@ -198,46 +271,12 @@ function StrategyLabPage() {
 
             {step === 1 && (
               <div className="space-y-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Historical simulation</p>
-                    <h2 className="mt-1 text-xl font-semibold">{strategyName || "Untitled Strategy"}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">EUR/USD · GBP/USD · USD/JPY · 5-year sample · simulated execution</p>
-                  </div>
-                  <Button onClick={runBacktest} disabled={running}>
-                    <Play />{running ? "Running..." : "Run Backtest"}
-                  </Button>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Historical simulation</p>
+                  <h2 className="mt-1 text-xl font-semibold">{strategyName || "Untitled Strategy"}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Select an instrument from the live MT5 universe and run the current rule set against stored MT5 historical candles.</p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {backtestStats.map((stat) => (
-                    <div key={stat.label} className="rounded-xl border border-border bg-surface/50 p-4">
-                      <p className="text-xs text-muted-foreground">{stat.label}</p>
-                      <p className="num mt-2 text-2xl font-bold">{stat.value}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{stat.note}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-                  <div className="rounded-xl border border-border bg-background/40 p-5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold">Equity curve</p>
-                      <span className="text-xs text-success">Simulated</span>
-                    </div>
-                    <div className="mt-6 flex h-40 items-end gap-1">
-                      {[22, 27, 25, 34, 31, 40, 44, 39, 51, 48, 60, 57, 68, 64, 74, 71, 83, 79, 92].map((height, index) => (
-                        <div key={index} className="flex-1 rounded-t bg-primary/60" style={{ height: `${height}%` }} />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background/40 p-5">
-                    <p className="text-sm font-semibold">Risk diagnostics</p>
-                    <div className="mt-4 space-y-3 text-sm">
-                      {["No leverage breach", "Position cap respected", "Stop-loss coverage 96%", "Outlier loss contained"].map((item) => (
-                        <div key={item} className="flex items-center gap-2"><ShieldCheck className="size-4 text-success" />{item}</div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <BacktestResults definition={rules} strategyName={strategyName} onBacktestComplete={(id, result, marketId, timeframe) => { setBacktestRunId(id); setBacktestResult(result); setBacktestMarketId(marketId); setBacktestTimeframe(timeframe); setStressResult(null); setCompleted((items) => items.includes(1) ? items : [...items, 1]); }} />
                 <Button variant="outline" onClick={() => setStep(0)}>Back to Build</Button>
               </div>
             )}
@@ -247,26 +286,46 @@ function StrategyLabPage() {
                 <div>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Scenario analysis</p>
                   <h2 className="mt-1 text-xl font-semibold">Stress-test {strategyName || "your strategy"}</h2>
-                  <p className="mt-1 text-sm text-muted-foreground">Challenge the strategy against volatility spikes, spread expansion, and adverse market regimes.</p>
+                  <p className="mt-1 text-sm text-muted-foreground">Run deterministic cost, slippage, volatility, and adverse-drift scenarios against the same MT5 history used by the backtest.</p>
                 </div>
-                <div className="grid gap-3 md:grid-cols-3">
-                  {[
-                    ["Volatility shock", "VIX +80%", "-11.2%", "Contained"],
-                    ["Spread expansion", "2.5× normal", "-6.4%", "Contained"],
-                    ["Trend reversal", "Rapid regime flip", "-9.1%", "Contained"],
-                  ].map(([name, scenario, impact, status]) => (
-                    <GlassCard key={name} className="p-5">
-                      <div className="flex items-center justify-between"><Gauge className="size-5 text-cyan-400" /><Badge variant="outline" className="border-success/30 text-success">{status}</Badge></div>
-                      <h3 className="mt-4 font-semibold">{name}</h3>
-                      <p className="mt-1 text-xs text-muted-foreground">{scenario}</p>
-                      <p className="num mt-5 text-2xl font-bold">{impact}</p>
-                    </GlassCard>
-                  ))}
-                </div>
-                <div className="rounded-xl border border-success/20 bg-success/5 p-4 text-sm text-muted-foreground">
-                  <ShieldCheck className="mr-2 inline size-4 text-success" />Stress profile is within the prototype risk guardrails. This is simulated output, not a guarantee of future performance.
-                </div>
-                <Button onClick={nextStep}><ArrowRight />Continue to Forward Test</Button>
+                {!backtestResult || !backtestMarketId ? (
+                  <div className="rounded-xl border border-warning/20 bg-warning/5 p-4 text-sm text-muted-foreground">Run a completed MT5 backtest first. Stress testing uses that run's instrument and timeframe.</div>
+                ) : (
+                  <>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">{backtestTimeframe}</Badge>
+                      <span className="text-xs text-muted-foreground">Baseline return {backtestResult.netReturnPct.toFixed(2)}% · DD {backtestResult.maxDrawdownPct.toFixed(2)}%</span>
+                      <Button className="ml-auto" disabled={stressRunning} onClick={async () => {
+                        setStressRunning(true);
+                        try {
+                          const result = await runStrategyStressTest({ definition: { entry: { operator: rules.entryOperator, conditions: rules.entry }, exit: { operator: rules.exitOperator, conditions: rules.exit }, stopLossPct: rules.stopLossPct, takeProfitPct: rules.takeProfitPct, trailingStopPct: rules.trailingStopPct, riskPerTradePct: rules.riskPerTradePct, positionSizing: rules.positionSizing }, marketId: backtestMarketId, timeframe: backtestTimeframe, initialCapital: backtestResult.initialCapital, maxBars: Math.min(240, Math.max(30, backtestResult.equityCurve.length)) });
+                          setStressResult(result);
+                          setCompleted((items) => items.includes(2) ? items : [...items, 2]);
+                        } catch (error) {
+                          setStressResult(null);
+                          console.error(error);
+                        } finally { setStressRunning(false); }
+                      }}>{stressRunning ? "Running Stress Tests…" : "Run Real Stress Test"} <ArrowRight /></Button>
+                    </div>
+                    {stressResult && (
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {stressResult.scenarios.map((scenario) => (
+                          <GlassCard key={scenario.id} className="p-5">
+                            <div className="flex items-center justify-between"><Gauge className="size-5 text-primary" /><Badge variant="outline">{scenario.result.trades.length} trades</Badge></div>
+                            <h3 className="mt-4 font-semibold">{scenario.name}</h3>
+                            <p className="mt-1 text-xs text-muted-foreground">{scenario.description}</p>
+                            <div className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                              <div><span className="text-muted-foreground">Return</span><p className="num font-semibold">{scenario.result.netReturnPct.toFixed(2)}%</p></div>
+                              <div><span className="text-muted-foreground">Max DD</span><p className="num font-semibold">{scenario.result.maxDrawdownPct.toFixed(2)}%</p></div>
+                            </div>
+                          </GlassCard>
+                        ))}
+                      </div>
+                    )}
+                    {stressResult && <div className="rounded-xl border border-border bg-surface/40 p-4 text-sm text-muted-foreground"><ShieldCheck className="mr-2 inline size-4 text-success" />Stress results are scenario diagnostics, not a guarantee of future performance.</div>}
+                  </>
+                )}
+                <Button onClick={nextStep} disabled={!stressResult}><ArrowRight />Continue to Forward Test</Button>
               </div>
             )}
 
@@ -275,58 +334,97 @@ function StrategyLabPage() {
                 <div>
                   <p className="text-xs uppercase tracking-wider text-muted-foreground">Paper environment</p>
                   <h2 className="mt-1 text-xl font-semibold">Forward Test</h2>
-                  <p className="mt-2 text-sm text-muted-foreground">Run the strategy against simulated market data in a paper environment before publishing it to the marketplace or Arena.</p>
+                  <p className="mt-2 text-sm text-muted-foreground">This stage uses the authenticated ALPHENTRA paper execution engine only. No MT5/live broker order is sent from Strategy Lab.</p>
                   <div className="mt-5 space-y-3">
                     {[
-                      ["Paper balance", "$100,000"],
-                      ["Risk per trade", "1.0%"],
-                      ["Max drawdown guard", "10%"],
-                      ["Minimum observation", "30 days"],
+                      ["Backtest run", backtestRunId ? backtestRunId.slice(0, 8) + "…" : "Required"],
+                      ["Observation status", forwardTestId ? "Active" : "Not started"],
+                      ["Execution", "Paper only"],
+                      ["Market data", "MT5 live universe"],
                     ].map(([label, value]) => (
                       <div key={label} className="flex items-center justify-between rounded-lg border border-border bg-surface/40 px-4 py-3 text-sm">
                         <span className="text-muted-foreground">{label}</span><span className="font-medium">{value}</span>
                       </div>
                     ))}
                   </div>
+                  {forwardEvent && <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-4 text-sm"><span className="font-semibold">{forwardEvent.signal}</span> · {forwardEvent.action} · {forwardEvent.price.toFixed(5)}</div>}
                 </div>
                 <GlassCard className="p-5">
                   <Badge variant="outline" className="border-warning/30 text-warning">Paper trading only</Badge>
-                  <p className="mt-4 text-sm text-muted-foreground">No real orders are sent from Strategy Lab. Broker execution will be connected after the paper workflow is validated.</p>
-                  <Button className="mt-5 w-full" onClick={nextStep}>Start Paper Forward Test <ArrowRight /></Button>
+                  <p className="mt-4 text-sm text-muted-foreground">Start a forward-test session from the completed backtest, then run a cycle against the current MT5 quote and paper portfolio.</p>
+                  {!forwardTestId ? (
+                    <Button className="mt-5 w-full" disabled={!backtestRunId} onClick={async () => {
+                      if (!backtestRunId) return;
+                      try {
+                        const started = await startForwardTest({
+                          backtestId: backtestRunId,
+                          definition: { entry: { operator: rules.entryOperator, conditions: rules.entry }, exit: { operator: rules.exitOperator, conditions: rules.exit }, stopLossPct: rules.stopLossPct, takeProfitPct: rules.takeProfitPct, trailingStopPct: rules.trailingStopPct, riskPerTradePct: rules.riskPerTradePct, positionSizing: rules.positionSizing },
+                        });
+                        setForwardTestId(started.id);
+                      } catch (error) {
+                        console.error(error);
+                      }
+                    }}>Start Paper Forward Test <ArrowRight /></Button>
+                  ) : (
+                    <>
+                      <Button className="mt-5 w-full" disabled={forwardRunning} onClick={async () => {
+                        if (!forwardTestId || !backtestMarketId) return;
+                        setForwardRunning(true);
+                        try {
+                          const event = await runForwardTestCycle({
+                            forwardTestId, marketId: backtestMarketId, timeframe: backtestTimeframe,
+                            definition: { entry: { operator: rules.entryOperator, conditions: rules.entry }, exit: { operator: rules.exitOperator, conditions: rules.exit }, stopLossPct: rules.stopLossPct, takeProfitPct: rules.takeProfitPct, trailingStopPct: rules.trailingStopPct, riskPerTradePct: rules.riskPerTradePct, positionSizing: rules.positionSizing },
+                          });
+                          setForwardEvent({ signal: event.signal, action: event.action, price: event.price });
+                          setCompleted((items) => items.includes(3) ? items : [...items, 3]);
+                        } catch (error) {
+                          console.error(error);
+                        } finally { setForwardRunning(false); }
+                      }}>{forwardRunning ? "Running Paper Cycle…" : "Run Forward Cycle"} <ArrowRight /></Button>
+                      <p className="mt-3 text-center text-xs text-muted-foreground">A production publish gate should observe this session for the required period before enabling publication.</p>
+                    </>
+                  )}
                 </GlassCard>
+                <div className="lg:col-span-2"><Button onClick={nextStep} disabled={!forwardTestId}><ArrowRight />Continue to Publish Gates</Button></div>
               </div>
             )}
 
             {step === 4 && (
-              <div className="mx-auto max-w-2xl text-center">
-                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-success/10 text-success"><Check className="size-7" /></div>
-                <h2 className="mt-5 text-2xl font-semibold">Validation complete</h2>
-                <p className="mt-2 text-sm text-muted-foreground">Your strategy has completed the prototype validation path. Save it to your strategy library, then complete the observation period before treating it as production-ready.</p>
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  {["Backtest complete", "Stress test complete", "Forward test ready"].map((item) => (
-                    <div key={item} className="rounded-xl border border-border bg-surface/50 p-4 text-sm"><Check className="mx-auto mb-2 size-4 text-success" />{item}</div>
+              <div className="mx-auto max-w-3xl">
+                <div className="text-center">
+                  <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary"><ShieldCheck className="size-7" /></div>
+                  <h2 className="mt-5 text-2xl font-semibold">Publish Gates</h2>
+                  <p className="mt-2 text-sm text-muted-foreground">Publication is intentionally blocked until every validation gate is evidenced by real data. A backtest alone is not treated as production validation.</p>
+                </div>
+                <div className="mt-7 space-y-3">
+                  {[
+                    ["Historical backtest", Boolean(backtestResult), backtestResult ? `${backtestResult.trades.length} trades · DD ${backtestResult.maxDrawdownPct.toFixed(2)}%` : "Run a real MT5 backtest"],
+                    ["Stress testing", Boolean(stressResult), stressResult ? `${stressResult.scenarios.length} scenarios completed` : "Run all stress scenarios"],
+                    ["Paper forward session", Boolean(forwardTestId), forwardTestId ? "Session active" : "Start paper forward testing"],
+                    ["Forward observations", Boolean(forwardEvent), forwardEvent ? "At least one paper cycle recorded" : "No paper cycle recorded"],
+                    ["Minimum observation period", false, "Required observation window has not elapsed"],
+                  ].map(([label, ready, detail]) => (
+                    <div key={label as string} className="flex items-center gap-3 rounded-xl border border-border bg-surface/50 p-4">
+                      {ready ? <Check className="size-5 text-success" /> : <ShieldCheck className="size-5 text-warning" />}
+                      <div className="min-w-0 flex-1"><p className="font-medium">{label}</p><p className="text-xs text-muted-foreground">{detail}</p></div>
+                      <Badge variant="outline" className={ready ? "border-success/30 text-success" : "border-warning/30 text-warning"}>{ready ? "Passed" : "Pending"}</Badge>
+                    </div>
                   ))}
                 </div>
-                <Button className="mt-6" onClick={saveCurrentStrategy} disabled={Boolean(savedStrategyId)}>
-                  <Save />{savedStrategyId ? "Strategy Saved Locally" : "Save Strategy Locally"}
-                </Button>
-                {savedStrategyId ? (
-                  <p className="mt-3 text-xs text-success">Saved to your strategy library. ID: {savedStrategyId}</p>
-                ) : (
-                  <p className="mt-3 text-xs text-muted-foreground">Prototype only — publishing saves a reusable strategy record locally; it does not create a live trading account.</p>
-                )}
+                <div className="mt-5 rounded-xl border border-warning/20 bg-warning/5 p-4 text-sm text-muted-foreground">
+                  <ShieldCheck className="mr-2 inline size-4 text-warning" />
+                  This strategy remains a draft. ALPHENTRA will not mark it production-ready or marketplace-publishable until the required forward observation period is completed.
+                </div>
+                <div className="mt-6 flex justify-center">
+                  <Button disabled><Save /> Publish Strategy — Locked</Button>
+                </div>
+                {backtestRunId && <p className="mt-3 text-center text-xs text-muted-foreground">Backtest run: {backtestRunId}</p>}
               </div>
             )}
-          </div>
 
-          {step < 4 && (
-            <div className="flex items-center justify-between border-t border-border bg-surface/30 px-5 py-4">
-              <span className="text-xs text-muted-foreground">Step {step + 1} of {steps.length} · {current.label}</span>
-              <Button variant="outline" size="sm" onClick={nextStep}>
-                Continue <ChevronRight />
-              </Button>
-            </div>
-          )}
+
+
+          </div>
         </GlassCard>
       </div>
     </AppShell>

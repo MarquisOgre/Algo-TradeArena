@@ -18,6 +18,7 @@ export interface StrategyVersion {
   markets: string[];
   riskLimit: number;
   notes?: string;
+  definition?: Record<string, unknown>;
 }
 
 export interface Strategy {

@@ -36,3 +36,11 @@ supabase/functions/.env
 
 # MT5 bridge credentials
 mt5-bridge/.env
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Generated files
+src/routeTree.gen.ts

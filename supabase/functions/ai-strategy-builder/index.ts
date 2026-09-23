@@ -1,0 +1,115 @@
+import "jsr:@supabase/functions-js/edge-runtime.d.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req: Request) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  try {
+    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+    if (!apiKey) {
+      return new Response(JSON.stringify({ error: "AI Strategy Builder is not configured. Add OPENROUTER_API_KEY to the Supabase function secrets." }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Authentication required." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json();
+    const prompt = String(body.prompt ?? "").trim();
+    if (!prompt) {
+      return new Response(JSON.stringify({ error: "A strategy description is required." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const system = [
+      "You are the ALPHENTRA Strategy Builder.",
+      "Convert a user's natural-language trading idea into a conservative, testable structured strategy definition.",
+      "Never promise profitability. Return rules that can be objectively backtested.",
+      "Use only indicators EMA, SMA, RSI, MACD, ATR, PRICE, OPEN, HIGH, LOW, VOLUME.",
+      "Use comparators gt, gte, lt, lte, eq, neq, crosses_above, crosses_below.",
+      "Return JSON only with entryOperator, entry, exitOperator, exit, stopLossPct, takeProfitPct, trailingStopPct, riskPerTradePct, positionSizing.",
+      "Each condition must have indicator, optional period, comparator and value.",
+      "Risk per trade must be >0 and <=2. Stop loss must be >=0 and <=10. Take profit must be >=0 and <=20.",
+      "Do not invent market symbols or hardcode a universe.",
+    ].join(" ");
+
+    const model = Deno.env.get("OPENROUTER_STRATEGY_MODEL") ?? "openrouter/free";
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://alphentra.vercel.app",
+        "X-Title": "ALPHENTRA Strategy Lab",
+      },
+      body: JSON.stringify({
+        model,
+        temperature: 0.2,
+        response_format: { type: "json_object" },
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: prompt },
+        ],
+      }),
+    });
+
+    if (!response.ok) {
+      const providerText = await response.text();
+      let providerMessage = "AI provider request failed.";
+      try {
+        const providerBody = JSON.parse(providerText);
+        providerMessage = providerBody?.error?.message ?? providerMessage;
+      } catch {
+        // Keep provider HTML/plain-text errors out of the client response.
+      }
+
+      return new Response(JSON.stringify({
+        error: providerMessage,
+        provider_status: response.status,
+        model,
+      }), {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const payload = await response.json();
+    const content = payload?.choices?.[0]?.message?.content;
+    if (!content) throw new Error("AI provider returned no strategy definition.");
+
+    let definition: unknown;
+    try {
+      definition = JSON.parse(content);
+    } catch {
+      const cleaned = String(content)
+        .replace(/^\s*```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/i, "")
+        .trim();
+      definition = JSON.parse(cleaned);
+    }
+
+    return new Response(JSON.stringify({ definition, model: payload?.model ?? model }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : "AI strategy generation failed.",
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
