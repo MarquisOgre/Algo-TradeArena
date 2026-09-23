@@ -6,13 +6,23 @@ import { Badge } from "@/components/ui/badge";
 import { loadMarketBoard } from "@/lib/marketData";
 import { runHistoricalStrategyBacktest } from "@/lib/strategy/historical-backtest";
 import type { StrategyDefinition } from "@/lib/strategy/condition-engine";
+import type { StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
 import type { BacktestResult } from "@/lib/strategy/backtest-engine";
 import type { Market } from "@/data/types";
 
 const TIMEFRAMES = ["5m", "15m", "1h", "4h", "1d"] as const;
 type Timeframe = typeof TIMEFRAMES[number];
 
-export function BacktestResults({ definition }: { definition: StrategyDefinition }) {
+export function BacktestResults({ definition }: { definition: StrategyRuleDefinition }) {
+  const engineDefinition: StrategyDefinition = {
+    entry: { operator: definition.entryOperator, conditions: definition.entry },
+    exit: { operator: definition.exitOperator, conditions: definition.exit },
+    stopLossPct: definition.stopLossPct,
+    takeProfitPct: definition.takeProfitPct,
+    trailingStopPct: definition.trailingStopPct,
+    riskPerTradePct: definition.riskPerTradePct,
+    positionSizing: definition.positionSizing,
+  };
   const [markets, setMarkets] = useState<Market[]>([]);
   const [marketId, setMarketId] = useState("");
   const [timeframe, setTimeframe] = useState<Timeframe>("5m");
@@ -41,7 +51,7 @@ export function BacktestResults({ definition }: { definition: StrategyDefinition
     if (!marketId) return;
     setRunning(true); setError(null); setResult(null);
     try {
-      const next = await runHistoricalStrategyBacktest(definition, marketId, timeframe, {
+      const next = await runHistoricalStrategyBacktest(engineDefinition, marketId, timeframe, {
         initialCapital: capital,
         feeBps: 2,
         slippageBps: 1,
