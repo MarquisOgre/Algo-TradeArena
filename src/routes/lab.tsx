@@ -21,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
+import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
 
 export const Route = createFileRoute("/lab")({
   head: () => ({
@@ -59,6 +60,22 @@ function StrategyLabPage() {
   const [running, setRunning] = useState(false);
   const [completed, setCompleted] = useState<number[]>([]);
   const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);
+  const [rules, setRules] = useState<StrategyRuleDefinition>({
+    entryOperator: "AND",
+    entry: [
+      { indicator: "EMA", period: 20, comparator: "gt", value: "EMA(50)" },
+      { indicator: "PRICE", comparator: "crosses_above", value: "HIGH(20)" },
+    ],
+    exitOperator: "OR",
+    exit: [
+      { indicator: "PRICE", comparator: "lt", value: "EMA(20)" },
+    ],
+    stopLossPct: 1,
+    takeProfitPct: 2,
+    trailingStopPct: 0,
+    riskPerTradePct: 1,
+    positionSizing: "risk_percent",
+  });
 
   const current = steps[step];
 
@@ -78,6 +95,7 @@ function StrategyLabPage() {
       markets: ["Forex"],
       riskLimit: 1,
       status: "Published",
+      definition: rules,
       backtest: {
         returnPct: 24.8,
         maxDrawdownPct: -8.6,
@@ -166,6 +184,8 @@ function StrategyLabPage() {
                       <Badge key={tag} variant="outline" className="border-border bg-surface">{tag}</Badge>
                     ))}
                   </div>
+
+                  <StrategyRuleBuilder value={rules} onChange={setRules} />
                   <div className="flex flex-wrap gap-2">
                     <Button onClick={nextStep}><Sparkles />Generate Strategy</Button>
                     <Button variant="outline" onClick={() => setPrompt("")}>Clear</Button>
