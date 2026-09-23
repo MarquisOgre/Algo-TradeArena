@@ -297,30 +297,56 @@ function TradePage() {
   }, []);
 
   useEffect(() => {
-    if (!user) {
-      setCashBalance(null);
-      return;
-    }
-
     let active = true;
 
-    void supabase
-      .from("portfolios")
-      .select("cash_balance, account_status")
-      .eq("name", "Main Paper Account")
-      .eq("portfolio_type", "paper")
-      .eq("is_active", true)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (!active) return;
-        if (error) {
-          console.error("Failed to load paper buying power:", error);
-          return;
-        }
-        const active = data?.account_status === "active";
-        setPaperAccountActive(active);
-        setCashBalance(active && data?.cash_balance != null ? Number(data.cash_balance) : null);
-      });
+    const loadPaperAccount = async () => {
+      if (!user) {
+        setPaperAccountActive(false);
+        setCashBalance(null);
+        return;
+      }
+
+      // Resolve the authenticated user directly from Supabase before reading
+      // the account. This keeps the Trade screen aligned with the account
+      // created by activate_paper_account(), even when the auth provider is
+      // still settling after navigation or refresh.
+      const { data: authData, error: authError } = await supabase.auth.getUser();
+
+      if (!active) return;
+
+      if (authError || !authData.user) {
+        console.error("Failed to resolve authenticated user for paper trading:", authError);
+        setPaperAccountActive(false);
+        setCashBalance(null);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("portfolios")
+        .select("cash_balance, account_status")
+        .eq("profile_id", authData.user.id)
+        .eq("name", "Main Paper Account")
+        .eq("portfolio_type", "paper")
+        .eq("is_active", true)
+        .eq("account_status", "active")
+        .limit(1)
+        .maybeSingle();
+
+      if (!active) return;
+
+      if (error) {
+        console.error("Failed to load paper buying power:", error);
+        setPaperAccountActive(false);
+        setCashBalance(null);
+        return;
+      }
+
+      const accountActive = data?.account_status === "active";
+      setPaperAccountActive(accountActive);
+      setCashBalance(accountActive && data?.cash_balance != null ? Number(data.cash_balance) : null);
+    };
+
+    void loadPaperAccount();
 
     return () => {
       active = false;
