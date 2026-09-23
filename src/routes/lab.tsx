@@ -401,3 +401,10 @@ function StrategyLabPage() {
             )}
 
 
+
+          </div>
+        </GlassCard>
+      </div>
+    </AppShell>
+  );
+}
