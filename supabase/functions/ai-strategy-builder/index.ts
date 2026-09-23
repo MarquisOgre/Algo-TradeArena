@@ -107,8 +107,9 @@ Deno.serve(async (req: Request) => {
   } catch (error) {
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "AI strategy generation failed.",
+      provider: "openrouter",
     }), {
-      status: 500,
+      status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
