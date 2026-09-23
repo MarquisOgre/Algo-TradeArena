@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { saveStrategy } from "@/data/strategies";
 import { StrategyRuleBuilder, type StrategyRuleDefinition } from "@/components/strategy/StrategyRuleBuilder";
+import { BacktestResults } from "@/components/strategy/BacktestResults";
 import { validateStrategyDefinition } from "@/lib/strategy/condition-engine";
 
 export const Route = createFileRoute("/lab")({
@@ -45,12 +46,7 @@ const steps = [
   { id: "publish", label: "Publish", icon: Save },
 ] as const;
 
-const backtestStats = [
-  { label: "Net return", value: "+24.8%", note: "simulated" },
-  { label: "Max drawdown", value: "-8.6%", note: "peak to trough" },
-  { label: "Win rate", value: "61.4%", note: "184 trades" },
-  { label: "Sharpe", value: "1.72", note: "annualized" },
-];
+
 
 function StrategyLabPage() {
   const [step, setStep] = useState(0);
@@ -58,7 +54,6 @@ function StrategyLabPage() {
   const [prompt, setPrompt] = useState(
     "Build a momentum strategy for major FX pairs using trend confirmation, volatility-aware position sizing, and a strict 1% risk limit per trade.",
   );
-  const [running, setRunning] = useState(false);
   const [completed, setCompleted] = useState<number[]>([]);
   const [savedStrategyId, setSavedStrategyId] = useState<string | null>(null);
   const [rules, setRules] = useState<StrategyRuleDefinition>({
@@ -111,14 +106,6 @@ function StrategyLabPage() {
     setCompleted((items) => (items.includes(4) ? items : [...items, 4]));
   }
 
-  function runBacktest() {
-    setRunning(true);
-    window.setTimeout(() => {
-      setRunning(false);
-      setCompleted((items) => (items.includes(1) ? items : [...items, 1]));
-      setStep(2);
-    }, 700);
-  }
 
   return (
     <AppShell wide>
@@ -226,46 +213,12 @@ function StrategyLabPage() {
 
             {step === 1 && (
               <div className="space-y-5">
-                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                  <div>
-                    <p className="text-xs uppercase tracking-wider text-muted-foreground">Historical simulation</p>
-                    <h2 className="mt-1 text-xl font-semibold">{strategyName || "Untitled Strategy"}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">EUR/USD · GBP/USD · USD/JPY · 5-year sample · simulated execution</p>
-                  </div>
-                  <Button onClick={runBacktest} disabled={running}>
-                    <Play />{running ? "Running..." : "Run Backtest"}
-                  </Button>
+                <div>
+                  <p className="text-xs uppercase tracking-wider text-muted-foreground">Historical simulation</p>
+                  <h2 className="mt-1 text-xl font-semibold">{strategyName || "Untitled Strategy"}</h2>
+                  <p className="mt-1 text-sm text-muted-foreground">Select an instrument from the live MT5 universe and run the current rule set against stored MT5 historical candles.</p>
                 </div>
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                  {backtestStats.map((stat) => (
-                    <div key={stat.label} className="rounded-xl border border-border bg-surface/50 p-4">
-                      <p className="text-xs text-muted-foreground">{stat.label}</p>
-                      <p className="num mt-2 text-2xl font-bold">{stat.value}</p>
-                      <p className="mt-1 text-[11px] text-muted-foreground">{stat.note}</p>
-                    </div>
-                  ))}
-                </div>
-                <div className="grid gap-4 lg:grid-cols-[1.4fr_0.6fr]">
-                  <div className="rounded-xl border border-border bg-background/40 p-5">
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold">Equity curve</p>
-                      <span className="text-xs text-success">Simulated</span>
-                    </div>
-                    <div className="mt-6 flex h-40 items-end gap-1">
-                      {[22, 27, 25, 34, 31, 40, 44, 39, 51, 48, 60, 57, 68, 64, 74, 71, 83, 79, 92].map((height, index) => (
-                        <div key={index} className="flex-1 rounded-t bg-primary/60" style={{ height: `${height}%` }} />
-                      ))}
-                    </div>
-                  </div>
-                  <div className="rounded-xl border border-border bg-background/40 p-5">
-                    <p className="text-sm font-semibold">Risk diagnostics</p>
-                    <div className="mt-4 space-y-3 text-sm">
-                      {["No leverage breach", "Position cap respected", "Stop-loss coverage 96%", "Outlier loss contained"].map((item) => (
-                        <div key={item} className="flex items-center gap-2"><ShieldCheck className="size-4 text-success" />{item}</div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+                <BacktestResults definition={rules} />
                 <Button variant="outline" onClick={() => setStep(0)}>Back to Build</Button>
               </div>
             )}
