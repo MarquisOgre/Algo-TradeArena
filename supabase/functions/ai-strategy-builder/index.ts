@@ -56,9 +56,22 @@ Deno.serve(async (req: Request) => {
     });
 
     if (!response.ok) {
-      const detail = await response.text();
-      return new Response(JSON.stringify({ error: "AI provider request failed.", detail }), {
-        status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      const providerText = await response.text();
+      let providerMessage = "AI provider request failed.";
+      try {
+        const providerBody = JSON.parse(providerText);
+        providerMessage = providerBody?.error?.message ?? providerMessage;
+      } catch {
+        // Keep provider HTML/plain-text errors out of the client response.
+      }
+
+      return new Response(JSON.stringify({
+        error: providerMessage,
+        provider_status: response.status,
+        model,
+      }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
