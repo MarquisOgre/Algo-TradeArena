@@ -495,7 +495,13 @@ def collect_requested_candles(
             continue
 
         for rate in rates:
-            candle_time = iso_from_seconds(rate["time"])
+            # MT5 bar timestamps are delivered in UTC. Do not apply the
+            # broker tick/server offset used for live tick normalization.
+            # Applying that offset here shifts daily bars onto the wrong date.
+            candle_time = datetime.fromtimestamp(
+                float(rate["time"]),
+                tz=timezone.utc,
+            ).isoformat()
             if not candle_time:
                 continue
 
