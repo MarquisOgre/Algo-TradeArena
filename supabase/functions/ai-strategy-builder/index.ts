@@ -43,11 +43,12 @@ Deno.serve(async (req: Request) => {
       "Do not invent market symbols or hardcode a universe.",
     ].join(" ");
 
+    const model = Deno.env.get("OPENAI_STRATEGY_MODEL") ?? "gpt-4.1-mini";
     const response = await fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: Deno.env.get("OPENAI_STRATEGY_MODEL") ?? "gpt-4.1-mini",
+        model,
         temperature: 0.2,
         response_format: { type: "json_object" },
         messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
