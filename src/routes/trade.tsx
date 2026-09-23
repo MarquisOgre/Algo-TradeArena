@@ -400,7 +400,7 @@ function TradePage() {
     if (
       !executionQuote ||
       executionQuote.provider !== "mt5" ||
-      !isQuoteFresh(executionQuote, 15_000)
+      !isQuoteFresh(executionQuote, 60_000)
     ) {
       toast.info("Waiting for a fresh MT5 quote", {
         description: "The order ticket is ready; execution will resume automatically when the latest MT5 bid/ask arrives.",
