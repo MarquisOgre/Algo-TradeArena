@@ -222,11 +222,12 @@ export function validateStrategyDefinition(definition: StrategyDefinition) {
   else if (definition.entry.conditions.length === 0) errors.push("At least one entry condition is required.");
   if (!definition.exit || !Array.isArray(definition.exit.conditions)) errors.push("At least one exit condition is required.");
   else if (definition.exit.conditions.length === 0) errors.push("At least one exit condition is required.");
-  if (definition.riskPerTradePct <= 0 || definition.riskPerTradePct > 10) errors.push("Risk per trade must be greater than 0% and no more than 10%.");
-  if (definition.stopLossPct < 0 || definition.stopLossPct > 50) errors.push("Stop loss must be between 0% and 50%.");
-  if (definition.takeProfitPct < 0 || definition.takeProfitPct > 100) errors.push("Take profit must be between 0% and 100%.");
-  if (definition.trailingStopPct < 0 || definition.trailingStopPct > 50) errors.push("Trailing stop must be between 0% and 50%.");
+  if (!Number.isFinite(definition.riskPerTradePct) || definition.riskPerTradePct <= 0 || definition.riskPerTradePct > 10) errors.push("Risk per trade must be greater than 0% and no more than 10%.");
+  if (!Number.isFinite(definition.stopLossPct) || definition.stopLossPct < 0 || definition.stopLossPct > 50) errors.push("Stop loss must be between 0% and 50%.");
+  if (!Number.isFinite(definition.takeProfitPct) || definition.takeProfitPct < 0 || definition.takeProfitPct > 100) errors.push("Take profit must be between 0% and 100%.");
+  if (!Number.isFinite(definition.trailingStopPct) || definition.trailingStopPct < 0 || definition.trailingStopPct > 50) errors.push("Trailing stop must be between 0% and 50%.");
   for (const group of [definition.entry, definition.exit]) {
+    if (!group || !Array.isArray(group.conditions)) continue;
     for (const condition of group.conditions) {
       if (!condition.indicator.trim()) errors.push("Every condition requires an indicator.");
       if (!condition.comparator.trim()) errors.push("Every condition requires a comparator.");
