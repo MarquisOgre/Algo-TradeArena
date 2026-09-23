@@ -9,17 +9,19 @@ Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const apiKey = Deno.env.get("OPENAI_API_KEY");
+    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "AI Strategy Builder is not configured. Add OPENAI_API_KEY to the Supabase function secrets." }), {
-        status: 503, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      return new Response(JSON.stringify({ error: "AI Strategy Builder is not configured. Add OPENROUTER_API_KEY to the Supabase function secrets." }), {
+        status: 503,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "Authentication required." }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -27,7 +29,8 @@ Deno.serve(async (req: Request) => {
     const prompt = String(body.prompt ?? "").trim();
     if (!prompt) {
       return new Response(JSON.stringify({ error: "A strategy description is required." }), {
-        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
@@ -43,15 +46,23 @@ Deno.serve(async (req: Request) => {
       "Do not invent market symbols or hardcode a universe.",
     ].join(" ");
 
-    const model = Deno.env.get("OPENAI_STRATEGY_MODEL") ?? "gpt-4.1-mini";
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const model = Deno.env.get("OPENROUTER_STRATEGY_MODEL") ?? "openrouter/free";
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://alphentra.vercel.app",
+        "X-Title": "ALPHENTRA Strategy Lab",
+      },
       body: JSON.stringify({
         model,
         temperature: 0.2,
         response_format: { type: "json_object" },
-        messages: [{ role: "system", content: system }, { role: "user", content: prompt }],
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: prompt },
+        ],
       }),
     });
 
@@ -70,9 +81,6 @@ Deno.serve(async (req: Request) => {
         provider_status: response.status,
         model,
       }), {
-        // Return a JSON application error so supabase.functions.invoke() exposes
-        // the provider message to the Strategy Lab instead of collapsing it into
-        // a generic FunctionsHttpError.
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -82,13 +90,26 @@ Deno.serve(async (req: Request) => {
     const content = payload?.choices?.[0]?.message?.content;
     if (!content) throw new Error("AI provider returned no strategy definition.");
 
-    const definition = JSON.parse(content);
-    return new Response(JSON.stringify({ definition }), {
+    let definition: unknown;
+    try {
+      definition = JSON.parse(content);
+    } catch {
+      const cleaned = String(content)
+        .replace(/^\s*```(?:json)?\s*/i, "")
+        .replace(/\s*```\s*$/i, "")
+        .trim();
+      definition = JSON.parse(cleaned);
+    }
+
+    return new Response(JSON.stringify({ definition, model: payload?.model ?? model }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : "AI strategy generation failed." }), {
-      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    return new Response(JSON.stringify({
+      error: error instanceof Error ? error.message : "AI strategy generation failed.",
+    }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   }
 });
