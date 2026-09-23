@@ -48,7 +48,10 @@ Deno.serve(async (req: Request) => {
       "Do not invent market symbols or hardcode a universe.",
     ].join(" ");
 
-    const model = Deno.env.get("OPENROUTER_STRATEGY_MODEL") ?? "openrouter/free";
+    const configuredModel = Deno.env.get("OPENROUTER_STRATEGY_MODEL");
+    const model = configuredModel && configuredModel !== "openrouter/free" && configuredModel !== "poolside/laguna-xs-2.1:free"
+      ? configuredModel
+      : "google/gemma-4-26b-a4b-it:free";
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
