@@ -50,9 +50,9 @@ Deno.serve(async (req: Request) => {
 
     const configuredModel = Deno.env.get("OPENROUTER_STRATEGY_MODEL");
     const freeFallbackModels = [
-      "nvidia/nemotron-3-super-120b-a12b:free",
       "qwen/qwen3.8-27b:free",
-      "nex-agi/nex-n2.5-pro:free",
+      "google/gemma-4-31b-it:free",
+      "google/gemma-4-26b-a4b-it:free",
     ];
     const models = configuredModel &&
       configuredModel !== "openrouter/free" &&
