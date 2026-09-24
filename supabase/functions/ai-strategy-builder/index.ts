@@ -6,14 +6,74 @@ const corsHeaders = {
 };
 
 const AI_TIMEOUT_MS = 30_000;
+const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+
+const strategySchema = {
+  type: "object",
+  additionalProperties: false,
+  properties: {
+    entryOperator: { type: "string", enum: ["AND", "OR"] },
+    entry: {
+      type: "array",
+      minItems: 1,
+      maxItems: 6,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          indicator: { type: "string", enum: ["EMA", "SMA", "RSI", "MACD", "ATR", "PRICE", "OPEN", "HIGH", "LOW", "VOLUME"] },
+          period: { type: ["number", "null"] },
+          comparator: { type: "string", enum: ["gt", "gte", "lt", "lte", "eq", "neq", "crosses_above", "crosses_below"] },
+          value: { type: "string" },
+        },
+        required: ["indicator", "period", "comparator", "value"],
+      },
+    },
+    exitOperator: { type: "string", enum: ["AND", "OR"] },
+    exit: {
+      type: "array",
+      minItems: 1,
+      maxItems: 6,
+      items: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          indicator: { type: "string", enum: ["EMA", "SMA", "RSI", "MACD", "ATR", "PRICE", "OPEN", "HIGH", "LOW", "VOLUME"] },
+          period: { type: ["number", "null"] },
+          comparator: { type: "string", enum: ["gt", "gte", "lt", "lte", "eq", "neq", "crosses_above", "crosses_below"] },
+          value: { type: "string" },
+        },
+        required: ["indicator", "period", "comparator", "value"],
+      },
+    },
+    stopLossPct: { type: "number", minimum: 0, maximum: 10 },
+    takeProfitPct: { type: "number", minimum: 0, maximum: 20 },
+    trailingStopPct: { type: "number", minimum: 0, maximum: 10 },
+    riskPerTradePct: { type: "number", exclusiveMinimum: 0, maximum: 2 },
+    positionSizing: { type: "string", enum: ["fixed", "risk_percent", "volatility_adjusted"] },
+  },
+  required: [
+    "entryOperator",
+    "entry",
+    "exitOperator",
+    "exit",
+    "stopLossPct",
+    "takeProfitPct",
+    "trailingStopPct",
+    "riskPerTradePct",
+    "positionSizing",
+  ],
+};
 
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const apiKey = Deno.env.get("OPENROUTER_API_KEY");
+    const apiKey = Deno.env.get("OPENAI_API_KEY");
     if (!apiKey) {
-      return new Response(JSON.stringify({ error: "AI Strategy Builder is not configured. Add OPENROUTER_API_KEY to the Supabase function secrets." }), {
+      return new Response(JSON.stringify({
+        error: "AI Strategy Builder is not configured. Add OPENAI_API_KEY to the Supabase function secrets.",
+      }), {
         status: 503,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -48,33 +108,20 @@ Deno.serve(async (req: Request) => {
       "Do not invent market symbols or hardcode a universe.",
     ].join(" ");
 
-    const configuredModel = Deno.env.get("OPENROUTER_STRATEGY_MODEL");
-    const freeFallbackModels = [
-      "qwen/qwen3.8-27b:free",
-      "google/gemma-4-31b-it:free",
-      "google/gemma-4-26b-a4b-it:free",
-    ];
-    const models = configuredModel &&
-      configuredModel !== "openrouter/free" &&
-      configuredModel !== "poolside/laguna-xs-2.1:free"
-      ? [configuredModel, ...freeFallbackModels.filter((candidate) => candidate !== configuredModel)]
-      : freeFallbackModels;
-    const primaryModel = models[0];
+    const model = Deno.env.get("OPENAI_STRATEGY_MODEL") || DEFAULT_OPENAI_MODEL;
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), AI_TIMEOUT_MS);
 
     let response: Response;
     try {
-      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      response = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${apiKey}`,
-          "HTTP-Referer": "https://alphentra.vercel.app",
-          "X-Title": "ALPHENTRA Strategy Lab",
         },
         body: JSON.stringify({
-          models,
+          model,
           temperature: 0.2,
           max_tokens: 500,
           response_format: {
@@ -82,56 +129,8 @@ Deno.serve(async (req: Request) => {
             json_schema: {
               name: "alphentra_strategy_definition",
               strict: true,
-              schema: {
-                type: "object",
-                additionalProperties: false,
-                properties: {
-                  entryOperator: { type: "string", enum: ["AND", "OR"] },
-                  entry: {
-                    type: "array",
-                    minItems: 1,
-                    maxItems: 6,
-                    items: {
-                      type: "object",
-                      additionalProperties: false,
-                      properties: {
-                        indicator: { type: "string", enum: ["EMA", "SMA", "RSI", "MACD", "ATR", "PRICE", "OPEN", "HIGH", "LOW", "VOLUME"] },
-                        period: { type: ["number", "null"] },
-                        comparator: { type: "string", enum: ["gt", "gte", "lt", "lte", "eq", "neq", "crosses_above", "crosses_below"] },
-                        value: { type: "string" },
-                      },
-                      required: ["indicator", "period", "comparator", "value"],
-                    },
-                  },
-                  exitOperator: { type: "string", enum: ["AND", "OR"] },
-                  exit: {
-                    type: "array",
-                    minItems: 1,
-                    maxItems: 6,
-                    items: {
-                      type: "object",
-                      additionalProperties: false,
-                      properties: {
-                        indicator: { type: "string", enum: ["EMA", "SMA", "RSI", "MACD", "ATR", "PRICE", "OPEN", "HIGH", "LOW", "VOLUME"] },
-                        period: { type: ["number", "null"] },
-                        comparator: { type: "string", enum: ["gt", "gte", "lt", "lte", "eq", "neq", "crosses_above", "crosses_below"] },
-                        value: { type: "string" },
-                      },
-                      required: ["indicator", "period", "comparator", "value"],
-                    },
-                  },
-                  stopLossPct: { type: "number", minimum: 0, maximum: 10 },
-                  takeProfitPct: { type: "number", minimum: 0, maximum: 20 },
-                  trailingStopPct: { type: "number", minimum: 0, maximum: 10 },
-                  riskPerTradePct: { type: "number", exclusiveMinimum: 0, maximum: 2 },
-                  positionSizing: { type: "string", enum: ["fixed", "risk_percent", "volatility_adjusted"] },
-                },
-                required: ["entryOperator", "entry", "exitOperator", "exit", "stopLossPct", "takeProfitPct", "trailingStopPct", "riskPerTradePct", "positionSizing"],
-              },
+              schema: strategySchema,
             },
-          },
-          provider: {
-            require_parameters: true,
           },
           messages: [
             { role: "system", content: system },
@@ -143,10 +142,10 @@ Deno.serve(async (req: Request) => {
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") {
         return new Response(JSON.stringify({
-          error: `AI provider timed out after ${AI_TIMEOUT_MS / 1000} seconds. Please try again.`,
-          provider: "openrouter",
+          error: `OpenAI timed out after ${AI_TIMEOUT_MS / 1000} seconds. Please try again.`,
+          provider: "openai",
           provider_status: 408,
-          model: primaryModel,
+          model,
         }), {
           status: 200,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -159,18 +158,19 @@ Deno.serve(async (req: Request) => {
 
     if (!response.ok) {
       const providerText = await response.text();
-      let providerMessage = "AI provider request failed.";
+      let providerMessage = "OpenAI request failed.";
       try {
         const providerBody = JSON.parse(providerText);
         providerMessage = providerBody?.error?.message ?? providerMessage;
       } catch {
-        // Keep provider HTML/plain-text errors out of the client response.
+        // Keep raw provider HTML/plain-text errors out of the client response.
       }
 
       return new Response(JSON.stringify({
         error: providerMessage,
         provider_status: response.status,
-        model: primaryModel,
+        model,
+        provider: "openai",
       }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -180,7 +180,7 @@ Deno.serve(async (req: Request) => {
     const payload = await response.json();
     const content = payload?.choices?.[0]?.message?.content;
     if (!content) {
-      throw new Error(`AI provider returned no strategy definition. Model: ${payload?.model ?? primaryModel}`);
+      throw new Error(`OpenAI returned no strategy definition. Model: ${payload?.model ?? model}`);
     }
 
     let definition: unknown;
@@ -188,23 +188,27 @@ Deno.serve(async (req: Request) => {
       definition = JSON.parse(typeof content === "string" ? content : JSON.stringify(content));
     } catch {
       const cleaned = String(content)
-        .replace(/^\s*```(?:json)?\s*/i, "")
-        .replace(/\s*```\s*$/i, "")
+        .replace(/^\s*\`\`\`(?:json)?\s*/i, "")
+        .replace(/\s*\`\`\`\s*$/i, "")
         .trim();
       try {
         definition = JSON.parse(cleaned);
       } catch {
-        throw new Error(`AI provider returned non-JSON strategy content. Model: ${payload?.model ?? primaryModel}`);
+        throw new Error(`OpenAI returned non-JSON strategy content. Model: ${payload?.model ?? model}`);
       }
     }
 
-    return new Response(JSON.stringify({ definition, model: payload?.model ?? primaryModel }), {
+    return new Response(JSON.stringify({
+      definition,
+      model: payload?.model ?? model,
+      provider: "openai",
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     return new Response(JSON.stringify({
       error: error instanceof Error ? error.message : "AI strategy generation failed.",
-      provider: "openrouter",
+      provider: "openai",
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
